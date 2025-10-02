@@ -1,0 +1,309 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Register</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@200;300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <script
+      src="https://kit.fontawesome.com/a076d05399.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Open Sans", sans-serif;
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        width: 100%;
+        padding: 0 10px;
+        position: relative;
+        background: url("{% static 'images/loginbackground.png' %}") no-repeat
+          center center/cover;
+        animation: moveBg 20s linear infinite;
+      }
+
+      @keyframes moveBg {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      .container {
+        width: 100%;
+        max-width: 450px;
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      h2 {
+        font-size: 1.7rem;
+        margin-bottom: 20px;
+        color: #000000;
+      }
+
+      label {
+        display: block;
+        margin-top: 15px;
+        color: #000000;
+        text-align: left;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        border-radius: 5px;
+        border: none;
+        outline: none;
+        background: rgba(255, 255, 255, 0.15);
+        color: #000000;
+      }
+
+      textarea {
+        resize: vertical;
+      }
+
+      input::placeholder,
+      textarea::placeholder {
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .show-password {
+        display: flex;
+        align-items: center;
+        margin-top: 10px;
+        font-size: 14px;
+        gap: 5px;
+        color: #000000;
+      }
+
+      .validation-error {
+        background-color: rgba(255, 0, 0, 0.1);
+        color: #b30000;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        font-size: 14px;
+      }
+
+      button {
+        margin-top: 20px;
+        width: 100%;
+        padding: 12px;
+        background-color: #3066b7;
+        color: #000;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        position: relative;
+        transition: 0.3s ease;
+        font-weight: 600;
+      }
+
+      button:hover {
+        background-color: #fff;
+        color: #000000;
+        border: 2px solid #ff0000;
+      }
+
+      .spinner {
+        display: none;
+        width: 18px;
+        height: 18px;
+        border: 3px solid #fff;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .login-link {
+        text-align: center;
+        margin-top: 20px;
+        color: #000000;
+      }
+
+      .login-link a {
+        color: #000000;
+        text-decoration: none;
+      }
+
+      .login-link a:hover {
+        text-decoration: underline;
+      }
+
+      .messages {
+        margin-top: 15px;
+      }
+
+      .messages p {
+        color: #ff4d4d;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 10px;
+        border-radius: 4px;
+      }
+
+      @media screen and (max-width: 480px) {
+        .container {
+          padding: 20px;
+          margin: 0 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <hr style="border: 1px solid #ff6600" />
+      <h2><i class="fas fa-user-plus"></i> Register to Lavkush Furniture</h2>
+      <hr style="border: 1px solid #ff6600" />
+
+      {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+        <p>{{ message }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div
+        id="frontend-error"
+        class="validation-error"
+        style="display: none"
+      ></div>
+
+      <form method="post" id="register-form">
+        {% csrf_token %}
+
+        <label for="full_name"><i class="fas fa-user"></i> Full Name:</label>
+        <input type="text" id="full_name" name="full_name" required autofocus />
+
+        <label for="email"><i class="fas fa-envelope"></i> Email:</label>
+        <input type="email" id="email" name="email" required />
+
+        <label for="phone_number"><i class="fas fa-phone"></i> Phone:</label>
+        <input
+          type="number"
+          id="phone_number"
+          name="phone_number"
+          required
+          pattern="[0-9]{10}"
+          title="Enter 10 digit phone number"
+        />
+
+        <label for="address"><i class="fas fa-home"></i> Address:</label>
+        <textarea id="address" name="address" rows="3" required></textarea>
+
+        <label for="city"><i class="fas fa-city"></i> City:</label>
+        <input type="text" id="city" name="city" required />
+
+        <label for="username"
+          ><i class="fas fa-user-circle"></i> Username:</label
+        >
+        <input type="text" id="username" name="username" required />
+
+        <label for="password"><i class="fas fa-lock"></i> Password:</label>
+        <input type="password" id="password" name="password" required />
+
+        <div class="show-password">
+          <input type="checkbox" id="toggle-password" />
+          <label for="toggle-password">Show Password</label>
+        </div>
+
+        <button type="submit" id="register-button">
+          ✅ Register
+          <span class="spinner" id="spinner"></span>
+        </button>
+      </form>
+
+      <div class="login-link">
+        Already have an account ❓<br /><br />
+        <a href="{% url 'login' %}">🚪 Login</a>
+      </div>
+    </div>
+
+    <script>
+      const form = document.getElementById("register-form");
+      const button = document.getElementById("register-button");
+      const spinner = document.getElementById("spinner");
+      const password = document.getElementById("password");
+      const togglePassword = document.getElementById("toggle-password");
+      const errorDiv = document.getElementById("frontend-error");
+
+      togglePassword.addEventListener("change", () => {
+        password.type = togglePassword.checked ? "text" : "password";
+      });
+
+      form.addEventListener("submit", function (e) {
+        const requiredFields = [
+          "full_name",
+          "email",
+          "phone_number",
+          "address",
+          "city",
+          "username",
+          "password",
+        ];
+        let hasError = false;
+
+        errorDiv.style.display = "none";
+        errorDiv.innerText = "";
+
+        requiredFields.forEach((id) => {
+          const field = document.getElementById(id);
+          if (!field.value.trim()) {
+            hasError = true;
+          }
+        });
+
+        if (hasError) {
+          e.preventDefault();
+          errorDiv.innerText = "Please fill in all the required fields.";
+          errorDiv.style.display = "block";
+          return;
+        }
+
+        button.disabled = true;
+        spinner.style.display = "inline-block";
+      });
+    </script>
+  </body>
+</html>

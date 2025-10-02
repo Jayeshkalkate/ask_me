@@ -1,0 +1,481 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en" class="antialiased">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Chatbot UI — Tailwind Template</title>
+
+    <!-- Tailwind CDN (Play CDN for quick prototyping) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Add small Tailwind config for dark mode by class -->
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            keyframes: {
+              "dot-flash": {
+                "0%": { opacity: 0.2, transform: "translateY(0.25rem)" },
+                "50%": { opacity: 1, transform: "translateY(0)" },
+                "100%": { opacity: 0.2, transform: "translateY(0.25rem)" },
+              },
+              "fade-in-up": {
+                "0%": { opacity: 0, transform: "translateY(8px)" },
+                "100%": { opacity: 1, transform: "translateY(0)" },
+              },
+            },
+            animation: {
+              "dot-flash": "dot-flash 1s ease-in-out infinite",
+              "fade-in-up": "fade-in-up 220ms ease-out both",
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      /* small local styles for chat scroll bar & message bubble max width */
+      .chat-scrollbar::-webkit-scrollbar {
+        width: 8px;
+      }
+      .chat-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(100, 100, 100, 0.2);
+        border-radius: 8px;
+      }
+
+      /* Ensure quick replies don't overflow */
+      .quick-reply {
+        white-space: nowrap;
+      }
+
+      /* subtle shadow when input is focused in dark mode */
+      .input-shadow:focus {
+        box-shadow: 0 6px 18px rgba(2, 6, 23, 0.25);
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center p-4"
+  >
+    <!-- Container -->
+    <main class="w-full max-w-3xl mx-auto">
+      <div
+        class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden grid grid-rows-[auto_1fr_auto] h-[80vh] md:h-[80vh]"
+      >
+        <!-- Header -->
+        <header
+          class="flex items-center justify-between gap-3 p-4 border-b dark:border-gray-700"
+        >
+          <div class="flex items-center gap-3">
+            <div
+              class="w-10 h-10 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold"
+            >
+              JK
+            </div>
+            <div>
+              <div class="font-semibold">Ask Me</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">Online</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <!-- Quick: Dark mode toggle -->
+            <button
+              id="darkToggle"
+              aria-label="Toggle dark mode"
+              class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <svg
+                id="sunIcon"
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  d="M10 4.5a.75.75 0 01.75.75V7a.75.75 0 01-1.5 0V5.25A.75.75 0 0110 4.5zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                />
+                <path
+                  d="M10 1.75a.75.75 0 01.75.75v.5a.75.75 0 01-1.5 0V2.5A.75.75 0 0110 1.75zM10 15.5a.75.75 0 01.75.75v.5a.75.75 0 01-1.5 0v-.5A.75.75 0 0110 15.5zM3.22 3.22a.75.75 0 011.06 0l.354.353a.75.75 0 01-1.06 1.06L3.22 4.28a.75.75 0 010-1.06zM15.36 15.36a.75.75 0 011.06 0l.354.353a.75.75 0 01-1.06 1.06l-.354-.353a.75.75 0 010-1.06zM3.22 16.78a.75.75 0 010-1.06l.353-.354a.75.75 0 011.06 1.06l-.353.354a.75.75 0 01-1.06 0zM15.36 4.64a.75.75 0 010 1.06l-.354.354a.75.75 0 11-1.06-1.06l.354-.354a.75.75 0 011.06 0z"
+                />
+              </svg>
+            </button>
+
+            <!-- Microphone -->
+            <button
+              id="micBtn"
+              title="Toggle microphone (speech-to-text)"
+              class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M10 2a2.5 2.5 0 00-2.5 2.5V9a2.5 2.5 0 005 0V4.5A2.5 2.5 0 0010 2z"
+                />
+                <path d="M5 10a5 5 0 0010 0h-1.5a3.5 3.5 0 01-7 0H5zM10 15v3" />
+              </svg>
+            </button>
+          </div>
+        </header>
+      </div>
+    </main>
+  </body>
+</html>
+
+        <!-- Chat history -->
+        <section
+          id="chatHistory"
+          class="chat-scrollbar p-4 overflow-auto space-y-4 bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-800"
+        >
+          <!-- messages go here -->
+          <div
+            id="welcome"
+            class="text-center text-sm text-gray-500 dark:text-gray-400"
+          >
+            Welcome! Ask me anything — try typing "help".
+          </div>
+        </section>
+
+        <!-- Input area -->
+        <footer
+          class="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800"
+        >
+          <div
+            id="errorBanner"
+            class="hidden mb-2 rounded-md bg-red-50 dark:bg-red-900/30 px-3 py-2 text-sm text-red-700 dark:text-red-300"
+          ></div>
+
+          <!-- Quick replies -->
+          <div
+            id="quickReplies"
+            class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar"
+          >
+            <!-- dynamically inserted quick reply buttons -->
+            <button
+              class="quick-reply px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-sm rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
+            >
+              Hello
+            </button>
+            <button
+              class="quick-reply px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-sm rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
+            >
+              Show features
+            </button>
+            <button
+              class="quick-reply px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-sm rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
+            >
+              Contact
+            </button>
+          </div>
+
+          <div class="flex gap-2 items-end">
+            <textarea
+              id="messageInput"
+              rows="1"
+              placeholder="Type a message..."
+              class="flex-1 resize-none rounded-xl border dark:border-gray-700 px-4 py-3 focus:outline-none input-shadow bg-gray-50 dark:bg-gray-900 text-sm"
+            ></textarea>
+
+            <button
+              id="sendBtn"
+              class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium disabled:opacity-60"
+              aria-label="Send message"
+            >
+              Send
+            </button>
+          </div>
+
+          <!-- Typing indicator (hidden by default) -->
+          <div
+            id="typingIndicator"
+            class="mt-3 hidden text-sm text-gray-500 dark:text-gray-400"
+          >
+            <span class="inline-flex items-center gap-2">
+              <strong>Bot is typing</strong>
+              <span class="inline-flex items-end gap-1">
+                <span
+                  class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-300 inline-block animate-dot-flash"
+                ></span>
+                <span
+                  class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-300 inline-block animate-dot-flash"
+                  style="animation-delay: 0.15s"
+                ></span>
+                <span
+                  class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-300 inline-block animate-dot-flash"
+                  style="animation-delay: 0.3s"
+                ></span>
+              </span>
+            </span>
+          </div>
+        </footer>
+      </div>
+    </main>
+
+    <!-- JavaScript -->
+    <script>
+      (function () {
+        // Elements
+        const chatHistory = document.getElementById("chatHistory");
+        const messageInput = document.getElementById("messageInput");
+        const sendBtn = document.getElementById("sendBtn");
+        const typingIndicator = document.getElementById("typingIndicator");
+        const errorBanner = document.getElementById("errorBanner");
+        const quickReplies = document.getElementById("quickReplies");
+        const darkToggle = document.getElementById("darkToggle");
+        const micBtn = document.getElementById("micBtn");
+
+        let isDark = false;
+        const preferredDark = localStorage.getItem("chat-dark");
+        if (preferredDark === "1") {
+          document.documentElement.classList.add("dark");
+          isDark = true;
+        }
+
+        // Utility: auto-scroll to bottom smoothly
+        function scrollToBottom() {
+          // smooth scroll to bottom
+          chatHistory.scrollTo({
+            top: chatHistory.scrollHeight,
+            behavior: "smooth",
+          });
+        }
+
+        // Utility: create message element
+        function createMessageEl({
+          text,
+          who = "bot",
+          timestamp = Date.now(),
+        }) {
+          const wrapper = document.createElement("div");
+          wrapper.className =
+            "flex " +
+            (who === "user" ? "justify-end" : "justify-start") +
+            " px-1";
+          // bubble
+          const bubble = document.createElement("div");
+          bubble.className = [
+            "max-w-[85%] break-words text-sm px-4 py-3 rounded-2xl shadow-sm",
+            "animate-fade-in-up",
+          ].join(" ");
+
+          if (who === "user") {
+            bubble.classList.add(
+              "bg-indigo-600",
+              "text-white",
+              "rounded-br-none"
+            );
+          } else {
+            bubble.classList.add(
+              "bg-gray-100",
+              "dark:bg-gray-700",
+              "text-gray-900",
+              "dark:text-gray-100",
+              "rounded-bl-none"
+            );
+          }
+
+          bubble.innerText = text;
+          wrapper.appendChild(bubble);
+
+          return wrapper;
+        }
+
+        // Show typing indicator
+        function showTyping(show = true) {
+          typingIndicator.classList.toggle("hidden", !show);
+          scrollToBottom();
+        }
+
+        // Show error message
+        function showError(msg) {
+          errorBanner.innerText = msg;
+          errorBanner.classList.remove("hidden");
+          setTimeout(() => errorBanner.classList.add("hidden"), 6000);
+        }
+
+        // Send message flow
+        async function sendMessage(text, opts = {}) {
+          const trimmed = String(text || "").trim();
+          if (!trimmed) return;
+
+          // add user message immediately
+          const userMsg = createMessageEl({ text: trimmed, who: "user" });
+          chatHistory.appendChild(userMsg);
+          scrollToBottom();
+
+          // clear input
+          messageInput.value = "";
+          messageInput.focus();
+
+          // show typing
+          showTyping(true);
+
+          // call backend
+          try {
+            // default headers and body
+            const res = await fetch("/api/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message: trimmed }),
+            });
+
+            if (!res.ok) {
+              // try to parse json error body
+              let errText = `API Error: ${res.status} ${res.statusText}`;
+              try {
+                const json = await res.json();
+                if (json && json.error) errText = json.error;
+              } catch (e) {}
+              throw new Error(errText);
+            }
+
+            const data = await res.json();
+            // expected format: { reply: "..." }
+            const botText =
+              (data && (data.reply || data.message || data.text)) ||
+              "No response";
+
+            // append bot message
+            const botMsg = createMessageEl({ text: botText, who: "bot" });
+            chatHistory.appendChild(botMsg);
+            showTyping(false);
+            scrollToBottom();
+          } catch (err) {
+            showTyping(false);
+            showError(err.message || "Failed to reach the chat API.");
+            const botMsg = createMessageEl({
+              text: "Sorry — I could not process that. Please try again.",
+              who: "bot",
+            });
+            chatHistory.appendChild(botMsg);
+            scrollToBottom();
+          }
+        }
+
+        // handle Send button
+        sendBtn.addEventListener("click", () =>
+          sendMessage(messageInput.value)
+        );
+
+        // handle Enter to send, Shift+Enter for newline
+        messageInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage(messageInput.value);
+          }
+        });
+
+        // Quick replies click
+        quickReplies.addEventListener("click", (e) => {
+          const btn = e.target.closest("button");
+          if (!btn) return;
+          sendMessage(btn.innerText);
+        });
+
+        // Dark mode toggle
+        darkToggle.addEventListener("click", () => {
+          isDark = !isDark;
+          if (isDark) {
+            document.documentElement.classList.add("dark");
+            localStorage.setItem("chat-dark", "1");
+          } else {
+            document.documentElement.classList.remove("dark");
+            localStorage.setItem("chat-dark", "0");
+          }
+        });
+
+        // Microphone / Speech-to-text (optional)
+        let recognition = null;
+        let listening = false;
+        if (
+          "webkitSpeechRecognition" in window ||
+          "SpeechRecognition" in window
+        ) {
+          const SpeechRecognition =
+            window.SpeechRecognition || window.webkitSpeechRecognition;
+          recognition = new SpeechRecognition();
+          recognition.lang = "en-IN";
+          recognition.interimResults = false;
+          recognition.maxAlternatives = 1;
+
+          recognition.addEventListener("result", (ev) => {
+            const transcript = Array.from(ev.results)
+              .map((r) => r[0])
+              .map((x) => x.transcript)
+              .join("");
+            messageInput.value = transcript;
+          });
+
+          recognition.addEventListener("end", () => {
+            listening = false;
+            micBtn.classList.remove("bg-red-100", "dark:bg-red-900/50");
+          });
+        } else {
+          // not supported; disable mic button
+          micBtn.title = "Speech recognition not supported in this browser";
+          micBtn.classList.add("opacity-40", "cursor-not-allowed");
+        }
+
+        micBtn.addEventListener("click", () => {
+          if (!recognition) return;
+          if (!listening) {
+            try {
+              recognition.start();
+              listening = true;
+              micBtn.classList.add("bg-red-100", "dark:bg-red-900/50");
+            } catch (e) {
+              console.warn(e);
+            }
+          } else {
+            recognition.stop();
+            listening = false;
+            micBtn.classList.remove("bg-red-100", "dark:bg-red-900/50");
+          }
+        });
+
+        // For accessibility: focus input when anywhere in chat clicked
+        chatHistory.addEventListener("click", () => messageInput.focus());
+
+        // Add initial example bot messages (optional)
+        function initWelcome() {
+          const botIntro = createMessageEl({
+            text: "Hi — I'm your assistant. Ask me about features, or type anything to start.",
+            who: "bot",
+          });
+          chatHistory.appendChild(botIntro);
+          scrollToBottom();
+        }
+        initWelcome();
+
+        // OPTIONAL: expose sendMessage on window for debugging
+        window.sendMessage = sendMessage;
+
+        // Resize textarea auto-grow
+        function autoResizeTA(el) {
+          el.style.height = "auto";
+          el.style.height = el.scrollHeight + "px";
+        }
+        messageInput.addEventListener("input", () =>
+          autoResizeTA(messageInput)
+        );
+        autoResizeTA(messageInput);
+
+        // Hide quick-replies if mobile small view — simple responsive tweak
+        function adaptQuickReplies() {
+          if (window.innerWidth < 420) quickReplies.classList.add("hidden");
+          else quickReplies.classList.remove("hidden");
+        }
+        window.addEventListener("resize", adaptQuickReplies);
+        adaptQuickReplies();
+      })();
+    </script>
+  </body>
+</html>
+

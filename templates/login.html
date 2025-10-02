@@ -1,0 +1,285 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Lavkush Furniture</title>
+
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <script
+      src="https://kit.fontawesome.com/a076d05399.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Open Sans", sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+        background: url("{% static 'images/loginbackground.png' %}") no-repeat
+          center center/cover;
+        animation: moveBg 20s linear infinite;
+      }
+
+      @keyframes moveBg {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      .wrapper {
+        width: 100%;
+        max-width: 400px;
+        padding: 40px 30px;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        color: #000;
+      }
+
+      h2 {
+        font-size: 2rem;
+        margin-bottom: 20px;
+        font-weight: 600;
+        color: #222;
+        text-align: center;
+      }
+
+      .input-field {
+        position: relative;
+        margin: 20px 0;
+      }
+
+      .input-field input {
+        width: 100%;
+        padding: 12px 40px 12px 35px;
+        border: none;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        color: #222;
+        font-size: 15px;
+        outline: none;
+      }
+
+      .input-field i {
+        position: absolute;
+        top: 50%;
+        left: 10px;
+        transform: translateY(-50%);
+        color: #444;
+      }
+
+      .input-field label {
+        position: absolute;
+        top: 50%;
+        left: 35px;
+        transform: translateY(-50%);
+        color: #666;
+        font-size: 14px;
+        pointer-events: none;
+        transition: 0.3s ease;
+      }
+
+      .input-field input:focus ~ label,
+      .input-field input:valid ~ label {
+        top: 5px;
+        font-size: 12px;
+        color: #000;
+      }
+
+      .show-password {
+        margin-top: -10px;
+        font-size: 14px;
+        color: #000;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      button {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        background-color: #ff6600;
+        color: white;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        position: relative;
+        transition: background 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #e65c00;
+      }
+
+      .spinner {
+        display: none;
+        width: 18px;
+        height: 18px;
+        border: 3px solid #fff;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .error-message,
+      .validation-error {
+        background-color: rgba(255, 0, 0, 0.1);
+        color: #b30000;
+        padding: 10px 15px;
+        border-radius: 6px;
+        font-size: 14px;
+        margin-bottom: 15px;
+      }
+
+      .link-group {
+        margin-top: 15px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+      }
+
+      .link-group a {
+        color: #003366;
+        text-decoration: none;
+      }
+
+      .link-group a:hover {
+        text-decoration: underline;
+      }
+
+      .register {
+        margin-top: 25px;
+        text-align: center;
+        font-size: 14px;
+      }
+
+      .register a {
+        color: #003366;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .register a:hover {
+        text-decoration: underline;
+      }
+
+      @media screen and (max-width: 480px) {
+        .wrapper {
+          padding: 30px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <h2>User Login</h2>
+
+      {% if messages %} {% for message in messages %}
+      <div class="error-message">{{ message }}</div>
+      {% endfor %} {% endif %}
+
+      <form method="POST" action="{% url 'login' %}" id="login-form">
+        {% csrf_token %}
+
+        <div
+          id="frontend-error"
+          class="validation-error"
+          style="display: none"
+        ></div>
+
+        <div class="input-field">
+          <i class="fas fa-user"></i>
+          <input type="text" name="username" id="username" required autofocus />
+          <label>Username</label>
+        </div>
+
+        <div class="input-field">
+          <i class="fas fa-lock"></i>
+          <input type="password" name="password" id="password" required />
+          <label>Password</label>
+        </div>
+
+        <div class="show-password">
+          <input type="checkbox" id="toggle-password" />
+          <label for="toggle-password">Show Password</label>
+        </div>
+
+        <button type="submit" id="login-button">
+          Login
+          <span class="spinner" id="spinner"></span>
+        </button>
+
+        <div class="link-group">
+          <a href="{% url 'password_reset' %}">Forgot Password?</a>
+        </div>
+      </form>
+
+      <div class="register">
+        Don’t have an account? <a href="{% url 'register' %}">Register</a>
+      </div>
+    </div>
+
+    <script>
+      const form = document.getElementById("login-form");
+      const button = document.getElementById("login-button");
+      const spinner = document.getElementById("spinner");
+      const username = document.getElementById("username");
+      const password = document.getElementById("password");
+      const togglePassword = document.getElementById("toggle-password");
+      const errorDiv = document.getElementById("frontend-error");
+
+      togglePassword.addEventListener("change", () => {
+        password.type = togglePassword.checked ? "text" : "password";
+      });
+
+      form.addEventListener("submit", function (e) {
+        errorDiv.style.display = "none";
+        if (!username.value.trim() || !password.value.trim()) {
+          e.preventDefault();
+          errorDiv.innerText = "Username and Password are required.";
+          errorDiv.style.display = "block";
+          return;
+        }
+
+        button.disabled = true;
+        spinner.style.display = "inline-block";
+      });
+    </script>
+  </body>
+</html>
