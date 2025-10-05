@@ -214,7 +214,7 @@
       <div class="error-message">{{ message }}</div>
       {% endfor %} {% endif %}
 
-      <form method="POST" action="{% url 'login' %}" id="login-form">
+      <form method="POST" action="{% url 'account:login' %}" id="login-form">
         {% csrf_token %}
 
         <div
@@ -251,7 +251,7 @@
       </form>
 
       <div class="register">
-        Don’t have an account? <a href="{% url 'register' %}">Register</a>
+        Don’t have an account? <a href="{% url 'account:register' %}">Register</a>
       </div>
     </div>
 

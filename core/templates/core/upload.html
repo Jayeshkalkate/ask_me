@@ -1,0 +1,26 @@
+{% load static %}
+{% include "header.html" %}
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+  <main class="w-full max-w-3xl mx-auto py-10 px-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+      <h2 class="text-xl font-semibold mb-4">Upload Your Document</h2>
+      <form method="POST" enctype="multipart/form-data" action="{% url 'upload_document' %}" class="space-y-4">
+        {% csrf_token %}
+
+        <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+          <input type="file" name="document" class="hidden" id="documentInput" accept=".pdf,.jpg,.jpeg,.png,.tiff">
+          <label for="documentInput" class="block cursor-pointer">
+            <span class="text-gray-500 dark:text-gray-400">Click to upload or drag & drop here</span>
+          </label>
+        </div>
+
+        <button type="submit" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">
+          Upload & Extract
+        </button>
+      </form>
+    </div>
+  </main>
+</body>
+
+{% include "footer.html" %}

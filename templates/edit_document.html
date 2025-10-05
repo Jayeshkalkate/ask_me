@@ -1,0 +1,81 @@
+<!-- C:\chatbot\ask_me\templates\edit_document.html -->
+ 
+{% load static %}
+{% include "header.html" %}
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+  <main class="max-w-4xl mx-auto py-10 px-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
+    <h1 class="text-2xl font-semibold mb-6 text-center">
+      ✏️ Edit Extracted Data — {{ document.get_doc_type_display }}
+    </h1>
+
+    <form method="POST">
+      {% csrf_token %}
+
+      <!-- Existing Fields -->
+      <div id="fields">
+        {% for page, fields in document.extracted_data.items %}
+          <h4 class="font-medium mt-4">{{ page|capfirst }}</h4>
+          {% for key, value in fields.items %}
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <input type="text"
+                     name="field_key_{{ forloop.parentloop.counter }}_{{ forloop.counter }}"
+                     value="{{ key }}"
+                     class="form-input w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white p-2"
+                     placeholder="Field Name"
+                     required>
+
+              <input type="text"
+                     name="field_value_{{ forloop.parentloop.counter }}_{{ forloop.counter }}"
+                     value="{{ value }}"
+                     class="form-input w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white p-2"
+                     placeholder="Field Value">
+            </div>
+          {% endfor %}
+        {% endfor %}
+      </div>
+
+      <!-- Add new field button -->
+      <button type="button"
+              id="add-field"
+              class="bg-blue-100 dark:bg-blue-900 dark:text-blue-200 text-blue-700 px-4 py-2 rounded-lg mb-6">
+        + Add Field
+      </button>
+
+      <!-- Action buttons -->
+      <div class="flex justify-between mt-8">
+        <a href="{% url 'core:document_detail' document.pk %}"
+           class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg font-medium">
+          Cancel
+        </a>
+
+        <button type="submit"
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium">
+          💾 Save Changes
+        </button>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    // JS: Dynamically add new key/value fields
+    const addFieldBtn = document.getElementById("add-field");
+    const container = document.getElementById("fields");
+    let counter = 0;
+
+    addFieldBtn.addEventListener("click", () => {
+      counter++;
+      const div = document.createElement("div");
+      div.className = "grid grid-cols-2 gap-4 mb-4";
+      div.innerHTML = `
+        <input type="text" name="field_key_new_${counter}" placeholder="Field Name"
+               class="form-input w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white p-2" required>
+        <input type="text" name="field_value_new_${counter}" placeholder="Field Value"
+               class="form-input w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white p-2">
+      `;
+      container.appendChild(div);
+    });
+  </script>
+</body>
+
+{% include "footer.html" %}
