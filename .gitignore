@@ -1,0 +1,22 @@
+# Virtual environment
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+
+# Local data or models
+*.pt
+*.h5
+*.weights
