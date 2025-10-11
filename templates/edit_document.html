@@ -1,80 +1,445 @@
 <!-- C:\chatbot\ask_me\templates\edit_document.html -->
- 
 {% load static %}
 {% include "header.html" %}
 
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
-  <main class="max-w-4xl mx-auto py-10 px-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
-    <h1 class="text-2xl font-semibold mb-6 text-center">
-      ✏️ Edit Extracted Data — {{ document.get_doc_type_display }}
-    </h1>
+  <main class="max-w-6xl mx-auto py-8 px-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+      
+      <!-- Header -->
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-center mb-2">
+          ✏️ Edit Document Data
+        </h1>
+        <p class="text-center text-gray-600 dark:text-gray-400">
+          {{ document.get_doc_type_display }} • Uploaded: {{ document.created_at|date:"M d, Y" }}
+        </p>
+        
+        <!-- Data Source Indicator -->
+        <div class="text-center mt-4">
+          <span class="inline-block px-4 py-2 rounded-xl 
+            {% if document.user_edited_data %}
+              bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300
+            {% else %}
+              bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300
+            {% endif %}">
+            {% if document.user_edited_data %}
+              ✏️ Editing your previously edited data
+            {% else %}
+              📄 Editing originally extracted data
+            {% endif %}
+          </span>
+        </div>
+      </div>
 
-    <form method="POST">
-      {% csrf_token %}
-
-      <!-- Existing Fields -->
-      <div id="fields">
-        {% for page, fields in document.extracted_data.items %}
-          <h4 class="font-medium mt-4">{{ page|capfirst }}</h4>
-          {% for key, value in fields.items %}
-            <div class="grid grid-cols-2 gap-4 mb-4">
-              <input type="text"
-                     name="field_key_{{ forloop.parentloop.counter }}_{{ forloop.counter }}"
-                     value="{{ key }}"
-                     class="form-input w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white p-2"
-                     placeholder="Field Name"
-                     required>
-
-              <input type="text"
-                     name="field_value_{{ forloop.parentloop.counter }}_{{ forloop.counter }}"
-                     value="{{ value }}"
-                     class="form-input w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white p-2"
-                     placeholder="Field Value">
-            </div>
+      <!-- Form Errors -->
+      {% if form.errors %}
+      <div class="mb-4 p-4 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+        <strong class="font-semibold">Please correct the following errors:</strong>
+        <ul class="list-disc list-inside mt-2">
+          {% for field, errors in form.errors.items %}
+            {% for error in errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
           {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <!-- Visual Editor Tabs -->
+      <div class="mb-6">
+        <div class="flex border-b border-gray-200 dark:border-gray-700">
+          <button id="visual-tab" class="tab-button active px-4 py-2 font-medium text-indigo-600 border-b-2 border-indigo-600">
+            🎨 Visual Editor
+          </button>
+          <button id="json-tab" class="tab-button px-4 py-2 font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+            ⚙️ JSON Editor
+          </button>
+        </div>
+      </div>
+
+      <!-- Visual Editor -->
+      <div id="visual-editor" class="editor-section">
+        <form id="visual-form" method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="user_edited_data" id="json-output">
+          
+          <!-- Page Selector -->
+          <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Select Page:
+            </label>
+            <select id="page-selector" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700">
+              <!-- Pages will be populated by JavaScript -->
+            </select>
+          </div>
+          
+          <!-- Fields Editor -->
+          <div id="fields-container" class="mb-6">
+            <!-- Fields will be populated by JavaScript -->
+          </div>
+          
+          <!-- Add Field Button -->
+          <div class="mb-6">
+            <button type="button" id="add-field-btn" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+              ➕ Add New Field
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- JSON Editor -->
+      <div id="json-editor" class="editor-section hidden">
+        <form method="POST">
+          {% csrf_token %}
+          
+          <!-- JSON Editor -->
+          <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Edit your document data (JSON format):
+            </label>
+            {{ form.user_edited_data }}
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Modify the JSON data above. Make sure to maintain valid JSON format.
+            </p>
+          </div>
+        </form>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-between items-center pt-6 border-t dark:border-gray-700">
+        <a href="{% url 'core:document_detail' document.pk %}" 
+           class="w-full sm:w-auto px-6 py-3 text-center bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors">
+          ← Cancel
+        </a>
+        
+        <div class="flex gap-4 w-full sm:w-auto">
+          <button type="button" 
+                  onclick="formatJSON()"
+                  class="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors">
+            🔧 Format JSON
+          </button>
+          <button type="submit" 
+                  form="visual-form"
+                  class="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">
+            💾 Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- Current Data Preview -->
+      {% if page_data %}
+      <div class="mt-8 pt-6 border-t dark:border-gray-700">
+        <h3 class="text-lg font-semibold mb-4">📋 Current Data Structure</h3>
+        
+        {% for page in page_data %}
+        <div class="mb-4 border rounded-xl p-4 bg-gray-50 dark:bg-gray-700">
+          <h4 class="font-medium text-indigo-600 mb-3">{{ page.page_number|capfirst }}</h4>
+          
+          {% if page.metadata.warnings %}
+          <div class="mb-3 p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
+            <strong>⚠️ Warnings:</strong>
+            <ul class="list-disc list-inside mt-1">
+              {% for warning in page.metadata.warnings %}
+              <li class="text-sm">{{ warning }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {% for key, value in page.fields %}
+            <div class="flex justify-between items-start p-2 rounded-lg bg-white dark:bg-gray-600">
+              <span class="font-medium text-gray-700 dark:text-gray-300">{{ key|title }}:</span>
+              <span class="text-gray-900 dark:text-gray-100 text-right">{{ value }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          
+          {% if page.metadata.quality_scores %}
+          <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+            <strong>Quality Score:</strong> {{ page.metadata.quality_scores.overall_score|default:"N/A"|floatformat:2 }}
+          </div>
+          {% endif %}
+        </div>
         {% endfor %}
       </div>
-
-      <!-- Add new field button -->
-      <button type="button"
-              id="add-field"
-              class="bg-blue-100 dark:bg-blue-900 dark:text-blue-200 text-blue-700 px-4 py-2 rounded-lg mb-6">
-        + Add Field
-      </button>
-
-      <!-- Action buttons -->
-      <div class="flex justify-between mt-8">
-        <a href="{% url 'core:document_detail' document.pk %}"
-           class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg font-medium">
-          Cancel
-        </a>
-
-        <button type="submit"
-                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium">
-          💾 Save Changes
-        </button>
-      </div>
-    </form>
+      {% endif %}
+    </div>
   </main>
 
-  <script>
-    // JS: Dynamically add new key/value fields
-    const addFieldBtn = document.getElementById("add-field");
-    const container = document.getElementById("fields");
-    let counter = 0;
+  <style>
+    .editor-section {
+      transition: all 0.3s ease;
+    }
+    
+    .tab-button {
+      transition: all 0.2s ease;
+    }
+    
+    .tab-button.active {
+      color: rgb(79 70 229);
+      border-color: rgb(79 70 229);
+    }
+    
+    .field-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      align-items: flex-start;
+    }
+    
+    .field-input {
+      flex: 1;
+    }
+    
+    .delete-field {
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .delete-field:hover {
+      background: #dc2626;
+    }
+    
+    .hidden {
+      display: none;
+    }
+  </style>
 
-    addFieldBtn.addEventListener("click", () => {
-      counter++;
-      const div = document.createElement("div");
-      div.className = "grid grid-cols-2 gap-4 mb-4";
-      div.innerHTML = `
-        <input type="text" name="field_key_new_${counter}" placeholder="Field Name"
-               class="form-input w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white p-2" required>
-        <input type="text" name="field_value_new_${counter}" placeholder="Field Value"
-               class="form-input w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white p-2">
-      `;
-      container.appendChild(div);
+  <script>
+    // Document data structure
+    let documentData = {
+      "page_1": {
+        "Document Type": "Aadhaar card",
+        "Enrolment No": "1020/3040/5060",
+        "Address": "Nandurbar Maharashtra - 40001",
+        "VID No": "1020 3040 5060 7080",
+        "Issue Date": "20/10/2009",
+        "Full Name": "Jayesh Rajendra Kalkate",
+        "Date/Year of Birth": "30/10/2005",
+        "Gender": "Male",
+        "Aadhaar Number": "8007 7410 9996",
+        "_metadata": {
+          "page_number": 1,
+          "quality_scores": {
+            "overall_score": 0.6743620768129354,
+            "blur_score": 1,
+            "contrast_score": 0.8670955488563029,
+            "brightness_score": 0.15599068158250284
+          },
+          "blur_detected": false,
+          "blur_score": 1127.5449226304686,
+          "warnings": [],
+          "document_type": "aadhaar_front",
+          "processing_method": "enhanced_ocr"
+        }
+      }
+    };
+
+    // Initialize the visual editor
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeVisualEditor();
+      highlightJSON();
+      
+      // Set up tab switching
+      document.getElementById('visual-tab').addEventListener('click', function() {
+        switchToTab('visual');
+      });
+      
+      document.getElementById('json-tab').addEventListener('click', function() {
+        switchToTab('json');
+      });
+      
+      // Set up the add field button
+      document.getElementById('add-field-btn').addEventListener('click', addNewField);
+      
+      // Initialize with the visual editor
+      switchToTab('visual');
     });
+
+    // Tab switching function
+    function switchToTab(tabName) {
+      const visualTab = document.getElementById('visual-tab');
+      const jsonTab = document.getElementById('json-tab');
+      const visualEditor = document.getElementById('visual-editor');
+      const jsonEditor = document.getElementById('json-editor');
+      
+      if (tabName === 'visual') {
+        visualTab.classList.add('active');
+        jsonTab.classList.remove('active');
+        visualEditor.classList.remove('hidden');
+        jsonEditor.classList.add('hidden');
+      } else {
+        jsonTab.classList.add('active');
+        visualTab.classList.remove('active');
+        jsonEditor.classList.remove('hidden');
+        visualEditor.classList.add('hidden');
+      }
+    }
+
+    // Initialize the visual editor
+    function initializeVisualEditor() {
+      const pageSelector = document.getElementById('page-selector');
+      const fieldsContainer = document.getElementById('fields-container');
+      
+      // Clear existing content
+      pageSelector.innerHTML = '';
+      fieldsContainer.innerHTML = '';
+      
+      // Add pages to the selector
+      Object.keys(documentData).forEach(pageKey => {
+        if (!pageKey.startsWith('_')) {
+          const option = document.createElement('option');
+          option.value = pageKey;
+          option.textContent = `Page ${pageKey.split('_')[1]}`;
+          pageSelector.appendChild(option);
+        }
+      });
+      
+      // Load the first page by default
+      loadPageData(pageSelector.value);
+      
+      // Add event listener for page changes
+      pageSelector.addEventListener('change', function() {
+        loadPageData(this.value);
+      });
+    }
+
+    // Load data for a specific page
+    function loadPageData(pageKey) {
+      const fieldsContainer = document.getElementById('fields-container');
+      fieldsContainer.innerHTML = '';
+      
+      const pageData = documentData[pageKey];
+      
+      // Add each field (excluding metadata)
+      Object.keys(pageData).forEach(fieldName => {
+        if (fieldName !== '_metadata') {
+          addFieldRow(fieldName, pageData[fieldName]);
+        }
+      });
+      
+      // Update the hidden JSON field
+      updateJSONOutput();
+    }
+
+    // Add a field row to the visual editor
+    function addFieldRow(fieldName = '', fieldValue = '') {
+      const fieldsContainer = document.getElementById('fields-container');
+      
+      const fieldRow = document.createElement('div');
+      fieldRow.className = 'field-row';
+      
+      fieldRow.innerHTML = `
+        <input type="text" class="field-input p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700" 
+               placeholder="Field Name" value="${fieldName}" onchange="updateFieldName(this)">
+        <input type="text" class="field-input p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700" 
+               placeholder="Field Value" value="${fieldValue}" onchange="updateFieldValue(this)">
+        <button type="button" class="delete-field" onclick="deleteField(this)">🗑️</button>
+      `;
+      
+      fieldsContainer.appendChild(fieldRow);
+    }
+
+    // Add a new empty field
+    function addNewField() {
+      addFieldRow('', '');
+    }
+
+    // Update field name
+    function updateFieldName(inputElement) {
+      updateJSONOutput();
+    }
+
+    // Update field value
+    function updateFieldValue(inputElement) {
+      updateJSONOutput();
+    }
+
+    // Delete a field
+    function deleteField(buttonElement) {
+      const fieldRow = buttonElement.parentElement;
+      fieldRow.remove();
+      updateJSONOutput();
+    }
+
+    // Update the hidden JSON field with current visual editor data
+    function updateJSONOutput() {
+      const pageSelector = document.getElementById('page-selector');
+      const currentPage = pageSelector.value;
+      const fieldRows = document.querySelectorAll('.field-row');
+      
+      // Start with the existing page data (to preserve metadata)
+      const updatedPageData = { ...documentData[currentPage] };
+      
+      // Clear non-metadata fields
+      Object.keys(updatedPageData).forEach(key => {
+        if (key !== '_metadata') {
+          delete updatedPageData[key];
+        }
+      });
+      
+      // Add fields from the visual editor
+      fieldRows.forEach(row => {
+        const nameInput = row.querySelector('input[placeholder="Field Name"]');
+        const valueInput = row.querySelector('input[placeholder="Field Value"]');
+        
+        if (nameInput.value.trim() !== '') {
+          updatedPageData[nameInput.value.trim()] = valueInput.value;
+        }
+      });
+      
+      // Update the document data
+      documentData[currentPage] = updatedPageData;
+      
+      // Update the hidden JSON field
+      document.getElementById('json-output').value = JSON.stringify(documentData, null, 2);
+      
+      // Also update the JSON editor textarea if it exists
+      const jsonTextarea = document.querySelector('textarea[name="user_edited_data"]');
+      if (jsonTextarea) {
+        jsonTextarea.value = JSON.stringify(documentData, null, 2);
+      }
+    }
+
+    // JSON formatting function
+    function formatJSON() {
+      const textarea = document.querySelector('textarea[name="user_edited_data"]');
+      try {
+        const parsed = JSON.parse(textarea.value);
+        textarea.value = JSON.stringify(parsed, null, 2);
+        
+        // Also update the visual editor if we're in JSON mode
+        if (!document.getElementById('json-editor').classList.contains('hidden')) {
+          documentData = parsed;
+          initializeVisualEditor();
+        }
+      } catch (e) {
+        alert('Invalid JSON format. Please fix errors before formatting.');
+      }
+    }
+
+    // Syntax highlighting helper (basic)
+    function highlightJSON() {
+      const textarea = document.querySelector('textarea[name="user_edited_data"]');
+      if (textarea) {
+        textarea.addEventListener('input', function() {
+          // Basic validation - you could enhance this with proper syntax highlighting
+          try {
+            JSON.parse(this.value);
+            this.style.borderColor = '#10B981'; // Green for valid JSON
+          } catch (e) {
+            this.style.borderColor = '#EF4444'; // Red for invalid JSON
+          }
+        });
+      }
+    }
   </script>
 </body>
 

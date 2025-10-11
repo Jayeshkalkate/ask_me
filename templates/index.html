@@ -1,196 +1,299 @@
 {% load static %} {% include "header.html" %}
 
-<body
-  class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center p-4"
->
-  <!-- Main Container -->
-  <main class="w-full max-w-4xl mx-auto">
-    <div
-      class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden grid grid-rows-[auto_1fr_auto] h-[90vh] md:h-[85vh]"
-    >
-      <!-- Header -->
-      <header
-        class="flex items-center justify-between gap-3 p-4 border-b dark:border-gray-700"
+  <body
+    class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center p-4 transition-colors duration-300"
+  >
+    <!-- Main Container -->
+    <main class="w-full max-w-4xl mx-auto">
+      <div
+        class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden grid grid-rows-[auto_1fr_auto] h-[90vh] md:h-[85vh]"
       >
-        <div class="flex items-center gap-3">
-          <div
-            class="w-10 h-10 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold"
-          >
-            AM
-          </div>
-          <div>
-            <div class="font-semibold">ASK_ME - Document Intelligence</div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              Created by DEVJAYESH
+        <!-- Header -->
+        <header
+          class="flex items-center justify-between gap-3 p-4 border-b dark:border-gray-700"
+        >
+          <div class="flex items-center gap-3">
+            <div
+              class="w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center"
+            >
+              <img
+                src="{% static 'img/ASK_ME_Logo.png' %}"
+                alt="Logo"
+                class="w-full h-full object-cover"
+              />
+            </div>
+            <div>
+              <div class="font-semibold">
+                ASK_ME - Secure & Smart Document Assistant
+              </div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">
+                <!-- Created by DEVJAYESH -->
+              </div>
             </div>
           </div>
+
+          <div class="flex items-center gap-2">
+            <!-- Dark mode toggle -->
+            <button
+              id="darkToggle"
+              aria-label="Toggle dark mode"
+              class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <svg
+                id="darkIcon"
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 hidden"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M21.752 15.002A9 9 0 1112.998 3.25a7 7 0 008.754 11.752z"
+                />
+              </svg>
+              <svg
+                id="lightIcon"
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 hidden"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="5" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.95 7.95l-1.41-1.41M6.46 6.46 5.05 5.05m13.9 0-1.41 1.41M6.46 17.54l-1.41 1.41"
+                />
+              </svg>
+            </button>
+
+            <!-- Files Button -->
+            <a
+              href="{% url 'core:document_library' %}"
+              title="Back to Document Library"
+              class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition inline-flex items-center gap-2"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              📁
+            </a>
+
+            <!-- File Upload -->
+            <button
+              id="fileUploadBtn"
+              title="Upload document"
+              class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 8l3-3m-3 3L9 9"
+                />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <!-- Django messages -->
+        <div class="p-4">
+          {% if messages %} {% for message in messages %}
+          <div
+            class="mb-2 p-2 rounded {{ message.tags }} bg-indigo-100 dark:bg-indigo-700 text-indigo-800 dark:text-indigo-100"
+          >
+            {{ message }}
+          </div>
+          {% endfor %} {% endif %}
         </div>
 
-        <div class="flex items-center gap-2">
-          <!-- Dark mode toggle -->
-          <button
-            id="darkToggle"
-            aria-label="Toggle dark mode"
-            class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-          >
-            <!-- SVG icon omitted for brevity -->
-          </button>
-
-          <!-- File Upload -->
-          <button
-            id="fileUploadBtn"
-            title="Upload document"
-            class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-          >
-            <!-- SVG icon omitted for brevity -->
-          </button>
-
-          <!-- Microphone -->
-          <button
-            id="micBtn"
-            title="Toggle microphone"
-            class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-          >
-            <!-- SVG icon omitted for brevity -->
-          </button>
-        </div>
-      </header>
-
-      <!-- Display Django messages -->
-      <div class="p-4">
-        {% if messages %} {% for message in messages %}
-        <div
-          class="mb-2 p-2 rounded {{ message.tags }} bg-indigo-100 dark:bg-indigo-700 text-indigo-800 dark:text-indigo-100"
+        <!-- Chat / Results Section -->
+        <section
+          id="chatHistory"
+          class="flex-1 p-4 overflow-y-auto bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 space-y-4 scroll-smooth hide-scrollbar"
         >
-          {{ message }}
-        </div>
-        {% endfor %} {% endif %}
-      </div>
-
-      <!-- Chat history -->
-      <section
-        id="chatHistory"
-        class="chat-scrollbar p-4 overflow-auto space-y-4 bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-800"
-      >
-        <!-- Welcome message -->
-        <div
-          id="welcome"
-          class="text-center text-sm text-gray-500 dark:text-gray-400"
-        >
-          Welcome to ASK_ME! Upload a document to extract information using
-          GroqCloud API or ask me anything.
-        </div>
-      </section>
-
-      <!-- Input area -->
-      <footer
-        class="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800"
-      >
-        <div
-          id="errorBanner"
-          class="hidden mb-2 rounded-md bg-red-50 dark:bg-red-900/30 px-3 py-2 text-sm text-red-700 dark:text-red-300"
-        ></div>
-
-        <!-- Quick replies -->
-        <div
-          id="quickReplies"
-          class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar"
-        >
-          <button
-            class="quick-reply px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-sm rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
+          {% if field %}
+          <div
+            class="mb-4 p-4 rounded-lg border shadow-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700"
           >
-            Upload document 📄
-          </button>
-          <!-- <button class="quick-reply px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-sm rounded-full hover:bg-gray-200 dark:hover:bg-gray-600">
-            Show extracted data
-          </button>
-          <button class="quick-reply px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-sm rounded-full hover:bg-gray-200 dark:hover:bg-gray-600">
-            Help
-          </button> -->
-        </div>
+            <h3 class="font-semibold text-gray-700 dark:text-gray-100 mb-2">
+              🔍 Search Results for "<span class="text-indigo-600"
+                >{{ field }}</span
+              >"
+            </h3>
 
-        <div class="flex gap-2 items-end">
-          <textarea
-            id="messageInput"
-            rows="1"
-            placeholder="Ask about your document or type a message..."
-            class="flex-1 resize-none rounded-xl border dark:border-gray-700 px-4 py-3 focus:outline-none input-shadow bg-gray-50 dark:bg-gray-900 text-sm"
-          ></textarea>
+            {% if error %}
+            <div
+              class="p-2 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+            >
+              {{ error }}
+            </div>
+            {% elif results %}
+            <div class="space-y-3">
+              {% for result in results %}
+              <div
+                class="p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 shadow-sm hover:shadow-md transition"
+              >
+                <!-- Document Info -->
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  <strong>Document ID:</strong> {{ result.document_id }}
+                </p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  <strong>Document Type:</strong> {{ result.doc_type }}
+                </p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  <strong>Page:</strong> {{ result.page|title }}
+                </p>
 
-          <button
-            id="sendBtn"
-            class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium disabled:opacity-60"
-            aria-label="Send message"
+                <!-- Field Info -->
+                <p
+                  class="text-base font-medium mt-1 text-gray-900 dark:text-gray-100"
+                >
+                  <strong>{{ result.field|capfirst }}:</strong>
+                </p>
+
+                <!-- Extracted / Raw Value -->
+                {% if result.extracted_value %}
+                <p class="text-sm text-gray-600 dark:text-gray-400 ml-4">
+                  <strong>Extracted:</strong> {{ result.extracted_value }}
+                </p>
+                {% endif %}
+
+                <!-- User Edited Value -->
+                {% if result.value %}
+                <p
+                  class="text-sm text-green-700 dark:text-green-400 ml-4 font-medium"
+                >
+                  <strong>Edited:</strong> {{ result.value }} ✏️
+                </p>
+                {% endif %}
+
+                <!-- Highlight if value is user-edited -->
+                {% if result.is_user_edited %}
+                <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1 ml-4">
+                  ⚠️ This field has been edited by you.
+                </p>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div
+              class="p-4 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-lg"
+            >
+              No results found.
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <!-- Welcome Message -->
+          <div
+            id="welcome"
+            class="text-center text-sm text-gray-500 dark:text-gray-400"
           >
-            Send
-          </button>
-        </div>
+            🔒 Welcome to ASK_ME 📂
+            <br />
+            ✨ your secure assistant for personal and important documents 📝.
+          </div>
+        </section>
 
-        <!-- Typing indicator -->
-        <div
-          id="typingIndicator"
-          class="mt-3 hidden text-sm text-gray-500 dark:text-gray-400"
+        <!-- Footer -->
+        <footer
+          class="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800"
         >
-          <span class="inline-flex items-center gap-2">
-            <strong>Bot is typing</strong>
-            <span class="inline-flex items-end gap-1">
-              <span
-                class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-300 inline-block animate-dot-flash"
-              ></span>
-              <span
-                class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-300 inline-block animate-dot-flash"
-                style="animation-delay: 0.15s"
-              ></span>
-              <span
-                class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-300 inline-block animate-dot-flash"
-                style="animation-delay: 0.3s"
-              ></span>
-            </span>
-          </span>
-        </div>
-      </footer>
-    </div>
-  </main>
-
-  <!-- Document Upload Modal -->
-  <div
-    id="uploadModal"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
-  >
-    <div
-      class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 animate-fade-in-up"
-    >
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold">Upload Document</h3>
-        <button
-          id="closeUploadModal"
-          class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+          <form
+            method="get"
+            action="{% url 'core:search_document_field' %}"
+            class="flex gap-2 items-center mt-3"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
+            <input
+              type="text"
+              name="q"
+              placeholder="🔎 Looking for a Details Just Type... "
+              class="flex-1 rounded-lg border dark:border-gray-700 px-3 py-2 text-sm focus:outline-none bg-white dark:bg-gray-900"
+              required
             />
-          </svg>
-        </button>
-      </div>
+            <button
+              type="submit"
+              class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm transition"
+            >
+              Search
+            </button>
+          </form>
 
-      <!-- Form for Django upload -->
-      <form
-        method="POST"
-        enctype="multipart/form-data"
-        action="{% url 'core:upload' %}"
+          <div
+            id="typingIndicator"
+            class="mt-3 hidden text-sm text-gray-500 dark:text-gray-400"
+          >
+            <span class="inline-flex items-center gap-2">
+              <strong>Bot is typing</strong>
+              <span class="inline-flex items-end gap-1">
+                <span
+                  class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-300 inline-block animate-dot-flash"
+                ></span>
+                <span
+                  class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-300 inline-block animate-dot-flash"
+                  style="animation-delay: 0.15s"
+                ></span>
+                <span
+                  class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-300 inline-block animate-dot-flash"
+                  style="animation-delay: 0.3s"
+                ></span>
+              </span>
+            </span>
+          </div>
+        </footer>
+      </div>
+    </main>
+
+    <!-- Upload Modal -->
+    <div
+      id="uploadModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 animate-fade-in-up"
       >
-        {% csrf_token %}
-        <div class="mb-4">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold">Upload Document</h3>
+          <button
+            id="closeUploadModal"
+            class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          >
+            ✖
+          </button>
+        </div>
+
+        <form
+          method="POST"
+          enctype="multipart/form-data"
+          action="{% url 'core:upload' %}"
+        >
+          {% csrf_token %}
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
             Supported formats: PDF, JPG, PNG, TIFF
           </p>
@@ -224,11 +327,10 @@
               required
             />
           </div>
-        </div>
-        <div class="mb-4">
+
           <label
             for="docType"
-            class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
+            class="block mt-4 mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
             >Document Type</label
           >
           <select
@@ -238,198 +340,94 @@
           >
             <option value="aadhaar_card">Aadhaar Card</option>
             <option value="pan_card">PAN Card</option>
-            <option value="driving_license">Driving Licence</option>
-            <option value="voter_id_card">Voter ID Card</option>
-            <option value="vehicle_registration_certificate">
-              Vehicle Registration Certificate
-            </option>
-            <option value="domicile_certificate">Domicile Certificate</option>
-            <option value="bank_passbook">Bank Passbook</option>
-            <option value="birth_certificate">Birth Certificate</option>
-            <option value="income_certificate">Income Certificate</option>
-            <option value="caste_certificate">Caste Certificate</option>
-            <option value="non_criminal_certificate">
-              Non-Criminal Certificate
-            </option>
-            <option value="marksheets_passing_certificates">
-              Marksheets & Passing Certificates
-            </option>
-            <option value="diploma_degree_certificate">
-              Diploma / Degree Certificate
-            </option>
-            <option value="migration_certificate">Migration Certificate</option>
-            <option value="leaving_transfer_certificate">
-              Leaving / Transfer Certificate
-            </option>
-            <option value="bonafide_certificate">Bonafide Certificate</option>
+            <option value="driving_license">Driving License</option>
             <option value="passport">Passport</option>
-            <option value="ration_card">Ration Card</option>
-            <option value="aadhaar_enrollment_receipt">
-              Aadhaar Enrollment Receipt
-            </option>
-            <option value="bank_kyc_documents">Bank KYC Documents</option>
-            <option value="electricity_bill">Electricity Bill</option>
-            <option value="telephone_bill">Telephone Bill</option>
-            <option value="property_sale_deed">Property Sale Deed</option>
-            <option value="rent_agreement">Rent Agreement</option>
-            <option value="insurance_policy">Insurance Policy</option>
-            <option value="medical_records">Medical Records</option>
-            <option value="vehicle_insurance_certificate">
-              Vehicle Insurance Certificate
-            </option>
-            <option value="form16_salary_slip_it_returns">
-              Form 16 / Salary Slip / IT Returns
-            </option>
-            <option value="ews_minority_certificate">
-              EWS / Minority Certificate
-            </option>
-            <option value="trade_license_business_registration">
-              Trade License / Business Registration
-            </option>
-            <option value="employment_certificate">
-              Employment Certificate
-            </option>
-            <option value="police_clearance_character_certificate">
-              Police Clearance / Character Certificate
-            </option>
-            <option value="driving_test_certificate">
-              Driving Test Certificate
-            </option>
-            <option value="student_college_id">Student / College ID</option>
-            <option value="income_tax_acknowledgment_receipt">
-              Income Tax Acknowledgment Receipt
-            </option>
-            <option value="pension_social_security_documents">
-              Pension / Social Security Documents
-            </option>
-            <option value="loan_mortgage_documents">
-              Loan / Mortgage Documents
-            </option>
-            <option value="passport_application_receipt">
-              Passport Application Receipt
-            </option>
-            <option value="visa_oci_pio_documents">
-              Visa / OCI / PIO Documents
-            </option>
-            <option value="birth_death_marriage_divorce_certificate">
-              Birth / Death / Marriage / Divorce Certificate
-            </option>
-            <option value="adoption_guardianship_certificate">
-              Adoption / Guardianship Certificate
-            </option>
-            <option value="affidavit">Affidavit</option>
-            <option value="professional_government_license">
-              Professional / Government License
-            </option>
-            <option value="election_commission_acknowledgment">
-              Election Commission Acknowledgment
-            </option>
+            <option value="voter_id_card">Voter ID Card</option>
+            <option value="vehicle_registration_certificate">Vehicle Registration Certificate</option>
             <option value="other_document">Other Document</option>
           </select>
-        </div>
-        <!-- 
-        <div class="mb-4">
-          <label
-            for="docType"
-            class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
-            >Document Type</label
-          >
-          <select
-            name="doc_type"
-            id="docType"
-            class="w-full rounded-lg border dark:border-gray-700 p-2 bg-gray-50 dark:bg-gray-900"
-          >
-            <option value="aadhaar_card">Aadhaar Card</option>
-            <option value="bank_passbook">Bank Passbook</option>
-            <option value="bonafide_certificate">Bonafide Certificate</option>
-            <option value="cast_certificate">Cast Certificate</option>
-            <option value="cast_validity_certificate">
-              Cast Validity Certificate
-            </option>
-            <option value="diploma_degree_marksheet">
-              Diploma / Degree Marksheet (All Semesters)
-            </option>
-            <option value="dl">Driving Licence</option>
-            <option value="birth_certificate">Birth Certificate</option>
-            <option value="income_certificate">Income Certificate</option>
-            <option value="leaving_transfer_certificate">
-              Leaving / Transfer Certificate (LC / TC)
-            </option>
-            <option value="migration_certificate">Migration Certificate</option>
-            <option value="other">Other</option>
-            <option value="pan_card">PAN Card</option>
-            <option value="passport">Passport</option>
-            <option value="provisional_degree_certificate">
-              Provisional Certificate / Degree Certificate
-            </option>
-            <option value="rc">Vehicle Registration</option>
-            <option value="tenth_marksheet">10th Marksheet</option>
-            <option value="tenth_passing_certificate">
-              10th Passing Certificate
-            </option>
-            <option value="twelfth_marksheet">12th Marksheet</option>
-            <option value="twelfth_passing_certificate">
-              12th Passing Certificate
-            </option>
-            <option value="voter_card">Voter ID Card</option>
-            <option value="domicile_certificate">Domicile Certificate</option>
-            <option value="non_criminal_certificate">
-              Non-Criminal Certificate
-            </option>
-          </select>
-        </div> -->
 
-        <div class="flex justify-end gap-2">
-          <button
-            type="button"
-            id="cancelUpload"
-            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            class="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-          >
-            Process Document
-          </button>
-        </div>
-      </form>
+          <div class="flex justify-end gap-2 mt-4">
+            <button
+              type="button"
+              id="cancelUpload"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            >
+              Process Document
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
-  {% include "footer.html" %}
+    {% include "footer.html" %}
 
-  <script>
-    // Modal toggle
-    const uploadBtn = document.getElementById("fileUploadBtn");
-    const uploadModal = document.getElementById("uploadModal");
-    const closeModal = document.getElementById("closeUploadModal");
-    const cancelBtn = document.getElementById("cancelUpload");
-    const dropZone = document.getElementById("dropZone");
-    const fileInput = document.getElementById("fileInput");
+    <script>
+      // --- Dark Mode Toggle ---
+      const darkToggle = document.getElementById("darkToggle");
+      const darkIcon = document.getElementById("darkIcon");
+      const lightIcon = document.getElementById("lightIcon");
 
-    uploadBtn.addEventListener("click", () =>
-      uploadModal.classList.remove("hidden")
-    );
-    closeModal.addEventListener("click", () =>
-      uploadModal.classList.add("hidden")
-    );
-    cancelBtn.addEventListener("click", () =>
-      uploadModal.classList.add("hidden")
-    );
+      const enableDark = () => {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+        darkIcon.classList.add("hidden");
+        lightIcon.classList.remove("hidden");
+      };
 
-    dropZone.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", () => {
-      dropZone.querySelector("p").textContent =
-        fileInput.files[0]?.name || "Drag & drop files here or click to browse";
-    });
+      const disableDark = () => {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+        lightIcon.classList.add("hidden");
+        darkIcon.classList.remove("hidden");
+      };
 
-    // Quick replies trigger modal
-    document.querySelectorAll(".quick-reply").forEach((btn) => {
-      btn.addEventListener("click", () =>
-        uploadModal.classList.remove("hidden")
-      );
-    });
-  </script>
-</body>
+      if (localStorage.getItem("theme") === "dark") {
+        enableDark();
+      } else {
+        disableDark();
+      }
+
+      darkToggle.addEventListener("click", () => {
+        if (document.documentElement.classList.contains("dark")) disableDark();
+        else enableDark();
+      });
+
+      // --- Modal logic ---
+      const uploadBtn = document.getElementById("fileUploadBtn");
+      const uploadModal = document.getElementById("uploadModal");
+      const closeModal = document.getElementById("closeUploadModal");
+      const cancelBtn = document.getElementById("cancelUpload");
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("fileInput");
+
+      uploadBtn.onclick = () => uploadModal.classList.remove("hidden");
+      closeModal.onclick = cancelBtn.onclick = () =>
+        uploadModal.classList.add("hidden");
+      dropZone.onclick = () => fileInput.click();
+      fileInput.onchange = () => {
+        dropZone.querySelector("p").textContent =
+          fileInput.files[0]?.name || "Drag & drop files here or click to browse";
+      };
+
+      // Smooth scroll improvement
+      document.querySelector("#chatHistory").scrollTo({
+        top: document.querySelector("#chatHistory").scrollHeight,
+        behavior: "smooth",
+      });
+
+      // Quick reply
+      document.querySelectorAll(".quick-reply").forEach((btn) => {
+        btn.addEventListener("click", () =>
+          uploadModal.classList.remove("hidden")
+        );
+      });
+    </script>
+  </body>
+</html>

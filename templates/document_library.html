@@ -1,0 +1,197 @@
+{% include "header.html" %}
+{% load static %}
+{% block content %}
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+  <div class="max-w-5xl mx-auto py-10 px-6">
+
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+      <div class="mb-4 sm:mb-0">
+        <h1 class="text-3xl font-bold">📄 Document Library</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-2">Manage and search your documents</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex flex-wrap gap-3">
+        <!-- Home -->
+        <a href="{% url 'core:index' %}"
+           class="px-5 py-2 rounded-xl flex items-center gap-2 bg-gray-200 text-gray-800 font-medium transition-all duration-200 hover:bg-gray-300 hover:scale-105">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7m-9 5v6m-4 0h8m4 0h2a2 2 0 002-2v-6" />
+          </svg>
+          Home
+        </a>
+
+        <!-- Add File -->
+        <!-- <a href="{% url 'core:upload' %}"
+           class="px-5 py-2 rounded-xl flex items-center gap-2 bg-indigo-600 text-white font-medium transition-all duration-200 hover:bg-indigo-700 hover:scale-105">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 8l3-3m-3 3L9 9" />
+          </svg>
+          Add File
+        </a> -->
+      </div>
+    </div>
+
+    <!-- Filter & Search -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow mb-6">
+      <form method="get" class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <!-- Document Type -->
+        <div>
+          <label class="block mb-2 font-medium text-sm">Document Type</label>
+          <select name="doc_type" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700">
+            <option value="all">All Types</option>
+            {% for type in doc_types %}
+              <option value="{{ type }}" {% if current_filters.doc_type == type %}selected{% endif %}>
+                {{ type|title }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Status -->
+        <div>
+          <label class="block mb-2 font-medium text-sm">Status</label>
+          <select name="status" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700">
+            <option value="">All Statuses</option>
+            <option value="processed" {% if current_filters.status == "processed" %}selected{% endif %}>Processed</option>
+            <option value="pending" {% if current_filters.status == "pending" %}selected{% endif %}>Pending</option>
+            <option value="failed" {% if current_filters.status == "failed" %}selected{% endif %}>Failed</option>
+          </select>
+        </div>
+
+        <!-- Search -->
+        <div class="sm:col-span-2">
+          <label class="block mb-2 font-medium text-sm">Search Documents</label>
+          <div class="flex">
+            <input type="text" name="search" value="{{ current_filters.search }}"
+                   class="flex-grow border border-gray-300 dark:border-gray-600 rounded-l-lg p-2 bg-white dark:bg-gray-700"
+                   placeholder="Search by name, content, or type">
+            <button type="submit"
+                    class="px-4 bg-indigo-600 text-white rounded-r-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center">
+              <span class="mr-2">🔍</span> Search
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Results Summary -->
+    <div class="flex justify-between items-center mb-4">
+      <div class="text-sm text-gray-600 dark:text-gray-400">
+        Showing {{ page_obj|length }} of {{ total_docs }} documents
+      </div>
+      {% if current_filters.search or current_filters.doc_type != 'all' or current_filters.status %}
+        <a href="{% url 'core:document_library' %}" class="text-sm text-indigo-600 hover:text-indigo-800">
+          Clear filters
+        </a>
+      {% endif %}
+    </div>
+
+    <!-- Document List -->
+    {% if page_obj %}
+      <div class="space-y-4">
+        {% for doc in page_obj %}
+          <div class="p-5 bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-lg transition-all duration-300 border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <h2 class="text-lg font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300">
+                  <a href="{% url 'core:document_detail' doc.id %}" class="flex items-start">
+                    {% if doc.doc_type == 'pdf' %}📄
+                    {% elif doc.doc_type == 'image' %}🖼️
+                    {% elif doc.doc_type == 'text' %}📝
+                    {% else %}📎
+                    {% endif %}
+                    <span class="ml-2">{{ doc.file.name|default:"Untitled Document" }}</span>
+                  </a>
+                </h2>
+                <div class="flex flex-wrap gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">Type: {{ doc.doc_type|title }}</span>
+                  <span>Uploaded: {{ doc.created_at|date:"M d, Y H:i" }}</span>
+                </div>
+              </div>
+
+              <!-- Status Badge -->
+              <div class="ml-4 flex-shrink-0">
+                {% if doc.error_message %}
+                  <span class="px-3 py-1 rounded-full text-sm bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200 flex items-center">
+                    <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span> Failed
+                  </span>
+                {% elif doc.processed %}
+                  <span class="px-3 py-1 rounded-full text-sm bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200 flex items-center">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span> Processed
+                  </span>
+                {% else %}
+                  <span class="px-3 py-1 rounded-full text-sm bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200 flex items-center">
+                    <span class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span> Pending
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Extracted Text -->
+            {% if doc.extracted_text %}
+              <p class="text-gray-600 dark:text-gray-300 text-sm mt-3 line-clamp-2">
+                {{ doc.extracted_text|truncatechars:150 }}
+              </p>
+            {% endif %}
+
+            <!-- Error Message -->
+            {% if doc.error_message %}
+              <div class="mt-2 text-sm text-red-600 dark:text-red-400">
+                <strong>Error:</strong> {{ doc.error_message|truncatechars:100 }}
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <!-- Empty State -->
+      <div class="text-center py-12">
+        <div class="text-6xl mb-4">📄</div>
+        <h3 class="text-xl font-medium text-gray-700 dark:text-gray-300 mb-2">No documents found</h3>
+        <p class="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
+          {% if current_filters.search or current_filters.doc_type != 'all' or current_filters.status %}
+            Try adjusting your filters or search terms.
+          {% else %}
+            Get started by uploading your first document.
+          {% endif %}
+        </p>
+        {% if not current_filters.search and current_filters.doc_type == 'all' and not current_filters.status %}
+          <a href="{% url 'core:upload' %}" 
+             class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-all duration-200 inline-flex items-center">
+            <span class="mr-2">+</span> Upload Your First Document
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if page_obj.paginator.num_pages > 1 %}
+      <div class="flex justify-center items-center gap-2 mt-10">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+             class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200 flex items-center">
+            <span class="mr-2">←</span> Previous
+          </a>
+        {% endif %}
+
+        <span class="mx-4 text-gray-700 dark:text-gray-300 text-sm">
+          Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+             class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200 flex items-center">
+            Next <span class="ml-2">→</span>
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+
+  </div>
+</body>
+
+{% endblock %}
+{% include "footer.html" %}

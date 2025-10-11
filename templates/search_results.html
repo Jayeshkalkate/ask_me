@@ -1,0 +1,50 @@
+<!-- C:\chatbot\ask_me\templates\search_results.html -->
+
+{% extends "index.html" %}
+{% block content %}
+
+<div class="max-w-3xl mx-auto mt-6">
+  <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+    🔍 Search Results for "<span class="text-indigo-600">{{ field }}</span>"
+  </h2>
+
+  {% if error %}
+    <div class="p-4 rounded-lg bg-red-100 text-red-700 border border-red-300">
+      {{ error }}
+    </div>
+
+  {% elif results %}
+    <div class="space-y-3">
+      {% for result in results %}
+        <div class="p-4 border border-gray-300 dark:border-gray-700 rounded-lg 
+                    bg-gray-50 dark:bg-gray-800 shadow-sm hover:shadow-md transition">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            <strong>Document ID:</strong> {{ result.document_id }}
+          </p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            <strong>Document Type:</strong> {{ result.doc_type }}
+          </p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            <strong>Page:</strong> {{ result.page|title }}
+          </p>
+          <p class="text-base font-medium mt-2 text-gray-900 dark:text-gray-100">
+            <strong>{{ result.field|capfirst }}:</strong> 
+            <span class="text-green-700 dark:text-green-400">{{ result.value }}</span>
+          </p>
+        </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="p-4 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-lg">
+      No results found for "<strong>{{ field }}</strong>".
+    </div>
+  {% endif %}
+
+  <a href="{% url 'core:index' %}"
+     class="mt-6 inline-block text-indigo-600 hover:text-indigo-800 dark:hover:text-indigo-400 font-medium">
+    ← Back to Search
+  </a>
+</div>
+
+{% endblock %}
