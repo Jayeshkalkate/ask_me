@@ -1,24 +1,30 @@
-# C:\chatbot\ask_me\.gitignore
-
-# Virtual environment
+# Virtual environments
 venv/
 env/
+
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# IDEs
+# IDE and system files
 .vscode/
 .idea/
-
-# OS files
 .DS_Store
 
-# Logs
+# Database and logs
+db.sqlite3
 *.log
 
-# Local data or models
-*.pt
+# Environment files
+.env
+
+# Static and media uploads (optional)
+media/
+staticfiles/
+
+# Model weights or large data
 *.h5
+*.pt
 *.weights
