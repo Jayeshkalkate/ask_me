@@ -1,6 +1,7 @@
-# Virtual environments
+# Virtual environment
 venv/
 env/
+.venv/
 
 # Python cache
 __pycache__/
@@ -8,23 +9,19 @@ __pycache__/
 *.pyo
 *.pyd
 
-# IDE and system files
+# Databases and environment
+db.sqlite3
+.env
+
+# IDEs and OS files
 .vscode/
 .idea/
 .DS_Store
 
-# Database and logs
-db.sqlite3
+# Logs
 *.log
 
-# Environment files
-.env
-
-# Static and media uploads (optional)
-media/
-staticfiles/
-
-# Model weights or large data
-*.h5
+# Local data or models
 *.pt
+*.h5
 *.weights
