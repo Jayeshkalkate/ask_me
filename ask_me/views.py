@@ -16,3 +16,6 @@ def homepage(request):
 @login_required(login_url="login")
 def userprofile(request):
     return render(request, "userprofile.html")
+
+def admin_user_list(request):
+    return render(request, "admin_user_list.html")

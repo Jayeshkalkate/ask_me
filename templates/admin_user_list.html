@@ -176,6 +176,7 @@
         <th>Phone Number</th>
         <th>Address</th>
         <th>City</th>
+        <th>Status</th>
         <th>Action</th>
       </tr>
     </thead>
@@ -190,6 +191,13 @@
         <td>{{ items.phone_number|default:"No phone number" }}</td>
         <td>{{ items.address|default:"No address" }}</td>
         <td>{{ items.city|default:"No city" }}</td>
+        <td>{% if user.items and user.items.is_online %}
+          <span style="color: green; font-weight: bold;">🟢</span>
+          {% else %}
+          <span style="color: gray;">🔴</span>
+          {% endif %}
+        </td>
+
         {% else %}
         <td>No phone number</td>
         <td>No address</td>
@@ -199,10 +207,10 @@
         <td>
           {% if user != request.user %}
           <a
-            href="{% url 'delete_user' user.id %}"
+            href="{% url 'account:delete_user' user.id %}"
             onclick="return confirm('Are you sure you want to delete {{ user.username }}?')"
             style="color: red; font-weight: bold"
-            >Delete</a
+            >🗑️</a
           >
           {% else %}
           <span style="color: gray">You</span>

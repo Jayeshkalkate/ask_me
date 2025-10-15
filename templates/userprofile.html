@@ -34,7 +34,6 @@
         width: 100%;
         max-width: 600px;
         margin: 80px auto 20px;
-        /* background: url("{% static 'images/newone.png' %}"); */
         padding: 40px 30px;
         border-radius: 16px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
@@ -178,14 +177,16 @@
 
       {% if user.is_authenticated and user.is_superuser %}
       <div class="admin-link">
-        <a href="{% url 'admin_user_list.html' %}">View All Users</a>
+        <a href="{% url 'account:admin_user_list' %}">View All Users</a>
       </div>
       {% endif %}
+      
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit">🚪 Logout</button>
+      </form>
+
     </div>
 
-    <form action="{% url 'logout' %}" method="post">
-      {% csrf_token %}
-      <button type="submit">🚪 Logout</button>
-    </form>
   </body>
 </html>
