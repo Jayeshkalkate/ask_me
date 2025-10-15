@@ -1,0 +1,249 @@
+{% load static %}
+
+<style>
+  body {
+    font-family: "Open Sans", sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #333;
+    background: url("{% static 'C:\chatbot\ask_me\static\img\ASK_ME_Admin_List.png' %}") no-repeat center
+      center/cover;
+    background-size: cover;
+    animation: moveBg 20s linear infinite;
+  }
+
+  @keyframes moveBg {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 80px auto 20px;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    color: #000;
+    overflow-x: auto;
+  }
+
+  h2.page-title {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    font-weight: 600;
+    color: #f9ff00;
+    text-align: center;
+    letter-spacing: 1.5px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
+    transition: color 0.3s ease, transform 0.3s ease;
+  }
+
+  h2.page-title:hover {
+    color: #fff700;
+    transform: scale(1.05);
+  }
+
+  .search-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .search-bar input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
+  .search-bar button {
+    padding: 10px 15px;
+    border: none;
+    background-color: #ff6600;
+    color: white;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .search-bar button:hover {
+    background-color: #e65c00;
+  }
+
+  .user-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: rgba(255, 255, 255, 0.9);
+    font-size: 1rem;
+  }
+
+  .user-table th,
+  .user-table td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    text-align: left;
+  }
+
+  .user-table th {
+    background-color: #f4f4f4;
+    font-weight: bold;
+  }
+
+  .user-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+
+  @media screen and (max-width: 768px) {
+    .user-table th,
+    .user-table td {
+      padding: 8px;
+      font-size: 0.9rem;
+    }
+
+    .container {
+      margin: 40px 15px;
+      padding: 25px 20px;
+    }
+
+    h2.page-title {
+      font-size: 1.6rem;
+    }
+
+    .search-bar {
+      flex-direction: column;
+      align-items: center;
+    }
+  }
+
+  .btn-no-bg {
+    background-color: #ff5e00 !important;
+    border: 2px solid rgb(255, 200, 0) !important;
+    border-radius: 50% !important;
+    width: 40px;
+    height: 40px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+  }
+
+  .btn-no-bg:hover {
+    background-color: #e5f100 !important;
+    border-color: transparent !important;
+  }
+
+  .btn-no-bg:hover svg,
+  .btn-no-bg:hover i {
+    color: white;
+  }
+
+  .cart-icon {
+    height: 20px;
+  }
+</style>
+
+<div class="container">
+  <h2 class="page-title">
+    ˜”*°•.˜”*°• ASK_ME - Secure & Smart Document Assistant •°*”˜.•°*”˜
+  </h2>
+
+  <div class="search-bar">
+    <input type="text" id="searchFirstName" placeholder="Search First Name" />
+    <input type="text" id="searchLastName" placeholder="Search Last Name" />
+    <input type="text" id="searchCity" placeholder="Search City" />
+    <button onclick="filterTable()">Search</button>
+    <button onclick="resetFilter()">Reset</button>
+  </div>
+
+  <table class="user-table" id="userTable">
+    <thead>
+      <tr>
+        <th>Full Name</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Phone Number</th>
+        <th>Address</th>
+        <th>City</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td>{{ user.get_full_name }}</td>
+        <td>{{ user.username }}</td>
+        <td>{{ user.email }}</td>
+
+        {% with user.items as items %} {% if items %}
+        <td>{{ items.phone_number|default:"No phone number" }}</td>
+        <td>{{ items.address|default:"No address" }}</td>
+        <td>{{ items.city|default:"No city" }}</td>
+        {% else %}
+        <td>No phone number</td>
+        <td>No address</td>
+        <td>No city</td>
+        {% endif %} {% endwith %}
+
+        <td>
+          {% if user != request.user %}
+          <a
+            href="{% url 'delete_user' user.id %}"
+            onclick="return confirm('Are you sure you want to delete {{ user.username }}?')"
+            style="color: red; font-weight: bold"
+            >Delete</a
+          >
+          {% else %}
+          <span style="color: gray">You</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  function filterTable() {
+    const fname = document
+      .getElementById("searchFirstName")
+      .value.toLowerCase();
+    const lname = document.getElementById("searchLastName").value.toLowerCase();
+    const city = document.getElementById("searchCity").value.toLowerCase();
+    const rows = document.querySelectorAll("#userTable tbody tr");
+
+    rows.forEach((row) => {
+      const firstName = row.cells[0].textContent.toLowerCase();
+      const lastName = row.cells[1].textContent.toLowerCase();
+      const userCity = row.cells[6].textContent.toLowerCase();
+
+      if (
+        firstName.includes(fname) &&
+        lastName.includes(lname) &&
+        userCity.includes(city)
+      ) {
+        row.style.display = "";
+      } else {
+        row.style.display = "none";
+      }
+    });
+  }
+
+  function resetFilter() {
+    document.getElementById("searchFirstName").value = "";
+    document.getElementById("searchLastName").value = "";
+    document.getElementById("searchCity").value = "";
+    filterTable();
+  }
+</script>
