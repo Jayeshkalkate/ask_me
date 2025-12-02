@@ -20,7 +20,7 @@ DOCUMENT_FIELD_TEMPLATES = {
     "aadhaar_card": {
         "Full Name": "",
         "Aadhaar Number": "",
-        "Date of Birth / Age": "",
+        "Date of Birth": "",
         "Gender": "",
         "Address": "",
     },
