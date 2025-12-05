@@ -23,6 +23,14 @@ ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS", default="127.0.0.1,localhost,.onrender.com"
 ).split(",")
 
+
+# --------------------
+# CSRF TRUSTED ORIGIN
+# --------------------
+CSRF_TRUSTED_ORIGINS = [
+    "https://ask-me-smart-document-assistant.onrender.com",
+]
+
 # --------------------
 # API KEYS
 # --------------------
