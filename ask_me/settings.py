@@ -16,8 +16,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY
 # --------------------
 SECRET_KEY = config("SECRET_KEY", default="unsafe-secret")
+
 DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="127.0.0.1,localhost").split(",")
+
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS", default="127.0.0.1,localhost,.onrender.com"
+).split(",")
 
 # --------------------
 # API KEYS
@@ -27,18 +31,15 @@ GROQ_API_KEY = config("GROQ_API_KEY", default=None)
 # --------------------
 # OCR SETTINGS
 # --------------------
-# Path to Tesseract OCR executable (Windows)
-PYTESSERACT_CMD = config(
-    "PYTESSERACT_CMD", default=r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
+# Windows default path; Render/Linux won't use it unless set manually
+PYTESSERACT_CMD = config("PYTESSERACT_CMD", default=None)
 
-# YOLO model paths (optional if used for object detection)
 YOLO_CFG_PATH = config("YOLO_CFG_PATH", default=None)
 YOLO_WEIGHTS_PATH = config("YOLO_WEIGHTS_PATH", default=None)
 YOLO_NAMES_PATH = config("YOLO_NAMES_PATH", default=None)
 
 # --------------------
-# APPLICATIONS
+# INSTALLED APPS
 # --------------------
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -49,9 +50,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     # Local apps
-    "account",  # login/register app
-    "ask_me",  # main chatbot/ocr app
-    "core",  # core document handler app
+    "account",
+    "ask_me",
+    "core",
 ]
 
 # --------------------
@@ -59,6 +60,7 @@ INSTALLED_APPS = [
 # --------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # for static files on Render
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -76,7 +78,7 @@ ROOT_URLCONF = "ask_me.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],  # ✅ Global templates directory
+        "DIRS": [BASE_DIR / "templates"],  # global templates folder
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -102,7 +104,7 @@ DATABASES = {
 }
 
 # --------------------
-# PASSWORD VALIDATORS
+# PASSWORD VALIDATION
 # --------------------
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -114,7 +116,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # --------------------
-# INTERNATIONALIZATION
+# GLOBAL SETTINGS
 # --------------------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = config("TIME_ZONE", default="Asia/Kolkata")
@@ -126,25 +128,27 @@ USE_TZ = True
 # --------------------
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-
-# STATIC_URL = "static/"
-# STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# WhiteNoise file compression (Django 5 compatible)
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    }
+}
+
 # --------------------
-# MEDIA FILES (user uploads)
+# MEDIA FILES
 # --------------------
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # --------------------
-# AUTH & SITE CONFIG
+# AUTH / SITE
 # --------------------
 SITE_ID = 1
-# ask_me/settings.py
 LOGIN_URL = "account:login"
-LOGIN_REDIRECT_URL = "core:index"  # After login, redirect to homepage
-
+LOGIN_REDIRECT_URL = "core:index"
 
 # --------------------
 # FILE UPLOAD LIMITS
