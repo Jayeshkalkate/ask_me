@@ -19,9 +19,15 @@ SECRET_KEY = config("SECRET_KEY", default="unsafe-secret")
 
 DEBUG = config("DEBUG", default=True, cast=bool)
 
-ALLOWED_HOSTS = config(
-    "ALLOWED_HOSTS", default="127.0.0.1,localhost,.onrender.com"
-).split(",")
+# ALLOWED_HOSTS = config(
+#     "ALLOWED_HOSTS", default="127.0.0.1,localhost,.onrender.com"
+# ).split(",")
+
+ALLOWED_HOSTS = [
+    "ask-me-smart-document-assistant.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
 
 
 # --------------------
