@@ -12,6 +12,7 @@ services:
 
     startCommand: gunicorn ask_me.wsgi:application
 
+
     envVars:
       - key: SECRET_KEY
         generateValue: true          # Render will auto-generate a secure key
