@@ -23,12 +23,15 @@ DEBUG = config("DEBUG", default=True, cast=bool)
 #     "ALLOWED_HOSTS", default="127.0.0.1,localhost,.onrender.com"
 # ).split(",")
 
-ALLOWED_HOSTS = [
-    "ask-me-smart-document-assistant.onrender.com",
-    "localhost",
-    "127.0.0.1",
-]
+# ALLOWED_HOSTS = [
+#     "https://ask-me-abaa.onrender.com",
+#     "localhost",
+#     "127.0.0.1",
+# ]
 
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS", default="127.0.0.1,localhost,.onrender.com"
+).split(",")
 
 # --------------------
 # CSRF TRUSTED ORIGIN
