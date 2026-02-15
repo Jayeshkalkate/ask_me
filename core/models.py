@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 import numpy as np
 import json
+import os
+from django.core.exceptions import ValidationError
 
 
 def convert_numpy(obj):
@@ -52,6 +54,24 @@ class DocumentManager(models.Manager):
         return document.extracted_data, False
 
 
+# 🔒 File Validators
+
+def validate_file_size(value):
+    max_size = 10 * 1024 * 1024  # 10MB
+    if value.size > max_size:
+        raise ValidationError("File size must be under 10MB.")
+
+
+def validate_file_extension(value):
+    ext = os.path.splitext(value.name)[1]
+    valid_extensions = [".pdf", ".jpg", ".jpeg", ".png"]
+    if ext.lower() not in valid_extensions:
+        raise ValidationError(
+            "Unsupported file type. Allowed types: PDF, JPG, JPEG, PNG."
+        )
+
+# Document Model
+
 class Document(models.Model):
     """
     Model to store uploaded documents with OCR data and dynamic extracted fields.
@@ -66,7 +86,11 @@ class Document(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="documents")
-    file = models.FileField(upload_to="documents/")
+    # file = models.FileField(upload_to="documents/")
+    file = models.FileField(
+        upload_to="documents/", validators=[validate_file_size, validate_file_extension]
+        )
+
     doc_type = models.CharField(
         max_length=50,
         choices=DOC_TYPES,

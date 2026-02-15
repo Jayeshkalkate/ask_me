@@ -8,6 +8,12 @@ from pathlib import Path
 from decouple import config
 
 # --------------------
+# FILE UPLOAD LIMITS
+# --------------------
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+
+# --------------------
 # BASE DIR
 # --------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,16 +24,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config("SECRET_KEY", default="unsafe-secret")
 
 DEBUG = config("DEBUG", default=True, cast=bool)
-
-# ALLOWED_HOSTS = config(
-#     "ALLOWED_HOSTS", default="127.0.0.1,localhost,.onrender.com"
-# ).split(",")
-
-# ALLOWED_HOSTS = [
-#     "https://ask-me-abaa.onrender.com",
-#     "localhost",
-#     "127.0.0.1",
-# ]
 
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS", default="127.0.0.1,localhost,.onrender.com"
@@ -169,12 +165,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 SITE_ID = 1
 LOGIN_URL = "account:login"
 LOGIN_REDIRECT_URL = "core:index"
-
-# --------------------
-# FILE UPLOAD LIMITS
-# --------------------
-DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20 MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20 MB
 
 # --------------------
 # DEFAULT PK FIELD

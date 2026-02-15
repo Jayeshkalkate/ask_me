@@ -5,7 +5,6 @@ from .models import Document
 import json
 from .models import convert_numpy
 
-
 class DocumentUploadForm(forms.ModelForm):
     """Form for uploading documents with type selection."""
 
