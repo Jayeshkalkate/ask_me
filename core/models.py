@@ -1,3 +1,5 @@
+# C:\chatbot\ask_me\core\models.py
+
 from django.db import models
 from django.contrib.auth.models import User
 import numpy as np
@@ -86,11 +88,7 @@ class Document(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="documents")
-    # file = models.FileField(upload_to="documents/")
-    file = models.FileField(
-        upload_to="documents/", validators=[validate_file_size, validate_file_extension]
-        )
-
+    
     doc_type = models.CharField(
         max_length=50,
         choices=DOC_TYPES,
@@ -120,10 +118,13 @@ class Document(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+    # def __str__(self):
+    #     if self.doc_type:
+    #         return f"{self.get_doc_type_display()} - {self.user.username} ({self.created_at.strftime('%Y-%m-%d')})"
+    #     return f"{self.user.username} - {self.file.name}"
+    
     def __str__(self):
-        if self.doc_type:
-            return f"{self.get_doc_type_display()} - {self.user.username} ({self.created_at.strftime('%Y-%m-%d')})"
-        return f"{self.user.username} - {self.file.name}"
+        return f"{self.get_doc_type_display()} - {self.user.username} ({self.created_at.strftime('%Y-%m-%d')})"
 
     def get_display_data(self):
         """Get data for display - prioritize user_edited_data"""

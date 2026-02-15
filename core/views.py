@@ -1,17 +1,62 @@
+# C:\chatbot\ask_me\core\views.py
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Q
 from django.core.paginator import Paginator
-import json, base64, tempfile, os, logging
-from rapidfuzz import fuzz, process
-import uuid
-from .models import Document, DOCUMENT_FIELD_TEMPLATES
+import json, tempfile, os, logging, uuid
+from rapidfuzz import fuzz
 import numpy as np
+
+from .models import Document, DOCUMENT_FIELD_TEMPLATES
 from .forms import DocumentUploadForm, DocumentEditForm
+from .ai_utils import extract_document_data
+from .ocr_utils import (
+    process_document_file_enhanced,
+    validate_ocr_environment,
+    get_supported_document_types,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def process_document(request):
+    if request.method == "POST":
+        uploaded_file = request.FILES["document"]
+
+        # Save temporarily
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            for chunk in uploaded_file.chunks():
+                temp_file.write(chunk)
+            temp_path = temp_file.name
+
+        try:
+            # OCR
+            extracted_text = extract_text_from_file(temp_path)
+
+            # AI Extraction
+            structured_data = extract_document_data(extracted_text)
+
+            # Save only structured data
+            Document.objects.create(
+                user=request.user,
+                document_type=structured_data.get("document_type"),
+                name=structured_data.get("name"),
+                date_of_birth=structured_data.get("date_of_birth"),
+                address=structured_data.get("address"),
+                id_number=structured_data.get("id_number"),
+            )
+
+        finally:
+            # DELETE FILE IMMEDIATELY
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+        return redirect("result_page")
 
 from .ocr_utils import (
     process_document_file_enhanced,
@@ -32,27 +77,14 @@ logger = logging.getLogger(__name__)
 # -------------------------------------------------
 @login_required
 def homepage(request):
-    """Render the home page with user dashboard."""
-    # Get user's recent documents
-    # recent_docs = Document.objects.filter(user=request.user).order_by("-uploaded_at")[:5]
     recent_docs = Document.objects.filter(user=request.user).order_by("-created_at")[:5]
-
-    # Get document statistics
-    total_docs = Document.objects.filter(user=request.user).count()
-    processed_docs = Document.objects.filter(user=request.user, processed=True).count()
-    failed_docs = Document.objects.filter(
-        user=request.user, error_message__isnull=False
-    ).count()
-
-    # Check OCR environment status
-    ocr_status = validate_ocr_environment()
 
     context = {
         "recent_documents": recent_docs,
-        "total_documents": total_docs,
-        "processed_documents": processed_docs,
-        "failed_documents": failed_docs,
-        "ocr_status": ocr_status,
+        "total_documents": recent_docs.count(),
+        "processed_documents": recent_docs.filter(processed=True).count(),
+        "failed_documents": recent_docs.filter(error_message__isnull=False).count(),
+        "ocr_status": validate_ocr_environment(),
         "supported_doc_types": get_supported_document_types(),
     }
 
@@ -193,158 +225,141 @@ def convert_numpy(obj):
     return obj
 
 
+def clean_numpy(data):
+    if isinstance(data, dict):
+        return {str(k): clean_numpy(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [clean_numpy(v) for v in data]
+    elif isinstance(data, tuple):
+        return tuple(clean_numpy(v) for v in data)
+    elif isinstance(data, np.bool_):
+        return bool(data)
+    elif isinstance(data, (np.integer,)):
+        return int(data)
+    elif isinstance(data, (np.floating,)):
+        return float(data)
+    elif isinstance(data, np.ndarray):
+        return clean_numpy(data.tolist())
+    else:
+        return data
+
+
 @login_required
 def upload_document(request):
-    """Enhanced document upload with advanced OCR and JSONField-safe saving."""
+
     OCR_DOC_TYPE_MAP = {
         "aadhaar_card": "aadhaar_front",
         "pan_card": "pan",
         "driving_license": "dl",
         "passport": "passport",
-        "voter_id_card": "voter_front",
-        "vehicle_registration_certificate": "rc",
     }
 
     if request.method == "POST":
         form = DocumentUploadForm(request.POST, request.FILES)
 
         if form.is_valid():
+
             doc_file = request.FILES["file"]
             doc_type = form.cleaned_data["doc_type"]
             auto_detect = form.cleaned_data.get("auto_detect_type", False)
 
-            # Create document instance
             document = Document.objects.create(
                 user=request.user,
-                file=doc_file,
                 doc_type=doc_type if not auto_detect else "unknown",
-                uploaded_at=timezone.now(),
             )
 
+            # 🔐 SAVE TEMP FILE
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                for chunk in doc_file.chunks():
+                    temp_file.write(chunk)
+                temp_path = temp_file.name
+
             try:
-                # Map DOC_TYPES to OCR keys
                 ocr_doc_type = (
                     OCR_DOC_TYPE_MAP.get(doc_type, doc_type)
                     if not auto_detect
                     else None
                 )
 
-                # Run enhanced OCR
                 ocr_result = process_document_file_enhanced(
-                    document.file.path,
+                    temp_path,
                     ocr_doc_type,
                     auto_detect=auto_detect,
                 )
 
-                # Handle OCR errors
                 if "error" in ocr_result and len(ocr_result) == 1:
                     document.error_message = ocr_result["error"]
                     document.save()
-                    messages.error(request, f"❌ {ocr_result['error']}")
+                    messages.error(request, ocr_result["error"])
                     return redirect("core:upload")
 
                 processed_data = {}
-                all_warnings = []
-                all_quality_scores = []
 
                 for page_key, page_result in ocr_result.items():
-                    if "error" in page_result:
-                        processed_data[page_key] = {"error": page_result["error"]}
-                        all_warnings.extend(page_result.get("warnings", []))
-                    else:
-                        page_data = page_result.copy()
-                        metadata = page_data.pop("_metadata", {})
-                        all_warnings.extend(metadata.get("warnings", []))
-                        all_quality_scores.append(
-                            metadata.get("quality_scores", {}).get("overall_score", 0)
-                        )
 
-                        actual_doc_type = (
-                            metadata.get("document_type", doc_type)
-                            if auto_detect
-                            else doc_type
-                        )
+                    page_data = page_result.copy()
+                    metadata = page_data.pop("_metadata", {})
 
-                        # Use template based on actual_doc_type or fallback
-                        template_key = OCR_DOC_TYPE_MAP.get(
-                            actual_doc_type, actual_doc_type
-                        )
-                        template = DOCUMENT_FIELD_TEMPLATES.get(
-                            template_key,
-                            DOCUMENT_FIELD_TEMPLATES["other_document"],
-                        ).copy()
-
-                        merged_page_data = template.copy()
-                        merged_page_data.update(page_data)
-                        merged_page_data["_metadata"] = metadata
-
-                        processed_data[page_key] = merged_page_data
-
-                # Convert NumPy types to Python-native
-                document.extracted_data = convert_numpy(processed_data)
-                document.doc_type = actual_doc_type if auto_detect else doc_type
-
-                # Build searchable text
-                text_lines = []
-                for page_data in processed_data.values():
-                    if isinstance(page_data, dict):
-                        for key, value in page_data.items():
-                            if (
-                                key != "_metadata"
-                                and value
-                                and not isinstance(value, dict)
-                            ):
-                                text_lines.append(f"{key}: {value}")
-                document.extracted_text = "\n".join(text_lines)
-                document.processed = True
-
-                # Overall quality score
-                if all_quality_scores:
-                    document.quality_score = sum(all_quality_scores) / len(
-                        all_quality_scores
+                    actual_doc_type = (
+                        metadata.get("document_type", doc_type)
+                        if auto_detect
+                        else doc_type
                     )
 
+                    # 🧠 AI REFINEMENT
+                    if "raw_text" in page_data:
+                        ai_data = extract_document_data(
+                            page_data["raw_text"], actual_doc_type
+                        )
+                        page_data.update(ai_data)
+
+                    template_key = OCR_DOC_TYPE_MAP.get(
+                        actual_doc_type, actual_doc_type
+                    )
+
+                    template = DOCUMENT_FIELD_TEMPLATES.get(
+                        template_key,
+                        DOCUMENT_FIELD_TEMPLATES["other_document"],
+                    ).copy()
+
+                    merged_page = template.copy()
+                    merged_page.update(page_data)
+                    merged_page["_metadata"] = metadata
+
+                    processed_data[page_key] = merged_page
+
+                document.extracted_data = processed_data
+                document.processed = True
+                document.doc_type = actual_doc_type
+                document.extracted_data = clean_numpy(document.extracted_data)
                 document.save()
 
-                # Show warnings/messages
-                if all_warnings:
-                    messages.warning(
-                        request,
-                        f"⚠️ Document processed with warnings: {'; '.join(all_warnings[:3])}",
-                    )
-                else:
-                    messages.success(request, "✅ Document processed successfully!")
-
-                if document.quality_score and document.quality_score < 0.6:
-                    messages.info(
-                        request,
-                        "💡 Tip: For better accuracy, try uploading a higher quality image with better lighting and focus.",
-                    )
+                messages.success(request, "✅ Document processed successfully!")
 
                 return redirect("core:document_detail", pk=document.id)
 
             except Exception as e:
-                logger.error(f"OCR processing failed for document {document.id}: {e}")
+                logger.error(f"Processing failed: {e}")
                 document.error_message = str(e)
-                document.processed = False
                 document.save()
-                messages.error(
-                    request,
-                    f"❌ Processing failed: {str(e)}. Please try again with a different file.",
-                )
-                return redirect("core:upload")
+                messages.error(request, f"❌ {str(e)}")
+
+            finally:
+                # 🔥 DELETE FILE IMMEDIATELY
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
 
     else:
         form = DocumentUploadForm()
 
-    context = {
-        "form": form,
-        "supported_doc_types": get_supported_document_types(),
-        "ocr_status": validate_ocr_environment(),
-        "max_file_size": 10 * 1024 * 1024,  # 10MB
-    }
-
-    return render(request, "index.html", context)
+    return render(
+        request,
+        "index.html",
+        {
+            "form": form,
+            "supported_doc_types": get_supported_document_types(),
+        },
+    )
 
 
 # -------------------------------------------------
@@ -420,50 +435,31 @@ def batch_upload_documents(request):
 # -------------------------------------------------
 @login_required
 def document_detail(request, pk):
-    """Show document details - only display user_edited_data when available"""
+
     document = get_object_or_404(Document, pk=pk, user=request.user)
 
-    # ALWAYS use user_edited_data if available
-    display_data = document.display_data
-    has_user_edits = document.is_edited
-
     pages_data = []
-    quality_metrics = {}
 
-    if display_data:
-        for page_key, page_data in display_data.items():
-            if isinstance(page_data, dict):
-                metadata = page_data.pop("_metadata", {})
-                fields = [(k, v) for k, v in page_data.items() if k != "_metadata"]
+    for page_key, page_data in document.display_data.items():
+        metadata = page_data.get("_metadata", {})
+        fields = [(k, v) for k, v in page_data.items() if k != "_metadata"]
 
-                pages_data.append(
-                    {
-                        "page_key": page_key,
-                        "fields": fields,
-                        "metadata": metadata,
-                        "has_warnings": bool(metadata.get("warnings")),
-                        "is_error_page": "error" in page_data,
-                    }
-                )
+        pages_data.append(
+            {
+                "page_key": page_key,
+                "fields": fields,
+                "metadata": metadata,
+            }
+        )
 
-                if metadata.get("quality_scores"):
-                    quality_metrics[page_key] = metadata["quality_scores"]
-
-    # Determine if document can be reprocessed
-    can_reprocess = document.error_message or (
-        document.quality_score and document.quality_score < 0.5
+    return render(
+        request,
+        "document_detail.html",
+        {
+            "document": document,
+            "pages_data": pages_data,
+        },
     )
-
-    context = {
-        "document": document,
-        "pages_data": pages_data,
-        "quality_metrics": quality_metrics,
-        "can_reprocess": can_reprocess,
-        "supported_doc_types": get_supported_document_types(),
-        "has_user_edits": has_user_edits,
-    }
-
-    return render(request, "document_detail.html", context)
 
 
 # -------------------------------------------------
@@ -847,15 +843,12 @@ def generate_quality_recommendations(quality_scores, is_blurry):
 # -------------------------------------------------
 @login_required
 def delete_document(request, pk):
-    """Delete a document and its associated file."""
+
     document = get_object_or_404(Document, pk=pk, user=request.user)
 
     if request.method == "POST":
-        document_name = document.file.name
         document.delete()
-        messages.success(
-            request, f"✅ Document '{document_name}' deleted successfully."
-        )
+        messages.success(request, "✅ Document deleted successfully.")
         return redirect("core:document_library")
 
     return render(request, "confirm_delete.html", {"document": document})

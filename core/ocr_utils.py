@@ -1,39 +1,56 @@
-# C:\chatbot\ask_me\core\ocr_utils.py
 import os
 import cv2
 import pytesseract
 import numpy as np
 from django.conf import settings
 from pdf2image import convert_from_path
-import openbharatocr
 import json
 from PIL import Image, ImageEnhance, ImageFilter
 import logging
 from typing import Dict, List, Optional, Union, Tuple
 import re
 import tempfile
-from skimage import exposure, filters, restoration
+from skimage import exposure
 import imutils
+import sys
+
+# 🔐 Safe OpenBharatOCR import
+try:
+    import openbharatocr
+except ImportError:
+    openbharatocr = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Set Tesseract command path (from settings or default)
+# Set Tesseract command path
 pytesseract.pytesseract.tesseract_cmd = getattr(
     settings, "PYTESSERACT_CMD", "tesseract"
 )
 
-# Map document types to OpenBharatOCR functions
-OCR_HANDLERS = {
-    "pan": openbharatocr.pan,
-    "aadhaar_front": openbharatocr.front_aadhaar,
-    "aadhaar_back": openbharatocr.back_aadhaar,
-    "dl": openbharatocr.driving_licence,
-    "passport": openbharatocr.passport,
-    "voter_front": openbharatocr.voter_id_front,
-    "voter_back": openbharatocr.voter_id_back,
-    "rc": openbharatocr.vehicle_registration,
-}
+# Map document types safely
+OCR_HANDLERS = { 
+                "pan": openbharatocr.pan, 
+                "aadhaar_front": openbharatocr.front_aadhaar, 
+                "aadhaar_back": openbharatocr.back_aadhaar, 
+                "dl": openbharatocr.driving_licence, 
+                "passport": openbharatocr.passport, 
+                "voter_front": openbharatocr.voter_id_front, 
+                "voter_back": openbharatocr.voter_id_back, 
+                "rc": openbharatocr.vehicle_registration, 
+                }
+
+if openbharatocr:
+    OCR_HANDLERS = {
+        "pan": openbharatocr.pan,
+        "aadhaar_front": openbharatocr.front_aadhaar,
+        "aadhaar_back": openbharatocr.back_aadhaar,
+        "dl": openbharatocr.driving_licence,
+        "passport": openbharatocr.passport,
+        "voter_front": openbharatocr.voter_id_front,
+        "voter_back": openbharatocr.voter_id_back,
+        "rc": openbharatocr.vehicle_registration,
+    }
 
 class OCRPreprocessor:
     """Advanced image preprocessing for OCR optimization"""
@@ -139,7 +156,6 @@ class DocumentAnalyzer:
 
     @staticmethod
     def calculate_image_quality_score(image_path: str) -> Dict[str, float]:
-        """Calculate multiple image quality metrics"""
         img = cv2.imread(image_path)
         if img is None:
             return {
@@ -151,19 +167,13 @@ class DocumentAnalyzer:
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # Blur score (variance of Laplacian)
         blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
-
-        # Contrast score (standard deviation)
         contrast_score = np.std(gray)
-
-        # Brightness score (mean intensity)
         brightness_score = np.mean(gray)
 
-        # Normalize scores
-        blur_normalized = min(blur_score / 1000, 1.0)  # Assuming 1000 is good
-        contrast_normalized = min(contrast_score / 64, 1.0)  # Assuming 64 is good
-        brightness_normalized = 1 - abs(brightness_score - 127) / 127  # Ideal is 127
+        blur_normalized = min(blur_score / 1000, 1.0)
+        contrast_normalized = min(contrast_score / 64, 1.0)
+        brightness_normalized = 1 - abs(brightness_score - 127) / 127
 
         overall_score = (
             blur_normalized + contrast_normalized + brightness_normalized
@@ -178,25 +188,37 @@ class DocumentAnalyzer:
 
     @staticmethod
     def detect_document_type(image_path: str) -> str:
-        """Auto-detect document type based on visual features"""
-        # This is a simplified version - you can expand with ML models
-        img = cv2.imread(image_path)
-        if img is None:
+        """
+        Improved document type detection using text-based heuristics.
+        """
+
+        try:
+            text = pytesseract.image_to_string(image_path).lower()
+
+            if "aadhaar" in text or "government of india" in text:
+                return "aadhaar_front"
+
+            elif "income tax department" in text or "permanent account number" in text:
+                return "pan"
+
+            elif "driving licence" in text or "transport department" in text:
+                return "dl"
+
+            elif "passport" in text:
+                return "passport"
+
+            elif "election commission" in text:
+                return "voter_front"
+
+            elif "registration" in text and "vehicle" in text:
+                return "rc"
+
+            else:
+                return "unknown"
+
+        except Exception as e:
+            logger.warning(f"Document type detection failed: {e}")
             return "unknown"
-
-        # Basic dimension-based detection
-        height, width = img.shape[:2]
-        aspect_ratio = width / height
-
-        if 0.6 < aspect_ratio < 0.7:
-            return "aadhaar_front"
-        elif 1.3 < aspect_ratio < 1.5:
-            return "dl"
-        elif 0.7 < aspect_ratio < 0.8:
-            return "pan"
-        else:
-            return "unknown"
-
 
 # -------------------------------------------------
 # 🔹 ENHANCED IMAGE QUALITY CHECK
@@ -261,7 +283,7 @@ def preprocess_image_advanced(
 
     # Step 4: Denoise with advanced methods
     denoised = cv2.fastNlMeansDenoising(
-        gray, h=30, templateWindowSize=7, searchWindowSize=21
+        gray, h=15, templateWindowSize=7, searchWindowSize=21
     )
 
     # Step 5: Contrast enhancement based on enhancement level
@@ -378,8 +400,13 @@ def smart_ocr_extraction(
             processed_img = preprocess_image_advanced(image_path, enhancement)
 
             # Save processed image temporarily for OpenBharatOCR
-            temp_processed_path = f"/tmp/processed_{os.path.basename(image_path)}"
-            cv2.imwrite(temp_processed_path, processed_img)
+
+            # temp_processed_path = f"/tmp/processed_{os.path.basename(image_path)}"
+            # cv2.imwrite(temp_processed_path, processed_img)
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_img:
+                cv2.imwrite(temp_img.name, processed_img)
+                temp_processed_path = temp_img.name
 
             # Try OpenBharatOCR first if doc_type is specified
             if doc_type and doc_type in OCR_HANDLERS:
@@ -451,17 +478,13 @@ def smart_ocr_extraction(
 def process_document_file_enhanced(
     file_path: str, doc_type: str = None, auto_detect: bool = True
 ) -> Dict:
-    """
-    Enhanced document processing with automatic quality assessment and optimization
-    """
-    # Validate file exists
+
     if not os.path.exists(file_path):
         return {"error": f"File not found: {file_path}"}
 
     ext = os.path.splitext(file_path)[1].lower()
     image_paths = [file_path]
 
-    # Convert PDF to images if needed
     if ext == ".pdf":
         try:
             image_paths = pdf_to_images_enhanced(file_path)
@@ -475,16 +498,15 @@ def process_document_file_enhanced(
         page_key = f"page_{idx}"
 
         try:
-            # ---- Comprehensive Quality Assessment ----
             quality_scores = analyzer.calculate_image_quality_score(image_path)
             is_blurry, blur_score = is_image_blurry(image_path)
 
-            # Auto-detect document type if not provided
+            # 🔥 Improved auto detection
+            detected_doc_type = doc_type
             if auto_detect and not doc_type:
-                detected_type = analyzer.detect_document_type(image_path)
-                doc_type = detected_type if detected_type != "unknown" else None
+                detected = analyzer.detect_document_type(image_path)
+                detected_doc_type = detected if detected != "unknown" else None
 
-            # ---- Quality Warnings ----
             quality_warnings = []
             if is_blurry:
                 quality_warnings.append("Document is blurry - accuracy may be reduced")
@@ -493,23 +515,19 @@ def process_document_file_enhanced(
             if quality_scores["contrast_score"] < 0.3:
                 quality_warnings.append("Low contrast detected")
 
-            # ---- Smart OCR Extraction ----
-            ocr_result = smart_ocr_extraction(image_path, doc_type)
+            ocr_result = smart_ocr_extraction(image_path, detected_doc_type)
 
-            # Add metadata
             ocr_result["_metadata"] = {
                 "page_number": idx,
                 "quality_scores": quality_scores,
                 "blur_detected": is_blurry,
                 "blur_score": float(blur_score),
                 "warnings": quality_warnings,
-                "document_type": doc_type or "unknown",
+                "document_type": detected_doc_type or "unknown",
                 "processing_method": "enhanced_ocr",
             }
 
-            # Clean up redundant field
             if "raw_text" in ocr_result and len(ocr_result) > 2:
-                # Only remove raw_text if we have structured data
                 structured_fields = [
                     k for k in ocr_result.keys() if k not in ["raw_text", "_metadata"]
                 ]
@@ -525,15 +543,14 @@ def process_document_file_enhanced(
                 "_metadata": {"page_number": idx, "processing_method": "error"},
             }
 
-    # Clean up temporary files for PDFs
+    # 🔐 SAFE PDF CLEANUP
     if ext == ".pdf" and image_paths != [file_path]:
         for path in image_paths:
             try:
-                if path != file_path:  # Don't delete original
+                if os.path.exists(path):
                     os.remove(path)
-                    os.rmdir(os.path.dirname(path))
-            except:
-                pass
+            except Exception as cleanup_error:
+                logger.warning(f"Cleanup failed for {path}: {cleanup_error}")
 
     return extracted_results
 
@@ -575,6 +592,7 @@ def get_supported_document_types() -> List[str]:
 
 def validate_ocr_environment() -> Dict[str, bool]:
     """Validate that all required OCR components are available"""
+
     checks = {
         "tesseract": False,
         "openbharatocr": False,
@@ -582,46 +600,29 @@ def validate_ocr_environment() -> Dict[str, bool]:
         "opencv": False,
     }
 
+    # ✅ Tesseract check
     try:
         pytesseract.get_tesseract_version()
         checks["tesseract"] = True
-    except:
+    except Exception:
         pass
 
-    try:
-        import openbharatocr
-
+    # ✅ OpenBharatOCR check (use global import result)
+    if openbharatocr is not None:
         checks["openbharatocr"] = True
-    except:
-        pass
 
+    # ✅ PDF2Image check
     try:
-        from pdf2image import convert_from_path
-
+        convert_from_path
         checks["pdf2image"] = True
-    except:
+    except Exception:
         pass
 
+    # ✅ OpenCV check
     try:
-        import cv2
-
+        cv2.__version__
         checks["opencv"] = True
-    except:
+    except Exception:
         pass
 
     return checks
-
-
-# Example usage and test function
-if __name__ == "__main__":
-    # Test the OCR environment
-    env_status = validate_ocr_environment()
-    print("Environment Status:", env_status)
-
-    # Example usage
-    if len(sys.argv) > 1:
-        file_path = sys.argv[1]
-        doc_type = sys.argv[2] if len(sys.argv) > 2 else None
-
-        result = process_document_file_enhanced(file_path, doc_type)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
