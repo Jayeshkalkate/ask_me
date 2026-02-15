@@ -1,11 +1,13 @@
-# C:\chatbot\ask_me\core\models.py
-
 from django.db import models
 from django.contrib.auth.models import User
-import numpy as np
-import json
-import os
 from django.core.exceptions import ValidationError
+import numpy as np
+import os
+
+
+# -------------------------------------------------
+# 🔹 NUMPY SAFE CONVERSION
+# -------------------------------------------------
 
 
 def convert_numpy(obj):
@@ -19,7 +21,10 @@ def convert_numpy(obj):
     return obj
 
 
-# ✅ Document field templates for automatic extracted_data initialization
+# -------------------------------------------------
+# 🔹 DOCUMENT FIELD TEMPLATES
+# -------------------------------------------------
+
 DOCUMENT_FIELD_TEMPLATES = {
     "aadhaar_card": {
         "Full Name": "",
@@ -41,6 +46,13 @@ DOCUMENT_FIELD_TEMPLATES = {
         "Address": "",
         "Valid Until": "",
     },
+    "passport": {
+        "Full Name": "",
+        "Passport Number": "",
+        "Nationality": "",
+        "Date of Birth": "",
+        "Expiry Date": "",
+    },
     "other_document": {
         "Document Type": "",
         "Content": "",
@@ -48,15 +60,10 @@ DOCUMENT_FIELD_TEMPLATES = {
 }
 
 
-class DocumentManager(models.Manager):
-    def get_display_data(self, document):
-        """Get data for display - prioritize user_edited_data"""
-        if document.user_edited_data:
-            return document.user_edited_data, True
-        return document.extracted_data, False
+# -------------------------------------------------
+# 🔹 FILE VALIDATORS
+# -------------------------------------------------
 
-
-# 🔒 File Validators
 
 def validate_file_size(value):
     max_size = 10 * 1024 * 1024  # 10MB
@@ -72,12 +79,26 @@ def validate_file_extension(value):
             "Unsupported file type. Allowed types: PDF, JPG, JPEG, PNG."
         )
 
-# Document Model
+
+# -------------------------------------------------
+# 🔹 CUSTOM MANAGER
+# -------------------------------------------------
+
+
+class DocumentManager(models.Manager):
+    def get_display_data(self, document):
+        """Prioritize user_edited_data over extracted_data"""
+        if document.user_edited_data:
+            return document.user_edited_data, True
+        return document.extracted_data, False
+
+
+# -------------------------------------------------
+# 🔹 DOCUMENT MODEL
+# -------------------------------------------------
+
 
 class Document(models.Model):
-    """
-    Model to store uploaded documents with OCR data and dynamic extracted fields.
-    """
 
     DOC_TYPES = [
         ("aadhaar_card", "Aadhaar Card"),
@@ -88,7 +109,7 @@ class Document(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="documents")
-    
+
     doc_type = models.CharField(
         max_length=50,
         choices=DOC_TYPES,
@@ -97,13 +118,21 @@ class Document(models.Model):
         null=True,
     )
 
-    # Raw OCR text
+    # 🔥 FILE STORAGE (IMPORTANT)
+    file = models.FileField(
+        upload_to="documents/",
+        validators=[validate_file_size, validate_file_extension],
+        null=True,
+        blank=True,
+    )
+
+    # OCR TEXT
     extracted_text = models.TextField(blank=True, null=True)
 
-    # Structured extracted data (from OCR) - will be deleted when user edits
+    # Structured data from OCR
     extracted_data = models.JSONField(default=dict, blank=True)
 
-    # User-edited structured data - PRIMARY SOURCE after editing
+    # User-edited structured data (Primary after editing)
     user_edited_data = models.JSONField(default=dict, blank=True)
 
     processed = models.BooleanField(default=False)
@@ -118,57 +147,56 @@ class Document(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-    # def __str__(self):
-    #     if self.doc_type:
-    #         return f"{self.get_doc_type_display()} - {self.user.username} ({self.created_at.strftime('%Y-%m-%d')})"
-    #     return f"{self.user.username} - {self.file.name}"
-    
     def __str__(self):
         return f"{self.get_doc_type_display()} - {self.user.username} ({self.created_at.strftime('%Y-%m-%d')})"
 
+    # -------------------------------------------------
+    # 🔹 DISPLAY DATA LOGIC
+    # -------------------------------------------------
+
     def get_display_data(self):
-        """Get data for display - prioritize user_edited_data"""
         return self.objects.get_display_data(self)
 
+    @property
+    def display_data(self):
+        return self.user_edited_data if self.user_edited_data else self.extracted_data
+
+    @property
+    def is_edited(self):
+        return bool(self.user_edited_data)
+
+    # -------------------------------------------------
+    # 🔹 AUTO SYNC TEXT
+    # -------------------------------------------------
+
     def save(self, *args, **kwargs):
-        """Override save to keep extracted_text in sync with user_edited_data"""
+        """
+        Override save to keep extracted_text synced
+        with user_edited_data OR extracted_data.
+        """
+
         text_lines = []
 
-        # Priority: user_edited_data > extracted_data
         source_data = (
             self.user_edited_data if self.user_edited_data else self.extracted_data
         )
 
-        for page_key, page_data in source_data.items():
-            if isinstance(page_data, dict):
-                for field_key, field_value in page_data.items():
-                    if field_key != "_metadata" and field_value:
-                        text_lines.append(f"{field_key}: {field_value}")
+        if isinstance(source_data, dict):
+            for page_key, page_data in source_data.items():
+                if isinstance(page_data, dict):
+                    for field_key, field_value in page_data.items():
+                        if field_key != "_metadata" and field_value:
+                            text_lines.append(f"{field_key}: {field_value}")
 
-        # Update extracted_text only if there's content
-        if text_lines:
-            self.extracted_text = "\n".join(text_lines)
-        else:
-            self.extracted_text = ""
+        self.extracted_text = "\n".join(text_lines) if text_lines else ""
 
         super().save(*args, **kwargs)
 
+    # -------------------------------------------------
+    # 🔹 UPDATE USER DATA
+    # -------------------------------------------------
+
     def update_user_data(self, new_data):
-        """Update user_edited_data and clean up extracted_data"""
         self.user_edited_data = convert_numpy(new_data)
-
-        # Clear extracted_data since user has edited the data
-        self.extracted_data = {}
-
-        # Rebuild extracted_text from user_edited_data
+        self.extracted_data = {}  # Clear original data
         self.save()
-
-    @property
-    def is_edited(self):
-        """Check if document has user edits."""
-        return bool(self.user_edited_data)
-
-    @property
-    def display_data(self):
-        """Property to get display data easily"""
-        return self.user_edited_data if self.user_edited_data else self.extracted_data

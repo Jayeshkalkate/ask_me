@@ -1,3 +1,5 @@
+# C:\chatbot\ask_me\core\ocr_utils.py
+
 import os
 import cv2
 import pytesseract
@@ -28,17 +30,7 @@ pytesseract.pytesseract.tesseract_cmd = getattr(
     settings, "PYTESSERACT_CMD", "tesseract"
 )
 
-# Map document types safely
-OCR_HANDLERS = { 
-                "pan": openbharatocr.pan, 
-                "aadhaar_front": openbharatocr.front_aadhaar, 
-                "aadhaar_back": openbharatocr.back_aadhaar, 
-                "dl": openbharatocr.driving_licence, 
-                "passport": openbharatocr.passport, 
-                "voter_front": openbharatocr.voter_id_front, 
-                "voter_back": openbharatocr.voter_id_back, 
-                "rc": openbharatocr.vehicle_registration, 
-                }
+OCR_HANDLERS = {}
 
 if openbharatocr:
     OCR_HANDLERS = {
@@ -193,7 +185,13 @@ class DocumentAnalyzer:
         """
 
         try:
-            text = pytesseract.image_to_string(image_path).lower()
+            # text = pytesseract.image_to_string(image_path).lower()
+            img = cv2.imread(image_path)
+            if img is None:
+                raise FileNotFoundError(f"Cannot read image: {image_path}")
+            
+            text = pytesseract.image_to_string(img).lower()
+            
 
             if "aadhaar" in text or "government of india" in text:
                 return "aadhaar_front"
@@ -626,3 +624,35 @@ def validate_ocr_environment() -> Dict[str, bool]:
         pass
 
     return checks
+
+
+def extract_text_from_document(file_path):
+    """
+    Extract text from image or PDF document.
+    """
+
+    text = ""
+
+    try:
+        # Handle Images
+        if file_path.lower().endswith((".png", ".jpg", ".jpeg")):
+            import pytesseract
+            from PIL import Image
+
+            image = Image.open(file_path)
+            text = pytesseract.image_to_string(image)
+
+        # Handle PDF
+        elif file_path.lower().endswith(".pdf"):
+            from pdf2image import convert_from_path
+            import pytesseract
+
+            pages = convert_from_path(file_path)
+            for page in pages:
+                text += pytesseract.image_to_string(page)
+
+        return text
+
+    except Exception as e:
+        print("OCR Error:", e)
+        return ""

@@ -5,119 +5,111 @@ import os
 import json
 import re
 
+
 # 🔐 Safe OpenAI client initialization
 api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key) if api_key else None
 
 
+# =========================================
+# Clean JSON safely from model response
+# =========================================
 def clean_json_response(content: str):
     """
-    Safely extract JSON from AI response.
-    Handles cases where model wraps JSON in ```json ``` blocks.
+    Extract valid JSON from model response.
+    Handles ```json ``` wrapping and invalid formatting.
+    Returns dict or {}.
     """
     try:
+        # Remove markdown code block if present
         content = re.sub(r"```json|```", "", content).strip()
+
+        # Remove leading text before JSON starts
+        start = content.find("{")
+        end = content.rfind("}")
+
+        if start != -1 and end != -1:
+            content = content[start : end + 1]
+
         return json.loads(content)
-    except json.JSONDecodeError:
+
+    except Exception:
         return {}
 
 
+# =========================================
+# Mask sensitive data before AI call
+# =========================================
 def mask_sensitive_data(text: str) -> str:
     """
     Mask sensitive information before sending to AI.
     """
-    # Mask Aadhaar (12 digit format)
+
+    # Aadhaar (12 digits)
     text = re.sub(r"\b\d{4}\s?\d{4}\s?\d{4}\b", "XXXX XXXX XXXX", text)
 
-    # Mask PAN (ABCDE1234F format)
+    # PAN
     text = re.sub(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b", "XXXXX0000X", text)
 
     return text
 
 
-def extract_document_data(text, doc_type=None):
+# =========================================
+# MAIN AI EXTRACTION FUNCTION
+# =========================================
+def extract_structured_data(text):
     """
-    AI-powered structured extraction.
-    Returns clean JSON matching your templates.
+    Extract structured JSON from document text using AI.
+
+    RULES:
+    ✔ Return ONLY JSON dict
+    ✔ No fallback template
+    ✔ If failure → return {}
+    ✔ If OpenAI not configured → {}
+    ✔ If model returns invalid JSON → {}
     """
 
-    # 🔹 Define dynamic templates
-    if doc_type == "aadhaar_card":
-        template = {
-            "Full Name": "",
-            "Aadhaar Number": "",
-            "Date of Birth": "",
-            "Gender": "",
-            "Address": "",
-            "confidence_score": 0,
-        }
-
-    elif doc_type == "pan_card":
-        template = {
-            "Full Name": "",
-            "PAN Number": "",
-            "Date of Birth": "",
-            "Father's Name": "",
-            "confidence_score": 0,
-        }
-
-    elif doc_type == "driving_license":
-        template = {
-            "Full Name": "",
-            "License Number": "",
-            "Date of Birth": "",
-            "Address": "",
-            "Valid Until": "",
-            "confidence_score": 0,
-        }
-
-    else:
-        template = {
-            "Document Type": "",
-            "Content": "",
-            "confidence_score": 0,
-        }
-
-    # 🚨 If no API key available → skip AI safely
+    # 🚨 OpenAI not configured
     if not client:
-        return template
+        print("OpenAI not configured")
+        return {}
 
-    # 🔐 Mask sensitive data before sending to OpenAI
+    # 🔐 Privacy masking
     safe_text = mask_sensitive_data(text)
-
-    # 🔐 Strict extraction prompt
-    prompt = f"""
-You are a secure document extraction AI.
-
-Strict Rules:
-- Extract ONLY data present in the text.
-- Do NOT guess or hallucinate.
-- If field not found, leave it empty.
-- Return ONLY valid JSON.
-- Include confidence_score from 0-100 based on extraction certainty.
-
-Return JSON in this exact structure:
-{json.dumps(template, indent=2)}
-
-Document Text:
-{safe_text}
-"""
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
             temperature=0,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Extract structured key-value JSON from the document text.\n"
+                        "Return ONLY valid JSON.\n"
+                        "No explanation.\n"
+                        "No markdown.\n"
+                        "No guessing missing values.\n"
+                        "If nothing found return {}."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": safe_text,
+                },
+            ],
         )
 
         content = response.choices[0].message.content
-        parsed_json = clean_json_response(content)
 
-        # Ensure template structure consistency
-        final_data = template.copy()
-        final_data.update(parsed_json)
+        cleaned_json = clean_json_response(content)
 
-        return final_data
+        # Final safety check
+        if isinstance(cleaned_json, dict):
+            return cleaned_json
 
-    except Exception:
-        return template
+        return {}
+
+    except Exception as e:
+        print("AI Error:", e)
+        return {}

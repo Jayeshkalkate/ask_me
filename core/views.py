@@ -11,10 +11,13 @@ from django.core.paginator import Paginator
 import json, tempfile, os, logging, uuid
 from rapidfuzz import fuzz
 import numpy as np
-
+import base64
+from .models import Document
+from .ocr_utils import extract_text_from_document
+from .ai_utils import extract_structured_data
 from .models import Document, DOCUMENT_FIELD_TEMPLATES
 from .forms import DocumentUploadForm, DocumentEditForm
-from .ai_utils import extract_document_data
+from .ai_utils import extract_structured_data
 from .ocr_utils import (
     process_document_file_enhanced,
     validate_ocr_environment,
@@ -36,10 +39,12 @@ def process_document(request):
 
         try:
             # OCR
-            extracted_text = extract_text_from_file(temp_path)
+            # extracted_text = extract_text_from_file(temp_path)
+            from .ocr_utils import extract_text_from_document
+            extracted_text = extract_text_from_document(temp_path)
 
             # AI Extraction
-            structured_data = extract_document_data(extracted_text)
+            structured_data = extract_structured_data(extracted_text)
 
             # Save only structured data
             Document.objects.create(
@@ -97,8 +102,8 @@ def homepage(request):
 @login_required
 def document_library(request):
     """Display all user documents with filtering and pagination."""
-    # documents = Document.objects.filter(user=request.user).order_by("-uploaded_at")
-    documents = Document.objects.filter(user=request.user).order_by("-created_at")[:5]
+    documents = Document.objects.filter(user=request.user).order_by("-created_at")
+    # documents = Document.objects.filter(user=request.user).order_by("-created_at")[:5]
 
     # Filtering
     doc_type = request.GET.get("doc_type")
@@ -247,119 +252,49 @@ def clean_numpy(data):
 @login_required
 def upload_document(request):
 
-    OCR_DOC_TYPE_MAP = {
-        "aadhaar_card": "aadhaar_front",
-        "pan_card": "pan",
-        "driving_license": "dl",
-        "passport": "passport",
-    }
-
     if request.method == "POST":
-        form = DocumentUploadForm(request.POST, request.FILES)
+        uploaded_file = request.FILES.get("file")
 
-        if form.is_valid():
+        if not uploaded_file:
+            messages.error(request, "No file uploaded.")
+            return redirect("core:upload")
 
-            doc_file = request.FILES["file"]
-            doc_type = form.cleaned_data["doc_type"]
-            auto_detect = form.cleaned_data.get("auto_detect_type", False)
-
+        try:
+            # Save document first
             document = Document.objects.create(
                 user=request.user,
-                doc_type=doc_type if not auto_detect else "unknown",
+                file=uploaded_file,
+                processed=False,
             )
 
-            # 🔐 SAVE TEMP FILE
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                for chunk in doc_file.chunks():
-                    temp_file.write(chunk)
-                temp_path = temp_file.name
+            file_path = document.file.path
+            
+            # 🔒 Validate file path properly
+            if not file_path:
+                raise ValueError("File path is empty.")
+            
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"Uploaded file not found at: {file_path}")
+            
+            logger.info(f"Processing file at path: {file_path}")
+            
+            # OCR
+            ocr_result = process_document_file_enhanced(file_path)
 
-            try:
-                ocr_doc_type = (
-                    OCR_DOC_TYPE_MAP.get(doc_type, doc_type)
-                    if not auto_detect
-                    else None
-                )
+            # Save structured data
+            document.extracted_data = ocr_result
+            document.processed = True
+            document.save()
 
-                ocr_result = process_document_file_enhanced(
-                    temp_path,
-                    ocr_doc_type,
-                    auto_detect=auto_detect,
-                )
+            messages.success(request, "✅ Document processed successfully!")
+            return redirect("core:edit_document", document.id)
 
-                if "error" in ocr_result and len(ocr_result) == 1:
-                    document.error_message = ocr_result["error"]
-                    document.save()
-                    messages.error(request, ocr_result["error"])
-                    return redirect("core:upload")
+        except Exception as e:
+            logger.error(f"Upload processing failed: {e}")
+            messages.error(request, f"Processing failed: {str(e)}")
+            return redirect("core:upload")
 
-                processed_data = {}
-
-                for page_key, page_result in ocr_result.items():
-
-                    page_data = page_result.copy()
-                    metadata = page_data.pop("_metadata", {})
-
-                    actual_doc_type = (
-                        metadata.get("document_type", doc_type)
-                        if auto_detect
-                        else doc_type
-                    )
-
-                    # 🧠 AI REFINEMENT
-                    if "raw_text" in page_data:
-                        ai_data = extract_document_data(
-                            page_data["raw_text"], actual_doc_type
-                        )
-                        page_data.update(ai_data)
-
-                    template_key = OCR_DOC_TYPE_MAP.get(
-                        actual_doc_type, actual_doc_type
-                    )
-
-                    template = DOCUMENT_FIELD_TEMPLATES.get(
-                        template_key,
-                        DOCUMENT_FIELD_TEMPLATES["other_document"],
-                    ).copy()
-
-                    merged_page = template.copy()
-                    merged_page.update(page_data)
-                    merged_page["_metadata"] = metadata
-
-                    processed_data[page_key] = merged_page
-
-                document.extracted_data = processed_data
-                document.processed = True
-                document.doc_type = actual_doc_type
-                document.extracted_data = clean_numpy(document.extracted_data)
-                document.save()
-
-                messages.success(request, "✅ Document processed successfully!")
-
-                return redirect("core:document_detail", pk=document.id)
-
-            except Exception as e:
-                logger.error(f"Processing failed: {e}")
-                document.error_message = str(e)
-                document.save()
-                messages.error(request, f"❌ {str(e)}")
-
-            finally:
-                # 🔥 DELETE FILE IMMEDIATELY
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-
-    else:
-        form = DocumentUploadForm()
-
-    return render(
-        request,
-        "index.html",
-        {
-            "form": form,
-            "supported_doc_types": get_supported_document_types(),
-        },
-    )
+    return render(request, "upload_document.html")
 
 
 # -------------------------------------------------
