@@ -12,17 +12,17 @@ import json, tempfile, os, logging, uuid
 from rapidfuzz import fuzz
 import numpy as np
 import base64
-from .models import Document
 from .ocr_utils import extract_text_from_document
-from .ai_utils import extract_structured_data
 from .models import Document, DOCUMENT_FIELD_TEMPLATES
 from .forms import DocumentUploadForm, DocumentEditForm
-from .ai_utils import extract_structured_data
+from .ai_utils import detect_document_type, extract_structured_data
 from .ocr_utils import (
     process_document_file_enhanced,
     validate_ocr_environment,
     get_supported_document_types,
 )
+from .models import convert_numpy
+
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ def process_document(request):
 
             # AI Extraction
             structured_data = extract_structured_data(extracted_text)
+            structured_data = convert_numpy(structured_data)
 
             # Save only structured data
             Document.objects.create(
@@ -215,40 +216,12 @@ def edit_document(request, pk):
 # -------------------------------------------------
 # 🔹 ENHANCED UPLOAD DOCUMENT (JSON-safe)
 # -------------------------------------------------
-
 logger = logging.getLogger(__name__)
 
 
-def convert_numpy(obj):
-    """Recursively convert NumPy types to native Python types for JSONField."""
-    if isinstance(obj, dict):
-        return {k: convert_numpy(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_numpy(i) for i in obj]
-    elif isinstance(obj, np.generic):  # handles np.bool_, np.int64, etc.
-        return obj.item()
-    return obj
-
-
-def clean_numpy(data):
-    if isinstance(data, dict):
-        return {str(k): clean_numpy(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [clean_numpy(v) for v in data]
-    elif isinstance(data, tuple):
-        return tuple(clean_numpy(v) for v in data)
-    elif isinstance(data, np.bool_):
-        return bool(data)
-    elif isinstance(data, (np.integer,)):
-        return int(data)
-    elif isinstance(data, (np.floating,)):
-        return float(data)
-    elif isinstance(data, np.ndarray):
-        return clean_numpy(data.tolist())
-    else:
-        return data
-
-
+# -------------------------------------------------
+# 🔹 ENHANCED UPLOAD DOCUMENT (JSON-safe)
+# -------------------------------------------------
 @login_required
 def upload_document(request):
 
@@ -259,8 +232,12 @@ def upload_document(request):
             messages.error(request, "No file uploaded.")
             return redirect("core:upload")
 
+        document = None
+
         try:
-            # Save document first
+            # -----------------------------------------
+            # STEP 1 — SAVE FILE
+            # -----------------------------------------
             document = Document.objects.create(
                 user=request.user,
                 file=uploaded_file,
@@ -268,22 +245,67 @@ def upload_document(request):
             )
 
             file_path = document.file.path
-            
-            # 🔒 Validate file path properly
-            if not file_path:
-                raise ValueError("File path is empty.")
-            
-            if not os.path.exists(file_path):
-                raise FileNotFoundError(f"Uploaded file not found at: {file_path}")
-            
-            logger.info(f"Processing file at path: {file_path}")
-            
-            # OCR
-            ocr_result = process_document_file_enhanced(file_path)
 
-            # Save structured data
-            document.extracted_data = ocr_result
+            if not os.path.exists(file_path):
+                raise Exception("Uploaded file not found")
+
+            logger.info(f"Processing file: {file_path}")
+
+            # -----------------------------------------
+            # STEP 2 — RUN OCR PIPELINE
+            # -----------------------------------------
+            extracted_data = process_document_file_enhanced(file_path)
+
+            # -----------------------------------------
+            # STEP 3 — STOP IF OCR FAILED  ✅ VERY IMPORTANT
+            # -----------------------------------------
+            if not extracted_data:
+                logger.warning("OCR failed — no data extracted")
+
+                document.processed = False
+                document.error_message = "OCR failed — no text detected"
+                document.extracted_data = {}
+                document.save()
+
+                return render(request, "no_fields.html")
+
+            # -----------------------------------------
+            # STEP 4 — EXTRACT RAW OCR TEXT
+            # -----------------------------------------
+            ocr_text = ""
+
+            if isinstance(extracted_data, dict):
+                for page in extracted_data.values():
+                    if isinstance(page, dict):
+                        ocr_text += (
+                            " ".join(
+                                str(v) for k, v in page.items() if k != "_metadata"
+                            )
+                            + " "
+                        )
+
+            ocr_text = ocr_text.strip()
+
+            # -----------------------------------------
+            # STEP 5 — DETECT DOCUMENT TYPE (ONLY AFTER OCR SUCCESS)
+            # -----------------------------------------
+            detected_type = None
+
+            if ocr_text:
+                detected_type = detect_document_type(ocr_text)
+
+            document.doc_type = detected_type if detected_type else "Other_Document"
+
+            logger.info(f"Detected document type: {document.doc_type}")
+
+            # -----------------------------------------
+            # STEP 6 — SAVE CLEAN DATA
+            # -----------------------------------------
+            clean_data = convert_numpy(extracted_data)
+
+            document.extracted_data = clean_data
             document.processed = True
+            document.error_message = None
             document.save()
 
             messages.success(request, "✅ Document processed successfully!")
@@ -291,6 +313,13 @@ def upload_document(request):
 
         except Exception as e:
             logger.error(f"Upload processing failed: {e}")
+
+            if document:
+                document.processed = False
+                document.error_message = str(e)
+                document.extracted_data = {}
+                document.save()
+
             messages.error(request, f"Processing failed: {str(e)}")
             return redirect("core:upload")
 
@@ -334,8 +363,10 @@ def batch_upload_documents(request):
                 if "error" not in result:
                     # Update document with result (simplified - you'd want full processing here)
                     doc.processed = True
-                    doc.extracted_data = result
+                    clean_data = convert_numpy(result)
+                    doc.extracted_data = clean_data
                     doc.save()
+
                     success_count += 1
                 else:
                     doc.error_message = result.get("error", "Unknown error")
@@ -417,7 +448,8 @@ def reprocess_document(request, pk):
             )
 
             # Update document (similar to upload logic)
-            document.extracted_data = ocr_result
+            clean_data = convert_numpy(ocr_result)
+            document.extracted_data = clean_data
             document.doc_type = new_doc_type
             document.error_message = None
             document.processed = True
@@ -689,7 +721,8 @@ def format_ocr_response(ocr_result):
             has_errors = True
         else:
             # Extract metadata
-            metadata = page_data.pop("_metadata", {})
+            # metadata = page_data.pop("_metadata", {})
+            metadata = page_data.get("_metadata", {})
             fields = {k: v for k, v in page_data.items() if k != "_metadata"}
 
             formatted_data[page_key] = {"fields": fields, "metadata": metadata}

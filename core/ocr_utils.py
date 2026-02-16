@@ -324,7 +324,7 @@ def preprocess_image_advanced(
         final_thresh = cv2.bitwise_and(thresh1, thresh2)
     else:
         final_thresh = cv2.adaptiveThreshold(
-            enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 2
+            enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
         )
 
     # Step 7: Morphological operations to clean up

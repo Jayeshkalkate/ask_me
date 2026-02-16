@@ -9,15 +9,14 @@
     <style>
       body {
         font-family: "Open Sans", sans-serif;
-        margin: 0;
-        padding: 0;
+        margin: 0;padding: 0;
         color: #333;
-        background: url("{% static 'C:\chatbot\ask_me\static\img\ASK_ME_Userprofile.png' %}")
-          no-repeat center center/cover;
+        background: url("{% static 'img/ASK_ME_Userprofile.png' %}") 
+        no-repeat center center/cover;
         background-size: cover;
         animation: moveBg 20s linear infinite;
-      }
-
+        }
+        
       @keyframes moveBg {
         0% {
           background-position: 0% 50%;

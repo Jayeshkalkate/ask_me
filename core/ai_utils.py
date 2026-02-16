@@ -6,7 +6,9 @@ import json
 import re
 
 
+# =========================================
 # 🔐 Safe OpenAI client initialization
+# =========================================
 api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key) if api_key else None
 
@@ -15,16 +17,9 @@ client = OpenAI(api_key=api_key) if api_key else None
 # Clean JSON safely from model response
 # =========================================
 def clean_json_response(content: str):
-    """
-    Extract valid JSON from model response.
-    Handles ```json ``` wrapping and invalid formatting.
-    Returns dict or {}.
-    """
     try:
-        # Remove markdown code block if present
         content = re.sub(r"```json|```", "", content).strip()
 
-        # Remove leading text before JSON starts
         start = content.find("{")
         end = content.rfind("}")
 
@@ -41,11 +36,8 @@ def clean_json_response(content: str):
 # Mask sensitive data before AI call
 # =========================================
 def mask_sensitive_data(text: str) -> str:
-    """
-    Mask sensitive information before sending to AI.
-    """
 
-    # Aadhaar (12 digits)
+    # Aadhaar
     text = re.sub(r"\b\d{4}\s?\d{4}\s?\d{4}\b", "XXXX XXXX XXXX", text)
 
     # PAN
@@ -55,26 +47,52 @@ def mask_sensitive_data(text: str) -> str:
 
 
 # =========================================
-# MAIN AI EXTRACTION FUNCTION
+# 🔥 DOCUMENT TYPE DETECTION (FIXED)
+# =========================================
+def detect_document_type(text):
+    """
+    Detect document type based on OCR extracted text.
+    """
+
+    if not text or not isinstance(text, str):
+        print("⚠️ Detection skipped: Empty or invalid OCR text")
+        return None
+
+    text = text.strip()
+
+    if len(text) < 20:
+        print("⚠️ Detection skipped: OCR text too short")
+        return None
+
+    text_lower = text.lower()
+
+    if "government of india" in text_lower and "aadhaar" in text_lower:
+        return "Aadhaar Card"
+
+    if (
+        "income tax department" in text_lower
+        and "permanent account number" in text_lower
+    ):
+        return "PAN Card"
+
+    if "driving licence" in text_lower or "transport department" in text_lower:
+        return "Driving License"
+
+    if "passport" in text_lower and "republic of india" in text_lower:
+        return "Passport"
+
+    return "Other_Document"
+
+
+# =========================================
+# 🔥 MAIN AI EXTRACTION
 # =========================================
 def extract_structured_data(text):
-    """
-    Extract structured JSON from document text using AI.
 
-    RULES:
-    ✔ Return ONLY JSON dict
-    ✔ No fallback template
-    ✔ If failure → return {}
-    ✔ If OpenAI not configured → {}
-    ✔ If model returns invalid JSON → {}
-    """
-
-    # 🚨 OpenAI not configured
     if not client:
-        print("OpenAI not configured")
+        print("⚠️ OpenAI not configured")
         return {}
 
-    # 🔐 Privacy masking
     safe_text = mask_sensitive_data(text)
 
     try:
@@ -101,10 +119,8 @@ def extract_structured_data(text):
         )
 
         content = response.choices[0].message.content
-
         cleaned_json = clean_json_response(content)
 
-        # Final safety check
         if isinstance(cleaned_json, dict):
             return cleaned_json
 
