@@ -44,6 +44,7 @@ if openbharatocr:
         "rc": openbharatocr.vehicle_registration,
     }
 
+
 class OCRPreprocessor:
     """Advanced image preprocessing for OCR optimization"""
 
@@ -189,9 +190,8 @@ class DocumentAnalyzer:
             img = cv2.imread(image_path)
             if img is None:
                 raise FileNotFoundError(f"Cannot read image: {image_path}")
-            
+
             text = pytesseract.image_to_string(img).lower()
-            
 
             if "aadhaar" in text or "government of india" in text:
                 return "aadhaar_front"
@@ -217,6 +217,7 @@ class DocumentAnalyzer:
         except Exception as e:
             logger.warning(f"Document type detection failed: {e}")
             return "unknown"
+
 
 # -------------------------------------------------
 # 🔹 ENHANCED IMAGE QUALITY CHECK
@@ -309,6 +310,10 @@ def preprocess_image_advanced(
             enhanced = clahe.apply(denoised)
         else:
             enhanced = denoised
+
+    # 🔧 FIX: Ensure image is single-channel grayscale before adaptiveThreshold
+    if len(enhanced.shape) == 3:
+        enhanced = cv2.cvtColor(enhanced, cv2.COLOR_BGR2GRAY)
 
     # Step 6: Adaptive thresholding with multiple methods
     if enhancement_level == "aggressive":

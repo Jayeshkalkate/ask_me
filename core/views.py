@@ -222,12 +222,17 @@ logger = logging.getLogger(__name__)
 # -------------------------------------------------
 # 🔹 ENHANCED UPLOAD DOCUMENT (JSON-safe)
 # -------------------------------------------------
+
+
 @login_required
 def upload_document(request):
 
     if request.method == "POST":
         uploaded_file = request.FILES.get("file")
 
+        # -----------------------------------------
+        # STEP 0 — VALIDATE FILE
+        # -----------------------------------------
         if not uploaded_file:
             messages.error(request, "No file uploaded.")
             return redirect("core:upload")
@@ -244,10 +249,22 @@ def upload_document(request):
                 processed=False,
             )
 
+            # 🔴 VERY IMPORTANT — ensure file saved
+            document.refresh_from_db()
+
             file_path = document.file.path
 
+            # 🔴 DEBUG PRINT (must show real path)
+            print("FILE PATH:", file_path)
+
+            # -----------------------------------------
+            # STEP 1.1 — FILE PATH SAFETY CHECK
+            # -----------------------------------------
+            if not file_path:
+                raise ValueError("File path is None — upload failed")
+
             if not os.path.exists(file_path):
-                raise Exception("Uploaded file not found")
+                raise FileNotFoundError(f"Uploaded file not found at: {file_path}")
 
             logger.info(f"Processing file: {file_path}")
 
@@ -257,7 +274,7 @@ def upload_document(request):
             extracted_data = process_document_file_enhanced(file_path)
 
             # -----------------------------------------
-            # STEP 3 — STOP IF OCR FAILED  ✅ VERY IMPORTANT
+            # STEP 3 — STOP IF OCR FAILED
             # -----------------------------------------
             if not extracted_data:
                 logger.warning("OCR failed — no data extracted")
@@ -287,7 +304,7 @@ def upload_document(request):
             ocr_text = ocr_text.strip()
 
             # -----------------------------------------
-            # STEP 5 — DETECT DOCUMENT TYPE (ONLY AFTER OCR SUCCESS)
+            # STEP 5 — DETECT DOCUMENT TYPE
             # -----------------------------------------
             detected_type = None
 
@@ -299,7 +316,7 @@ def upload_document(request):
             logger.info(f"Detected document type: {document.doc_type}")
 
             # -----------------------------------------
-            # STEP 6 — SAVE CLEAN DATA
+            # STEP 6 — SAVE CLEAN JSON DATA
             # -----------------------------------------
             clean_data = convert_numpy(extracted_data)
 
@@ -311,8 +328,11 @@ def upload_document(request):
             messages.success(request, "✅ Document processed successfully!")
             return redirect("core:edit_document", document.id)
 
+        # -----------------------------------------
+        # STEP 7 — GLOBAL ERROR HANDLER
+        # -----------------------------------------
         except Exception as e:
-            logger.error(f"Upload processing failed: {e}")
+            logger.exception("Upload processing failed")
 
             if document:
                 document.processed = False
@@ -323,8 +343,10 @@ def upload_document(request):
             messages.error(request, f"Processing failed: {str(e)}")
             return redirect("core:upload")
 
+    # -----------------------------------------
+    # STEP 8 — GET REQUEST
+    # -----------------------------------------
     return render(request, "upload_document.html")
-
 
 # -------------------------------------------------
 # 🔹 BATCH UPLOAD DOCUMENTS
