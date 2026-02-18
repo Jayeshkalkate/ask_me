@@ -27,3 +27,6 @@ db.sqlite3
 *.pt
 *.h5
 *.weights
+
+# Staticfiles
+staticfiles/
