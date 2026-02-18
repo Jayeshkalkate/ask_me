@@ -27,11 +27,3 @@ db.sqlite3
 *.pt
 *.h5
 *.weights
-
-# staticfiles/
-
-# media/
-# staticfiles/
-# *.pdf
-# *.jpg
-# *.png

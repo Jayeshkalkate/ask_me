@@ -45,6 +45,19 @@ if openbharatocr:
     }
 
 
+def safe_read_image(image_path: str) -> np.ndarray:
+    """
+    Safely read image from disk.
+    Raises clear error if OpenCV cannot load it.
+    """
+    img = cv2.imread(image_path)
+
+    if img is None:
+        raise ValueError(f"OpenCV failed to read image: {image_path}")
+
+    return img
+
+
 class OCRPreprocessor:
     """Advanced image preprocessing for OCR optimization"""
 
@@ -149,14 +162,16 @@ class DocumentAnalyzer:
 
     @staticmethod
     def calculate_image_quality_score(image_path: str) -> Dict[str, float]:
-        img = cv2.imread(image_path)
-        if img is None:
+        img = safe_read_image(image_path)
+        try:
+            img = safe_read_image(image_path)
+        except:
             return {
                 "overall_score": 0,
                 "blur_score": 0,
                 "contrast_score": 0,
                 "brightness_score": 0,
-            }
+                }
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -187,9 +202,7 @@ class DocumentAnalyzer:
 
         try:
             # text = pytesseract.image_to_string(image_path).lower()
-            img = cv2.imread(image_path)
-            if img is None:
-                raise FileNotFoundError(f"Cannot read image: {image_path}")
+            img = safe_read_image(image_path)
 
             text = pytesseract.image_to_string(img).lower()
 
@@ -224,8 +237,11 @@ class DocumentAnalyzer:
 # -------------------------------------------------
 def is_image_blurry(image_path: str, threshold: float = 100.0) -> Tuple[bool, float]:
     """Enhanced blur detection with multiple metrics"""
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    if img is None:
+    try:
+        img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        if img is None:
+            raise ValueError()
+    except:
         return True, 0.0
 
     # Method 1: Variance of Laplacian
@@ -262,9 +278,7 @@ def preprocess_image_advanced(
     """
     Advanced image preprocessing pipeline with multiple enhancement levels
     """
-    img = cv2.imread(image_path)
-    if img is None:
-        raise FileNotFoundError(f"Could not read image file: {image_path}")
+    img = safe_read_image(image_path)
 
     preprocessor = OCRPreprocessor()
 

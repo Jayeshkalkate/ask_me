@@ -249,22 +249,25 @@ def upload_document(request):
                 processed=False,
             )
 
-            # 🔴 VERY IMPORTANT — ensure file saved
+            # Ensure file is saved to disk
             document.refresh_from_db()
 
             file_path = document.file.path
-
-            # 🔴 DEBUG PRINT (must show real path)
             print("FILE PATH:", file_path)
 
             # -----------------------------------------
-            # STEP 1.1 — FILE PATH SAFETY CHECK
+            # STEP 1.1 — FILE PATH SAFETY CHECK (CRITICAL)
             # -----------------------------------------
-            if not file_path:
-                raise ValueError("File path is None — upload failed")
+            if not file_path or not os.path.exists(file_path):
+                print("❌ File path invalid:", file_path)
 
-            if not os.path.exists(file_path):
-                raise FileNotFoundError(f"Uploaded file not found at: {file_path}")
+                document.processed = False
+                document.error_message = "File path invalid or file not saved"
+                document.extracted_data = {}
+                document.save()
+
+                messages.error(request, "File upload failed — file not found.")
+                return redirect("core:document_library")
 
             logger.info(f"Processing file: {file_path}")
 
@@ -287,33 +290,41 @@ def upload_document(request):
                 return render(request, "no_fields.html")
 
             # -----------------------------------------
-            # STEP 4 — EXTRACT RAW OCR TEXT
+            # STEP 4 — EXTRACT RAW OCR TEXT (FIXED)
             # -----------------------------------------
             ocr_text = ""
 
-            if isinstance(extracted_data, dict):
-                for page in extracted_data.values():
-                    if isinstance(page, dict):
-                        ocr_text += (
-                            " ".join(
-                                str(v) for k, v in page.items() if k != "_metadata"
-                            )
-                            + " "
-                        )
+            # Case 1 — pipeline returns raw_text directly
+            if isinstance(extracted_data, dict) and "raw_text" in extracted_data:
+                ocr_text = extracted_data.get("raw_text", "")
+
+            # Case 2 — structured page-wise data
+            elif isinstance(extracted_data, dict):
+                for page_key, page_data in extracted_data.items():
+                    if isinstance(page_data, dict):
+                        for field, value in page_data.items():
+                            if field != "_metadata" and value:
+                                ocr_text += str(value) + " "
 
             ocr_text = ocr_text.strip()
+
+            print("\n================ OCR DEBUG ================")
+            print("OCR TEXT LENGTH:", len(ocr_text))
+            print("OCR TEXT SAMPLE:", ocr_text[:500])
+            print("===========================================\n")
 
             # -----------------------------------------
             # STEP 5 — DETECT DOCUMENT TYPE
             # -----------------------------------------
-            detected_type = None
-
-            if ocr_text:
+            if not ocr_text or len(ocr_text) < 20:
+                detected_type = "Other_Document"
+                print("⚠️ OCR text too small — detection skipped")
+            else:
+                print("✅ Calling OpenAI detection...")
                 detected_type = detect_document_type(ocr_text)
 
-            document.doc_type = detected_type if detected_type else "Other_Document"
-
-            logger.info(f"Detected document type: {document.doc_type}")
+            document.doc_type = detected_type
+            logger.info(f"Detected document type: {detected_type}")
 
             # -----------------------------------------
             # STEP 6 — SAVE CLEAN JSON DATA
@@ -347,6 +358,7 @@ def upload_document(request):
     # STEP 8 — GET REQUEST
     # -----------------------------------------
     return render(request, "upload_document.html")
+
 
 # -------------------------------------------------
 # 🔹 BATCH UPLOAD DOCUMENTS
