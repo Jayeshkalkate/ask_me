@@ -18,54 +18,6 @@ from .forms import DocumentUploadForm, DocumentEditForm
 from .ai_utils import detect_document_type, extract_structured_data
 from .ocr_utils import (
     process_document_file_enhanced,
-    validate_ocr_environment,
-    get_supported_document_types,
-)
-from .models import convert_numpy
-
-
-logger = logging.getLogger(__name__)
-
-
-def process_document(request):
-    if request.method == "POST":
-        uploaded_file = request.FILES["document"]
-
-        # Save temporarily
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            for chunk in uploaded_file.chunks():
-                temp_file.write(chunk)
-            temp_path = temp_file.name
-
-        try:
-            # OCR
-            # extracted_text = extract_text_from_file(temp_path)
-            from .ocr_utils import extract_text_from_document
-            extracted_text = extract_text_from_document(temp_path)
-
-            # AI Extraction
-            structured_data = extract_structured_data(extracted_text)
-            structured_data = convert_numpy(structured_data)
-
-            # Save only structured data
-            Document.objects.create(
-                user=request.user,
-                document_type=structured_data.get("document_type"),
-                name=structured_data.get("name"),
-                date_of_birth=structured_data.get("date_of_birth"),
-                address=structured_data.get("address"),
-                id_number=structured_data.get("id_number"),
-            )
-
-        finally:
-            # DELETE FILE IMMEDIATELY
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-
-        return redirect("result_page")
-
-from .ocr_utils import (
-    process_document_file_enhanced,
     process_document_file,  # legacy support
     batch_process_documents,
     validate_ocr_environment,
@@ -74,9 +26,46 @@ from .ocr_utils import (
     DocumentAnalyzer,
 )
 
-# Set up logging
+from .models import convert_numpy
 logger = logging.getLogger(__name__)
 
+
+# def process_document(request):
+#     if request.method == "POST":
+#         uploaded_file = request.FILES["document"]
+
+#         # Save temporarily
+#         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+#             for chunk in uploaded_file.chunks():
+#                 temp_file.write(chunk)
+#             temp_path = temp_file.name
+
+#         try:
+#             # OCR
+#             # extracted_text = extract_text_from_file(temp_path)
+#             from .ocr_utils import extract_text_from_document
+#             extracted_text = extract_text_from_document(temp_path)
+
+#             # AI Extraction
+#             structured_data = extract_structured_data(extracted_text)
+#             structured_data = convert_numpy(structured_data)
+
+#             # Save only structured data
+#             Document.objects.create(
+#                 user=request.user,
+#                 document_type=structured_data.get("document_type"),
+#                 name=structured_data.get("name"),
+#                 date_of_birth=structured_data.get("date_of_birth"),
+#                 address=structured_data.get("address"),
+#                 id_number=structured_data.get("id_number"),
+#             )
+
+#         finally:
+#             # DELETE FILE IMMEDIATELY
+#             if os.path.exists(temp_path):
+#                 os.remove(temp_path)
+
+#         return redirect("result_page")
 
 # -------------------------------------------------
 # 🔹 HOMEPAGE WITH DASHBOARD
@@ -288,30 +277,38 @@ def upload_document(request):
                 document.save()
 
                 return render(request, "no_fields.html")
-
+            
             # -----------------------------------------
-            # STEP 4 — EXTRACT RAW OCR TEXT (FIXED)
+            # STEP 4 — EXTRACT RAW OCR TEXT (CORRECTED)
             # -----------------------------------------
+            
             ocr_text = ""
-
-            # Case 1 — pipeline returns raw_text directly
-            if isinstance(extracted_data, dict) and "raw_text" in extracted_data:
-                ocr_text = extracted_data.get("raw_text", "")
-
-            # Case 2 — structured page-wise data
-            elif isinstance(extracted_data, dict):
+            
+            if isinstance(extracted_data, dict):
+                
                 for page_key, page_data in extracted_data.items():
-                    if isinstance(page_data, dict):
+                    
+                    if not isinstance(page_data, dict):
+                        continue
+                    
+                    # Case 1 — raw_text exists
+                    
+                    if "raw_text" in page_data:
+                        ocr_text += page_data.get("raw_text", "") + " "
+                        
+                        # Case 2 — structured fields only
+                        
+                    else:
                         for field, value in page_data.items():
                             if field != "_metadata" and value:
                                 ocr_text += str(value) + " "
+                                ocr_text = ocr_text.strip()
+                                
+                                print("\n================ OCR DEBUG ================")
+                                print("OCR TEXT LENGTH:", len(ocr_text))
+                                print("OCR TEXT SAMPLE:", ocr_text[:500])
+                                print("===========================================\n")
 
-            ocr_text = ocr_text.strip()
-
-            print("\n================ OCR DEBUG ================")
-            print("OCR TEXT LENGTH:", len(ocr_text))
-            print("OCR TEXT SAMPLE:", ocr_text[:500])
-            print("===========================================\n")
 
             # -----------------------------------------
             # STEP 5 — DETECT DOCUMENT TYPE
@@ -478,7 +475,7 @@ def reprocess_document(request, pk):
             # For reprocessing, we'd use the enhanced function with specific parameters
             # This is a simplified version - you'd integrate the full reprocessing logic
             ocr_result = process_document_file_enhanced(
-                document.file.path, new_doc_type, auto_detect=False
+                document.file.path, doc_type=new_doc_type, auto_detect=True
             )
 
             # Update document (similar to upload logic)
@@ -724,7 +721,7 @@ def handle_base64_upload(file_base64, file_type):
 
         # Process document
         ocr_result = process_document_file_enhanced(
-            tmp_file_path, file_type, auto_detect=True
+            tmp_file_path, doc_type=None, auto_detect=True
         )
 
         # Format response

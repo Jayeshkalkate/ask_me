@@ -75,8 +75,9 @@ class OCRPreprocessor:
             osd = pytesseract.image_to_osd(gray)
             rotation = 0
             for line in osd.split("\n"):
-                if "Rotate" in line:
-                    rotation = int(line.split(":")[1].strip())
+                match = re.search(r"Rotate:\s+(\d+)", line)
+                if match:
+                    rotation = int(match.group(1))
                     break
 
             if rotation != 0:
@@ -128,7 +129,11 @@ class OCRPreprocessor:
     @staticmethod
     def deskew_image(image: np.ndarray) -> np.ndarray:
         """Deskew the image"""
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        if len(image.shape) == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image.copy()
+
         gray = cv2.bitwise_not(gray)
 
         # Threshold the image
@@ -136,6 +141,8 @@ class OCRPreprocessor:
 
         # Find coordinates of all pixel values > 0
         coords = np.column_stack(np.where(thresh > 0))
+        if len(coords) == 0:
+            return image
 
         # Get angle of rotation
         angle = cv2.minAreaRect(coords)[-1]
@@ -162,16 +169,15 @@ class DocumentAnalyzer:
 
     @staticmethod
     def calculate_image_quality_score(image_path: str) -> Dict[str, float]:
-        img = safe_read_image(image_path)
         try:
             img = safe_read_image(image_path)
-        except:
+        except Exception:
             return {
-                "overall_score": 0,
-                "blur_score": 0,
-                "contrast_score": 0,
-                "brightness_score": 0,
-                }
+                "overall_score": 0.0,
+                "blur_score": 0.0,
+                "contrast_score": 0.0,
+                "brightness_score": 0.0,
+            }
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -182,55 +188,41 @@ class DocumentAnalyzer:
         blur_normalized = min(blur_score / 1000, 1.0)
         contrast_normalized = min(contrast_score / 64, 1.0)
         brightness_normalized = 1 - abs(brightness_score - 127) / 127
+        brightness_normalized = max(0.0, min(brightness_normalized, 1.0))
 
         overall_score = (
             blur_normalized + contrast_normalized + brightness_normalized
         ) / 3
 
         return {
-            "overall_score": overall_score,
-            "blur_score": blur_normalized,
-            "contrast_score": contrast_normalized,
-            "brightness_score": brightness_normalized,
+            "overall_score": float(overall_score),
+            "blur_score": float(blur_normalized),
+            "contrast_score": float(contrast_normalized),
+            "brightness_score": float(brightness_normalized),
         }
 
+    # ✅ MUST BE HERE (same indentation)
     @staticmethod
-    def detect_document_type(image_path: str) -> str:
-        """
-        Improved document type detection using text-based heuristics.
-        """
-
-        try:
-            # text = pytesseract.image_to_string(image_path).lower()
-            img = safe_read_image(image_path)
-
-            text = pytesseract.image_to_string(img).lower()
-
-            if "aadhaar" in text or "government of india" in text:
-                return "aadhaar_front"
-
-            elif "income tax department" in text or "permanent account number" in text:
-                return "pan"
-
-            elif "driving licence" in text or "transport department" in text:
-                return "dl"
-
-            elif "passport" in text:
-                return "passport"
-
-            elif "election commission" in text:
-                return "voter_front"
-
-            elif "registration" in text and "vehicle" in text:
-                return "rc"
-
-            else:
-                return "unknown"
-
-        except Exception as e:
-            logger.warning(f"Document type detection failed: {e}")
+    def detect_document_type_from_text(text: str) -> str:
+        if not text:
             return "unknown"
 
+        text = text.lower()
+
+        if "aadhaar" in text or "government of india" in text:
+            return "aadhaar_front"
+        if "income tax department" in text:
+            return "pan"
+        if "driving licence" in text:
+            return "dl"
+        if "passport" in text:
+            return "passport"
+        if "election commission" in text:
+            return "voter_front"
+        if "vehicle" in text and "registration" in text:
+            return "rc"
+
+        return "unknown"
 
 # -------------------------------------------------
 # 🔹 ENHANCED IMAGE QUALITY CHECK
@@ -361,10 +353,7 @@ def preprocess_image_advanced(
 # -------------------------------------------------
 # 🔹 ENHANCED PDF TO IMAGE CONVERSION
 # -------------------------------------------------
-def pdf_to_images_enhanced(
-    pdf_path: str, dpi: int = 300, poppler_path: str = None
-) -> List[str]:
-    """Enhanced PDF to image conversion with better quality control"""
+def pdf_to_images_enhanced(pdf_path: str, dpi: int = 300, poppler_path: str = None):
     try:
         if poppler_path and os.path.exists(poppler_path):
             images = convert_from_path(pdf_path, dpi=dpi, poppler_path=poppler_path)
@@ -372,30 +361,21 @@ def pdf_to_images_enhanced(
             images = convert_from_path(pdf_path, dpi=dpi)
 
         if not images:
-            raise ValueError("PDF has no pages or could not be converted")
+            raise ValueError("PDF has no pages")
 
-        # Create temporary directory for images
         temp_dir = tempfile.mkdtemp()
         img_paths = []
 
-        for i, img in enumerate(images, start=1):
-            # Enhance image before saving
-            enhancer = ImageEnhance.Sharpness(img)
-            img_enhanced = enhancer.enhance(1.5)
-
-            img_filename = f"pdf_page_{i}_{os.path.basename(pdf_path)}.jpg"
-            img_path = os.path.join(temp_dir, img_filename)
-
-            # Save with high quality
-            img_enhanced.save(img_path, "JPEG", quality=95, optimize=True)
+        for i, img in enumerate(images, 1):
+            img_path = os.path.join(temp_dir, f"page_{i}.jpg")
+            img.save(img_path, "JPEG", quality=95)
             img_paths.append(img_path)
 
         return img_paths
 
     except Exception as e:
-        logger.error(f"PDF to image conversion failed: {e}")
+        logger.error(f"PDF conversion failed: {e}")
         raise
-
 
 # -------------------------------------------------
 # 🔹 SMART OCR WITH FALLBACK STRATEGY
@@ -404,59 +384,77 @@ def smart_ocr_extraction(
     image_path: str, doc_type: str = None, retry_count: int = 3
 ) -> Dict:
     """
-    Smart OCR extraction with multiple fallback strategies
+    Smart OCR extraction with:
+    - Multi-level image enhancement
+    - Structured OCR (OpenBharatOCR) if available
+    - Tesseract fallback with multiple configs
+    - Clean failure detection (no fake text)
     """
+
     results = {}
     enhancement_levels = ["mild", "moderate", "aggressive"]
 
     for attempt in range(retry_count):
-        try:
-            enhancement = enhancement_levels[min(attempt, len(enhancement_levels) - 1)]
+        temp_processed_path = None
 
-            # Preprocess with current enhancement level
+        try:
+            logger.info(f"OCR attempt {attempt + 1}/{retry_count}")
+
+            # -----------------------------------------
+            # STEP 1 — PREPROCESS IMAGE
+            # -----------------------------------------
+            enhancement = enhancement_levels[min(attempt, len(enhancement_levels) - 1)]
             processed_img = preprocess_image_advanced(image_path, enhancement)
 
-            # Save processed image temporarily for OpenBharatOCR
-
-            # temp_processed_path = f"/tmp/processed_{os.path.basename(image_path)}"
-            # cv2.imwrite(temp_processed_path, processed_img)
-
+            # -----------------------------------------
+            # STEP 2 — SAVE TEMP IMAGE
+            # -----------------------------------------
             with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_img:
                 cv2.imwrite(temp_img.name, processed_img)
                 temp_processed_path = temp_img.name
 
-            # Try OpenBharatOCR first if doc_type is specified
+            # -----------------------------------------
+            # STEP 3 — TRY STRUCTURED OCR (OpenBharatOCR)
+            # -----------------------------------------
             if doc_type and doc_type in OCR_HANDLERS:
                 try:
+                    logger.info(f"Trying OpenBharatOCR for doc_type={doc_type}")
+
                     structured_data = OCR_HANDLERS[doc_type](temp_processed_path)
 
+                    # Convert string JSON to dict
                     if isinstance(structured_data, str):
                         try:
                             structured_data = json.loads(structured_data)
                         except json.JSONDecodeError:
                             structured_data = {"raw_text": structured_data}
 
+                    # Validate meaningful data
                     if isinstance(structured_data, dict) and structured_data:
-                        # Validate that we got meaningful data
-                        if any(
-                            len(str(v).strip()) > 3
+                        meaningful = any(
+                            v
+                            and isinstance(v, str)
+                            and re.search(r"[A-Za-z0-9]{4,}", v)
                             for v in structured_data.values()
-                            if v and str(v).strip()
-                        ):
-                            results.update(structured_data)
-                            logger.info(
-                                f"Successfully extracted data using OpenBharatOCR (attempt {attempt + 1})"
-                            )
-                            break
-                except Exception as e:
-                    logger.warning(f"OpenBharatOCR attempt {attempt + 1} failed: {e}")
+                        )
 
-            # Fallback to Tesseract with different configurations
+                        if meaningful:
+                            logger.info("Structured OCR successful")
+                            results.update(structured_data)
+                            break
+
+                except Exception as e:
+                    logger.warning(f"OpenBharatOCR failed: {e}")
+
+            # -----------------------------------------
+            # STEP 4 — FALLBACK TO TESSERACT OCR
+            # -----------------------------------------
             tesseract_configs = [
-                "--oem 3 --psm 6",  # Uniform block of text
-                "--oem 3 --psm 4",  # Single column of text
-                "--oem 3 --psm 8",  # Single word
-                "--oem 3 --psm 13",  # Raw line
+                "--oem 3 --psm 6",  # block text
+                "--oem 3 --psm 4",  # column text
+                "--oem 3 --psm 11",  # sparse text
+                "--oem 3 --psm 8",  # single word
+                "--oem 3 --psm 13",  # raw line
             ]
 
             for config in tesseract_configs:
@@ -464,14 +462,14 @@ def smart_ocr_extraction(
                     text = pytesseract.image_to_string(
                         processed_img, config=config
                     ).strip()
-                    if len(text) > 10:  # Meaningful text extracted
+
+                    if len(text) > 10:
+                        logger.info(f"Tesseract success with config: {config}")
                         results["raw_text"] = text
-                        logger.info(
-                            f"Successfully extracted text using Tesseract (config: {config})"
-                        )
                         break
+
                 except Exception as e:
-                    logger.warning(f"Tesseract config {config} failed: {e}")
+                    logger.warning(f"Tesseract config failed ({config}): {e}")
 
             if results:
                 break
@@ -479,14 +477,24 @@ def smart_ocr_extraction(
         except Exception as e:
             logger.error(f"OCR attempt {attempt + 1} failed: {e}")
 
-    # Clean up temporary file
-    try:
-        if "temp_processed_path" in locals():
-            os.remove(temp_processed_path)
-    except:
-        pass
+        finally:
+            # -----------------------------------------
+            # STEP 5 — CLEAN TEMP FILE
+            # -----------------------------------------
+            if temp_processed_path and os.path.exists(temp_processed_path):
+                try:
+                    os.remove(temp_processed_path)
+                except Exception as e:
+                    logger.warning(f"Temp file cleanup failed: {e}")
 
-    return results if results else {"raw_text": "No readable text could be extracted"}
+    # -----------------------------------------
+    # STEP 6 — FINAL RESULT
+    # -----------------------------------------
+    if not results:
+        logger.warning("OCR failed completely — no readable text")
+        return {"status": "failed", "raw_text": ""}
+
+    return {"status": "success", **results}
 
 
 # -------------------------------------------------
@@ -502,6 +510,9 @@ def process_document_file_enhanced(
     ext = os.path.splitext(file_path)[1].lower()
     image_paths = [file_path]
 
+    # -----------------------------------------
+    # PDF → IMAGES
+    # -----------------------------------------
     if ext == ".pdf":
         try:
             image_paths = pdf_to_images_enhanced(file_path)
@@ -511,29 +522,62 @@ def process_document_file_enhanced(
     extracted_results = {}
     analyzer = DocumentAnalyzer()
 
+    # -----------------------------------------
+    # PROCESS EACH PAGE
+    # -----------------------------------------
     for idx, image_path in enumerate(image_paths, start=1):
         page_key = f"page_{idx}"
 
         try:
+            # -----------------------------------------
+            # STEP 0 — QUALITY CHECK
+            # -----------------------------------------
             quality_scores = analyzer.calculate_image_quality_score(image_path)
             is_blurry, blur_score = is_image_blurry(image_path)
 
-            # 🔥 Improved auto detection
+            # -----------------------------------------
+            # STEP 1 — RUN OCR FIRST (ONLY ONCE)
+            # -----------------------------------------
+            ocr_result = smart_ocr_extraction(image_path, doc_type)
+
+            if not isinstance(ocr_result, dict):
+                ocr_result = {"raw_text": str(ocr_result)}
+
+            # -----------------------------------------
+            # STEP 2 — AUTO DETECT FROM OCR TEXT
+            # -----------------------------------------
             detected_doc_type = doc_type
+
             if auto_detect and not doc_type:
-                detected = analyzer.detect_document_type(image_path)
+                combined_text = ""
+
+                if "raw_text" in ocr_result:
+                    combined_text = ocr_result["raw_text"]
+                else:
+                    combined_text = " ".join(
+                        str(v) for k, v in ocr_result.items() if k != "_metadata"
+                    )
+
+                detected = analyzer.detect_document_type_from_text(combined_text)
                 detected_doc_type = detected if detected != "unknown" else None
 
+            # -----------------------------------------
+            # STEP 3 — QUALITY WARNINGS
+            # -----------------------------------------
             quality_warnings = []
+
             if is_blurry:
                 quality_warnings.append("Document is blurry - accuracy may be reduced")
-            if quality_scores["overall_score"] < 0.5:
+
+            if quality_scores.get("overall_score", 1) < 0.5:
                 quality_warnings.append("Low overall image quality detected")
-            if quality_scores["contrast_score"] < 0.3:
+
+            if quality_scores.get("contrast_score", 1) < 0.3:
                 quality_warnings.append("Low contrast detected")
 
-            ocr_result = smart_ocr_extraction(image_path, detected_doc_type)
-
+            # -----------------------------------------
+            # STEP 4 — METADATA
+            # -----------------------------------------
             ocr_result["_metadata"] = {
                 "page_number": idx,
                 "quality_scores": quality_scores,
@@ -544,23 +588,22 @@ def process_document_file_enhanced(
                 "processing_method": "enhanced_ocr",
             }
 
-            if "raw_text" in ocr_result and len(ocr_result) > 2:
-                structured_fields = [
-                    k for k in ocr_result.keys() if k not in ["raw_text", "_metadata"]
-                ]
-                if structured_fields:
-                    del ocr_result["raw_text"]
-
             extracted_results[page_key] = ocr_result
 
         except Exception as e:
             logger.error(f"Error processing {page_key}: {e}")
+
             extracted_results[page_key] = {
                 "error": f"Processing failed: {str(e)}",
-                "_metadata": {"page_number": idx, "processing_method": "error"},
+                "_metadata": {
+                    "page_number": idx,
+                    "processing_method": "error",
+                },
             }
 
-    # 🔐 SAFE PDF CLEANUP
+    # -----------------------------------------
+    # SAFE PDF CLEANUP
+    # -----------------------------------------
     if ext == ".pdf" and image_paths != [file_path]:
         for path in image_paths:
             try:
@@ -570,7 +613,6 @@ def process_document_file_enhanced(
                 logger.warning(f"Cleanup failed for {path}: {cleanup_error}")
 
     return extracted_results
-
 
 # -------------------------------------------------
 # 🔹 BATCH PROCESSING
@@ -675,3 +717,26 @@ def extract_text_from_document(file_path):
     except Exception as e:
         print("OCR Error:", e)
         return ""
+
+def build_ocr_text(extracted_data: dict) -> str:
+    """
+    Build combined OCR text from extracted pages.
+    Safe and fast.
+    """
+    text_parts = []
+
+    if not isinstance(extracted_data, dict):
+        return ""
+
+    for page_data in extracted_data.values():
+        if not isinstance(page_data, dict):
+            continue
+
+        if "raw_text" in page_data:
+            text_parts.append(page_data["raw_text"])
+        else:
+            for key, value in page_data.items():
+                if key != "_metadata" and value:
+                    text_parts.append(str(value))
+
+    return " ".join(text_parts).strip()
