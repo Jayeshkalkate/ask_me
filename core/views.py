@@ -29,44 +29,6 @@ from .ocr_utils import (
 from .models import convert_numpy
 logger = logging.getLogger(__name__)
 
-
-# def process_document(request):
-#     if request.method == "POST":
-#         uploaded_file = request.FILES["document"]
-
-#         # Save temporarily
-#         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-#             for chunk in uploaded_file.chunks():
-#                 temp_file.write(chunk)
-#             temp_path = temp_file.name
-
-#         try:
-#             # OCR
-#             # extracted_text = extract_text_from_file(temp_path)
-#             from .ocr_utils import extract_text_from_document
-#             extracted_text = extract_text_from_document(temp_path)
-
-#             # AI Extraction
-#             structured_data = extract_structured_data(extracted_text)
-#             structured_data = convert_numpy(structured_data)
-
-#             # Save only structured data
-#             Document.objects.create(
-#                 user=request.user,
-#                 document_type=structured_data.get("document_type"),
-#                 name=structured_data.get("name"),
-#                 date_of_birth=structured_data.get("date_of_birth"),
-#                 address=structured_data.get("address"),
-#                 id_number=structured_data.get("id_number"),
-#             )
-
-#         finally:
-#             # DELETE FILE IMMEDIATELY
-#             if os.path.exists(temp_path):
-#                 os.remove(temp_path)
-
-#         return redirect("result_page")
-
 # -------------------------------------------------
 # 🔹 HOMEPAGE WITH DASHBOARD
 # -------------------------------------------------
@@ -301,14 +263,12 @@ def upload_document(request):
                     else:
                         for field, value in page_data.items():
                             if field != "_metadata" and value:
-                                ocr_text += str(value) + " "
                                 ocr_text = ocr_text.strip()
                                 
                                 print("\n================ OCR DEBUG ================")
                                 print("OCR TEXT LENGTH:", len(ocr_text))
                                 print("OCR TEXT SAMPLE:", ocr_text[:500])
                                 print("===========================================\n")
-
 
             # -----------------------------------------
             # STEP 5 — DETECT DOCUMENT TYPE
@@ -322,16 +282,38 @@ def upload_document(request):
 
             document.doc_type = detected_type
             logger.info(f"Detected document type: {detected_type}")
-
+            
+            # -----------------------------------------
+            # STEP 5.5 — AI STRUCTURED EXTRACTION
+            # -----------------------------------------
+            
+            structured_data = {}
+            if ocr_text and len(ocr_text) > 30:
+                print("🤖 Calling OpenAI structured extraction...")
+                structured_data = extract_structured_data(ocr_text)
+                
+                if structured_data:
+                    print("✅ Structured data extracted:", structured_data)
+                else:
+                    print("⚠️ AI returned empty structured data")
+                    
             # -----------------------------------------
             # STEP 6 — SAVE CLEAN JSON DATA
             # -----------------------------------------
-            clean_data = convert_numpy(extracted_data)
-
-            document.extracted_data = clean_data
-            document.processed = True
-            document.error_message = None
-            document.save()
+            
+            if structured_data:
+                final_data = {
+                    "page_1": structured_data
+                    }
+            else:
+                final_data = extracted_data
+                
+                clean_data = convert_numpy(final_data)
+                
+                document.extracted_data = clean_data
+                document.processed = True
+                document.error_message = None
+                document.save()
 
             messages.success(request, "✅ Document processed successfully!")
             return redirect("core:edit_document", document.id)

@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import pytesseract
+
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 # --------------------
 # FILE UPLOAD LIMITS
 # --------------------

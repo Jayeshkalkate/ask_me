@@ -61,38 +61,38 @@ def safe_read_image(image_path: str) -> np.ndarray:
 class OCRPreprocessor:
     """Advanced image preprocessing for OCR optimization"""
 
-    @staticmethod
-    def auto_rotate_image(image: np.ndarray) -> np.ndarray:
-        """Auto-rotate image to correct orientation"""
-        try:
-            # Convert to grayscale if needed
-            if len(image.shape) == 3:
-                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            else:
-                gray = image.copy()
+    # @staticmethod
+    # def auto_rotate_image(image: np.ndarray) -> np.ndarray:
+    #     """Auto-rotate image to correct orientation"""
+    #     try:
+    #         # Convert to grayscale if needed
+    #         if len(image.shape) == 3:
+    #             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    #         else:
+    #             gray = image.copy()
 
-            # Use Tesseract to detect orientation
-            osd = pytesseract.image_to_osd(gray)
-            rotation = 0
-            for line in osd.split("\n"):
-                match = re.search(r"Rotate:\s+(\d+)", line)
-                if match:
-                    rotation = int(match.group(1))
-                    break
+    #         # Use Tesseract to detect orientation
+    #         osd = pytesseract.image_to_osd(gray)
+    #         rotation = 0
+    #         for line in osd.split("\n"):
+    #             match = re.search(r"Rotate:\s+(\d+)", line)
+    #             if match:
+    #                 rotation = int(match.group(1))
+    #                 break
 
-            if rotation != 0:
-                # Rotate the image
-                if rotation == 90:
-                    image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-                elif rotation == 180:
-                    image = cv2.rotate(image, cv2.ROTATE_180)
-                elif rotation == 270:
-                    image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    #         if rotation != 0:
+    #             # Rotate the image
+    #             if rotation == 90:
+    #                 image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+    #             elif rotation == 180:
+    #                 image = cv2.rotate(image, cv2.ROTATE_180)
+    #             elif rotation == 270:
+    #                 image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-        except Exception as e:
-            logger.warning(f"Auto-rotation failed: {e}")
+    #     except Exception as e:
+    #         logger.warning(f"Auto-rotation failed: {e}")
 
-        return image
+    #     return image
 
     @staticmethod
     def remove_shadows(image: np.ndarray) -> np.ndarray:
@@ -264,90 +264,33 @@ def is_image_blurry(image_path: str, threshold: float = 100.0) -> Tuple[bool, fl
 # -------------------------------------------------
 # 🔹 ADVANCED IMAGE PREPROCESSING
 # -------------------------------------------------
-def preprocess_image_advanced(
-    image_path: str, enhancement_level: str = "auto"
-) -> np.ndarray:
+def preprocess_image_advanced(image_path: str) -> np.ndarray:
     """
-    Advanced image preprocessing pipeline with multiple enhancement levels
+    Stable preprocessing for OCR.
+    No over-processing.
     """
-    img = safe_read_image(image_path)
 
-    preprocessor = OCRPreprocessor()
+    img = cv2.imread(image_path)
 
-    # Step 1: Auto-rotate
-    img = preprocessor.auto_rotate_image(img)
-
-    # Step 2: Remove shadows
-    img = preprocessor.remove_shadows(img)
-
-    # Step 3: Deskew
-    img = preprocessor.deskew_image(img)
+    if img is None:
+        print("❌ Image could not be loaded:", image_path)
+        return None
 
     # Convert to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Step 4: Denoise with advanced methods
-    denoised = cv2.fastNlMeansDenoising(
-        gray, h=15, templateWindowSize=7, searchWindowSize=21
+    # Resize (improves OCR accuracy)
+    gray = cv2.resize(gray, None, fx=1.5, fy=1.5, interpolation=cv2.INTER_CUBIC)
+
+    # Light denoise
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Adaptive threshold (SAFE)
+    thresh = cv2.adaptiveThreshold(
+        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
     )
 
-    # Step 5: Contrast enhancement based on enhancement level
-    if enhancement_level == "aggressive":
-        # CLAHE for local contrast enhancement
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-        enhanced = clahe.apply(denoised)
-
-        # Global contrast stretch
-        enhanced = exposure.rescale_intensity(
-            enhanced, in_range="image", out_range=(0, 255)
-        )
-
-    elif enhancement_level == "moderate":
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        enhanced = clahe.apply(denoised)
-
-    else:  # auto or mild
-        # Analyze image statistics to decide enhancement
-        mean_intensity = np.mean(denoised)
-        std_intensity = np.std(denoised)
-
-        if std_intensity < 25:  # Low contrast
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-            enhanced = clahe.apply(denoised)
-        else:
-            enhanced = denoised
-
-    # 🔧 FIX: Ensure image is single-channel grayscale before adaptiveThreshold
-    if len(enhanced.shape) == 3:
-        enhanced = cv2.cvtColor(enhanced, cv2.COLOR_BGR2GRAY)
-
-    # Step 6: Adaptive thresholding with multiple methods
-    if enhancement_level == "aggressive":
-        # Try multiple binarization methods
-        thresh1 = cv2.adaptiveThreshold(
-            enhanced, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 31, 10
-        )
-        thresh2 = cv2.adaptiveThreshold(
-            enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 10
-        )
-
-        # Combine results (you can choose one or combine)
-        final_thresh = cv2.bitwise_and(thresh1, thresh2)
-    else:
-        final_thresh = cv2.adaptiveThreshold(
-            enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-        )
-
-    # Step 7: Morphological operations to clean up
-    kernel = np.ones((2, 2), np.uint8)
-    cleaned = cv2.morphologyEx(final_thresh, cv2.MORPH_CLOSE, kernel)
-    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_OPEN, kernel)
-
-    # Step 8: Sharpening
-    kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
-    sharpened = cv2.filter2D(cleaned, -1, kernel)
-
-    return sharpened
+    return thresh
 
 
 # -------------------------------------------------
@@ -377,125 +320,53 @@ def pdf_to_images_enhanced(pdf_path: str, dpi: int = 300, poppler_path: str = No
         logger.error(f"PDF conversion failed: {e}")
         raise
 
+
 # -------------------------------------------------
-# 🔹 SMART OCR WITH FALLBACK STRATEGY
+# 🔹 IMPROVED SMART OCR (PRODUCTION READY)
 # -------------------------------------------------
-def smart_ocr_extraction(
-    image_path: str, doc_type: str = None, retry_count: int = 3
-) -> Dict:
+
+
+def smart_ocr_extraction(image_path: str) -> Dict:
     """
-    Smart OCR extraction with:
-    - Multi-level image enhancement
-    - Structured OCR (OpenBharatOCR) if available
-    - Tesseract fallback with multiple configs
-    - Clean failure detection (no fake text)
+    Improved OCR extraction using contrast boost + OTSU.
     """
 
-    results = {}
-    enhancement_levels = ["mild", "moderate", "aggressive"]
+    try:
+        logger.info("Starting OCR extraction")
 
-    for attempt in range(retry_count):
-        temp_processed_path = None
+        img = cv2.imread(image_path)
 
-        try:
-            logger.info(f"OCR attempt {attempt + 1}/{retry_count}")
+        if img is None:
+            logger.error("Image load failed")
+            return {"status": "failed", "raw_text": ""}
 
-            # -----------------------------------------
-            # STEP 1 — PREPROCESS IMAGE
-            # -----------------------------------------
-            enhancement = enhancement_levels[min(attempt, len(enhancement_levels) - 1)]
-            processed_img = preprocess_image_advanced(image_path, enhancement)
+        # Convert to grayscale
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-            # -----------------------------------------
-            # STEP 2 — SAVE TEMP IMAGE
-            # -----------------------------------------
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_img:
-                cv2.imwrite(temp_img.name, processed_img)
-                temp_processed_path = temp_img.name
+        # Boost contrast
+        gray = cv2.convertScaleAbs(gray, alpha=1.8, beta=0)
 
-            # -----------------------------------------
-            # STEP 3 — TRY STRUCTURED OCR (OpenBharatOCR)
-            # -----------------------------------------
-            if doc_type and doc_type in OCR_HANDLERS:
-                try:
-                    logger.info(f"Trying OpenBharatOCR for doc_type={doc_type}")
+        # Resize (important)
+        gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
 
-                    structured_data = OCR_HANDLERS[doc_type](temp_processed_path)
+        # OTSU threshold
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-                    # Convert string JSON to dict
-                    if isinstance(structured_data, str):
-                        try:
-                            structured_data = json.loads(structured_data)
-                        except json.JSONDecodeError:
-                            structured_data = {"raw_text": structured_data}
+        # OCR with English language
+        config = "--oem 3 --psm 6 -l eng"
+        text = pytesseract.image_to_string(thresh, config=config).strip()
 
-                    # Validate meaningful data
-                    if isinstance(structured_data, dict) and structured_data:
-                        meaningful = any(
-                            v
-                            and isinstance(v, str)
-                            and re.search(r"[A-Za-z0-9]{4,}", v)
-                            for v in structured_data.values()
-                        )
+        if len(text) < 10:
+            logger.warning("OCR returned very little text")
+            return {"status": "failed", "raw_text": ""}
 
-                        if meaningful:
-                            logger.info("Structured OCR successful")
-                            results.update(structured_data)
-                            break
+        logger.info("OCR successful")
 
-                except Exception as e:
-                    logger.warning(f"OpenBharatOCR failed: {e}")
+        return {"status": "success", "raw_text": text}
 
-            # -----------------------------------------
-            # STEP 4 — FALLBACK TO TESSERACT OCR
-            # -----------------------------------------
-            tesseract_configs = [
-                "--oem 3 --psm 6",  # block text
-                "--oem 3 --psm 4",  # column text
-                "--oem 3 --psm 11",  # sparse text
-                "--oem 3 --psm 8",  # single word
-                "--oem 3 --psm 13",  # raw line
-            ]
-
-            for config in tesseract_configs:
-                try:
-                    text = pytesseract.image_to_string(
-                        processed_img, config=config
-                    ).strip()
-
-                    if len(text) > 10:
-                        logger.info(f"Tesseract success with config: {config}")
-                        results["raw_text"] = text
-                        break
-
-                except Exception as e:
-                    logger.warning(f"Tesseract config failed ({config}): {e}")
-
-            if results:
-                break
-
-        except Exception as e:
-            logger.error(f"OCR attempt {attempt + 1} failed: {e}")
-
-        finally:
-            # -----------------------------------------
-            # STEP 5 — CLEAN TEMP FILE
-            # -----------------------------------------
-            if temp_processed_path and os.path.exists(temp_processed_path):
-                try:
-                    os.remove(temp_processed_path)
-                except Exception as e:
-                    logger.warning(f"Temp file cleanup failed: {e}")
-
-    # -----------------------------------------
-    # STEP 6 — FINAL RESULT
-    # -----------------------------------------
-    if not results:
-        logger.warning("OCR failed completely — no readable text")
+    except Exception as e:
+        logger.error(f"OCR failed: {e}")
         return {"status": "failed", "raw_text": ""}
-
-    return {"status": "success", **results}
-
 
 # -------------------------------------------------
 # 🔹 ENHANCED MAIN OCR PIPELINE
