@@ -1,6 +1,5 @@
 # C:\chatbot\ask_me\core\ai_utils.py
 
-from openai import OpenAI
 import os
 import json
 import re
@@ -9,122 +8,74 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-# =========================================
-# 🔐 Safe OpenAI client initialization
-# =========================================
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# =====================================================
+# 🚫 OpenAI Disabled (Free Mode)
+# =====================================================
+# We keep structure ready for future upgrade,
+# but no API call will happen.
 
-print("OPENAI KEY FROM AI_UTILS:", os.getenv("OPENAI_API_KEY"))
-
-client: Optional[OpenAI] = None
-if OPENAI_API_KEY:
-    try:
-        client = OpenAI(api_key=OPENAI_API_KEY)
-    except Exception as e:
-        logger.error(f"OpenAI initialization failed: {e}")
-else:
-    logger.warning("OPENAI_API_KEY not found. AI extraction disabled.")
+client = None
+logger.info("Running in FREE rule-based extraction mode. OpenAI disabled.")
 
 
-# =========================================
-# 🧹 Clean JSON safely from model response
-# =========================================
+# =====================================================
+# 🧹 Clean JSON safely
+# =====================================================
 def clean_json_response(content: str) -> Dict:
     """
-    Extract and safely parse JSON from model output.
-    Handles markdown, extra text, malformed wrapping.
+    Safely parse JSON string if needed.
     """
-
     if not content:
         return {}
 
     try:
-        # remove markdown fences
         content = re.sub(r"```json|```", "", content, flags=re.IGNORECASE).strip()
-
-        # extract JSON object boundaries
         start = content.find("{")
         end = content.rfind("}")
-
         if start == -1 or end == -1:
             return {}
-
-        json_str = content[start : end + 1]
-
-        return json.loads(json_str)
-
-    except Exception as e:
-        logger.warning(f"JSON cleaning failed: {e}")
+        return json.loads(content[start : end + 1])
+    except Exception:
         return {}
 
 
-# =========================================
-# 🔐 Mask sensitive data before AI call
-# =========================================
+# =====================================================
+# 🔐 Mask sensitive data (Optional utility)
+# =====================================================
 def mask_sensitive_data(text: str) -> str:
-    """
-    Mask highly sensitive identifiers before sending to AI.
-    """
-
     if not text:
         return ""
 
-    # Aadhaar number (12 digits)
     text = re.sub(r"\b\d{4}\s?\d{4}\s?\d{4}\b", "XXXX XXXX XXXX", text)
-
-    # PAN number
     text = re.sub(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b", "XXXXX0000X", text)
 
     return text
 
 
-# =========================================
-# 🧼 Clean OCR text before any AI processing
-# =========================================
+# =====================================================
+# 🧼 Clean OCR text
+# =====================================================
 def clean_ocr_text(text: str) -> str:
-    """
-    Clean OCR-extracted text to improve AI parsing.
-    - Remove excessive whitespace
-    - Normalize line breaks
-    - Remove stray non-printable characters
-    """
     if not text:
         return ""
 
-    # Remove control characters except newlines/tabs
     text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
-
-    # Replace multiple newlines with a single newline
     text = re.sub(r"\n\s*\n", "\n", text)
-
-    # Replace multiple spaces/tabs with a single space
     text = re.sub(r"[ \t]+", " ", text)
 
-    # Trim leading/trailing whitespace
-    text = text.strip()
-
-    return text
+    return text.strip()
 
 
-# =========================================
-# 📄 Document Type Detection (OCR-based)
-# =========================================
+# =====================================================
+# 📄 Document Type Detection
+# =====================================================
 def detect_document_type(text: str) -> Optional[str]:
-    """
-    Detect document type from OCR extracted text.
-    Lightweight rule-based detection.
-    """
-
     if not text or not isinstance(text, str):
-        logger.warning("Document detection skipped: invalid OCR text")
         return None
 
-    # Clean OCR text for better rule matching (optional but beneficial)
-    cleaned = clean_ocr_text(text)
-    cleaned = cleaned.lower()
+    cleaned = clean_ocr_text(text).lower()
 
     if len(cleaned) < 20:
-        logger.warning("Document detection skipped: text too short")
         return None
 
     if "aadhaar" in cleaned or "uidai" in cleaned:
@@ -139,95 +90,155 @@ def detect_document_type(text: str) -> Optional[str]:
     if "passport" in cleaned and "republic of india" in cleaned:
         return "Passport"
 
+    if "invoice" in cleaned or "gst" in cleaned:
+        return "Invoice"
+
     return "Other_Document"
 
 
-# =========================================
-# 🤖 AI Structured Data Extraction
-# =========================================
+# =====================================================
+# 🤖 FREE Multi-Document Structured Extraction Engine
+# =====================================================
 def extract_structured_data(text: str) -> Dict:
-    """
-    Extract structured JSON from document text using OpenAI.
-    Returns dictionary or {}.
-    """
-
-    global client
-
-    # -----------------------------------------
-    # Safety checks
-    # -----------------------------------------
-    if not client:
-        logger.warning("AI extraction skipped: OpenAI client not configured")
-        return {}
 
     if not text or not text.strip():
-        logger.warning("AI extraction skipped: empty text")
         return {}
 
-    # -----------------------------------------
-    # Step 1 — Clean OCR text
-    # -----------------------------------------
-    cleaned_text = clean_ocr_text(text)
+    text = clean_ocr_text(text)
+    lowered = text.lower()
 
-    # -----------------------------------------
-    # Step 2 — Mask sensitive data
-    # -----------------------------------------
-    safe_text = mask_sensitive_data(cleaned_text)
+    # -------------------------------------------------
+    # Document Routing
+    # -------------------------------------------------
+    if "aadhaar" in lowered or "uidai" in lowered:
+        return extract_aadhaar(text)
 
-    try:
-        # -----------------------------------------
-        # Step 3 — OpenAI extraction
-        # -----------------------------------------
-        response = client.responses.create(
-            model="gpt-4o-mini",
-            temperature=0,
-            input=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Extract structured key-value JSON from the document text.\n"
-                        "Return ONLY valid JSON.\n"
-                        "No explanation.\n"
-                        "No markdown.\n"
-                        "Do NOT guess missing values.\n"
-                        "If nothing found return {}."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": safe_text,
-                },
-            ],
-        )
+    if "income tax department" in lowered and "permanent account number" in lowered:
+        return extract_pan(text)
 
-        content = response.output_text or ""
+    if "driving licence" in lowered or "transport department" in lowered:
+        return extract_driving_license(text)
 
-        # -----------------------------------------
-        # Step 4 — Clean JSON
-        # -----------------------------------------
-        result = clean_json_response(content)
+    if "passport" in lowered and "republic of india" in lowered:
+        return extract_passport(text)
 
-        # -----------------------------------------
-        # Step 5 — Validate result
-        # -----------------------------------------
-        if not isinstance(result, dict):
-            logger.warning("AI returned non-dictionary value")
-            return {}
+    if "invoice" in lowered or "gst" in lowered:
+        return extract_invoice(text)
 
-        if not result:
-            logger.warning("AI returned empty JSON")
+    return generic_extraction(text)
 
-        return result
 
-    except Exception as e:
-        logger.error(f"AI extraction failed: {e}")
+# =====================================================
+# 🟢 PAN CARD (Income Tax Department)
+# =====================================================
+def extract_pan(text: str) -> Dict:
+    data = {"detected_document_type": "PAN Card"}
 
-        # -----------------------------------------
-        # Disable AI if API key invalid
-        # -----------------------------------------
-        error_text = str(e).lower()
-        if "401" in error_text or "invalid_api_key" in error_text:
-            logger.critical("Invalid OpenAI API key detected. Disabling AI extraction.")
-            client = None
+    pan = re.search(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b", text)
+    if pan:
+        data["pan_number"] = pan.group()
 
-        return {}
+    name_match = re.search(r"\n([A-Z][A-Za-z ]+)\n", text)
+    if name_match:
+        data["name"] = name_match.group(1).strip()
+
+    dob = re.search(r"\d{2}/\d{2}/\d{4}", text)
+    if dob:
+        data["date_of_birth"] = dob.group()
+
+    return data
+
+
+# =====================================================
+# 🟢 DRIVING LICENSE
+# =====================================================
+def extract_driving_license(text: str) -> Dict:
+    data = {"detected_document_type": "Driving License"}
+
+    dl_number = re.search(r"\b[A-Z]{2}\d{2}\s?\d{11}\b", text)
+    if dl_number:
+        data["license_number"] = dl_number.group()
+
+    dob = re.search(r"\d{2}/\d{2}/\d{4}", text)
+    if dob:
+        data["date_of_birth"] = dob.group()
+
+    name = re.search(r"\n([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)", text)
+    if name:
+        data["name"] = name.group(1)
+
+    address_match = re.search(r"address[:\s]*(.*)", text, re.IGNORECASE)
+    if address_match:
+        data["address"] = address_match.group(1).strip()
+
+    return data
+
+
+# =====================================================
+# 🟢 PASSPORT
+# =====================================================
+def extract_passport(text: str) -> Dict:
+    data = {"detected_document_type": "Passport"}
+
+    passport_no = re.search(r"\b[A-Z][0-9]{7}\b", text)
+    if passport_no:
+        data["passport_number"] = passport_no.group()
+
+    dob = re.search(r"\d{2}/\d{2}/\d{4}", text)
+    if dob:
+        data["date_of_birth"] = dob.group()
+
+    nationality = re.search(r"nationality\s*[:\-]?\s*([A-Za-z ]+)", text, re.IGNORECASE)
+    if nationality:
+        data["nationality"] = nationality.group(1).strip()
+
+    name = re.search(r"\n([A-Z][A-Za-z ]+)\n", text)
+    if name:
+        data["name"] = name.group(1).strip()
+
+    return data
+
+
+# =====================================================
+# 🟢 INVOICE
+# =====================================================
+def extract_invoice(text: str) -> Dict:
+    data = {"detected_document_type": "Invoice"}
+
+    invoice_no = re.search(
+        r"invoice\s*(no|number)?[:\s]*([A-Za-z0-9\-\/]+)", text, re.IGNORECASE
+    )
+    if invoice_no:
+        data["invoice_number"] = invoice_no.group(2)
+
+    gst = re.search(r"\b\d{2}[A-Z]{5}\d{4}[A-Z]\dZ\d\b", text)
+    if gst:
+        data["gst_number"] = gst.group()
+
+    total = re.search(
+        r"(total\s*amount|grand total)[:\s₹]*([\d,]+\.\d{2})", text, re.IGNORECASE
+    )
+    if total:
+        data["total_amount"] = total.group(2)
+
+    date = re.search(r"\d{2}/\d{2}/\d{4}", text)
+    if date:
+        data["invoice_date"] = date.group()
+
+    return data
+
+
+# Generic fallback extraction
+# ----------------------------------------
+def generic_extraction(text: str) -> Dict:
+    data = {}
+
+    email = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", text)
+    if email:
+        data["email"] = email.group()
+
+    phone = re.search(r"\b[6-9]\d{9}\b", text)
+    if phone:
+        data["phone"] = phone.group()
+
+    return data
