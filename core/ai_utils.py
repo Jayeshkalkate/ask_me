@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 # =========================================
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+print("OPENAI KEY FROM AI_UTILS:", os.getenv("OPENAI_API_KEY"))
+
 client: Optional[OpenAI] = None
 if OPENAI_API_KEY:
     try:
