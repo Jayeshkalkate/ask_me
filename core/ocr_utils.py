@@ -61,39 +61,6 @@ def safe_read_image(image_path: str) -> np.ndarray:
 class OCRPreprocessor:
     """Advanced image preprocessing for OCR optimization"""
 
-    # @staticmethod
-    # def auto_rotate_image(image: np.ndarray) -> np.ndarray:
-    #     """Auto-rotate image to correct orientation"""
-    #     try:
-    #         # Convert to grayscale if needed
-    #         if len(image.shape) == 3:
-    #             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    #         else:
-    #             gray = image.copy()
-
-    #         # Use Tesseract to detect orientation
-    #         osd = pytesseract.image_to_osd(gray)
-    #         rotation = 0
-    #         for line in osd.split("\n"):
-    #             match = re.search(r"Rotate:\s+(\d+)", line)
-    #             if match:
-    #                 rotation = int(match.group(1))
-    #                 break
-
-    #         if rotation != 0:
-    #             # Rotate the image
-    #             if rotation == 90:
-    #                 image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-    #             elif rotation == 180:
-    #                 image = cv2.rotate(image, cv2.ROTATE_180)
-    #             elif rotation == 270:
-    #                 image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-
-    #     except Exception as e:
-    #         logger.warning(f"Auto-rotation failed: {e}")
-
-    #     return image
-
     @staticmethod
     def remove_shadows(image: np.ndarray) -> np.ndarray:
         """Remove shadows using morphological operations"""
@@ -201,7 +168,6 @@ class DocumentAnalyzer:
             "brightness_score": float(brightness_normalized),
         }
 
-    # ✅ MUST BE HERE (same indentation)
     @staticmethod
     def detect_document_type_from_text(text: str) -> str:
         if not text:
@@ -223,6 +189,7 @@ class DocumentAnalyzer:
             return "rc"
 
         return "unknown"
+
 
 # -------------------------------------------------
 # 🔹 ENHANCED IMAGE QUALITY CHECK
@@ -322,23 +289,19 @@ def pdf_to_images_enhanced(pdf_path: str, dpi: int = 300, poppler_path: str = No
 
 
 # -------------------------------------------------
-# 🔹 IMPROVED SMART OCR (PRODUCTION READY)
+# 🔹 SINGLE OCR EXTRACTION (FIXED - NO DOUBLE OCR)
 # -------------------------------------------------
-
-
-def smart_ocr_extraction(image_path: str) -> Dict:
+def extract_text_with_tesseract(image_path: str) -> str:
     """
-    Improved OCR extraction using contrast boost + OTSU.
+    Extract text using Tesseract OCR only.
+    This is the SINGLE source of OCR text.
     """
-
     try:
-        logger.info("Starting OCR extraction")
-
         img = cv2.imread(image_path)
 
         if img is None:
             logger.error("Image load failed")
-            return {"status": "failed", "raw_text": ""}
+            return ""
 
         # Convert to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -356,17 +319,53 @@ def smart_ocr_extraction(image_path: str) -> Dict:
         config = "--oem 3 --psm 6 -l eng"
         text = pytesseract.image_to_string(thresh, config=config).strip()
 
+        return text
+
+    except Exception as e:
+        logger.error(f"Tesseract OCR failed: {e}")
+        return ""
+
+
+# -------------------------------------------------
+# 🔹 SMART OCR EXTRACTION (NOW JUST WRAPPER)
+# -------------------------------------------------
+def smart_ocr_extraction(image_path: str, doc_type: str = None) -> Dict:
+    """
+    Improved OCR extraction - SINGLE OCR CALL ONLY.
+    """
+    try:
+        logger.info("Starting OCR extraction")
+
+        # SINGLE OCR CALL
+        text = extract_text_with_tesseract(image_path)
+
         if len(text) < 10:
             logger.warning("OCR returned very little text")
-            return {"status": "failed", "raw_text": ""}
+            return {"status": "failed", "raw_text": text}
 
         logger.info("OCR successful")
+
+        # If doc_type is provided and we have OpenBharatOCR, try structured extraction
+        if doc_type and doc_type in OCR_HANDLERS and openbharatocr:
+            try:
+                # OpenBharatOCR might have its own preprocessing
+                # But we DON'T run OCR again - we pass the image directly
+                structured_result = OCR_HANDLERS[doc_type](image_path)
+                return {
+                    "status": "success",
+                    "raw_text": text,
+                    "structured_data": structured_result,
+                }
+            except Exception as e:
+                logger.warning(f"Structured extraction failed: {e}")
+                # Fall back to raw text only
 
         return {"status": "success", "raw_text": text}
 
     except Exception as e:
         logger.error(f"OCR failed: {e}")
         return {"status": "failed", "raw_text": ""}
+
 
 # -------------------------------------------------
 # 🔹 ENHANCED MAIN OCR PIPELINE
@@ -394,7 +393,7 @@ def process_document_file_enhanced(
     analyzer = DocumentAnalyzer()
 
     # -----------------------------------------
-    # PROCESS EACH PAGE
+    # PROCESS EACH PAGE - OCR RUNS ONLY ONCE PER PAGE
     # -----------------------------------------
     for idx, image_path in enumerate(image_paths, start=1):
         page_key = f"page_{idx}"
@@ -407,7 +406,7 @@ def process_document_file_enhanced(
             is_blurry, blur_score = is_image_blurry(image_path)
 
             # -----------------------------------------
-            # STEP 1 — RUN OCR FIRST (ONLY ONCE)
+            # STEP 1 — RUN OCR (SINGLE CALL)
             # -----------------------------------------
             ocr_result = smart_ocr_extraction(image_path, doc_type)
 
@@ -420,15 +419,7 @@ def process_document_file_enhanced(
             detected_doc_type = doc_type
 
             if auto_detect and not doc_type:
-                combined_text = ""
-
-                if "raw_text" in ocr_result:
-                    combined_text = ocr_result["raw_text"]
-                else:
-                    combined_text = " ".join(
-                        str(v) for k, v in ocr_result.items() if k != "_metadata"
-                    )
-
+                combined_text = ocr_result.get("raw_text", "")
                 detected = analyzer.detect_document_type_from_text(combined_text)
                 detected_doc_type = detected if detected != "unknown" else None
 
@@ -484,6 +475,7 @@ def process_document_file_enhanced(
                 logger.warning(f"Cleanup failed for {path}: {cleanup_error}")
 
     return extracted_results
+
 
 # -------------------------------------------------
 # 🔹 BATCH PROCESSING
@@ -562,7 +554,6 @@ def extract_text_from_document(file_path):
     """
     Extract text from image or PDF document.
     """
-
     text = ""
 
     try:
@@ -588,6 +579,7 @@ def extract_text_from_document(file_path):
     except Exception as e:
         print("OCR Error:", e)
         return ""
+
 
 def build_ocr_text(extracted_data: dict) -> str:
     """
