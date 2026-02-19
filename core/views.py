@@ -25,7 +25,8 @@ from .ocr_utils import (
     is_image_blurry,
     DocumentAnalyzer,
 )
-
+# At the top, add threading import
+import threading
 from .models import convert_numpy
 logger = logging.getLogger(__name__)
 
@@ -177,165 +178,88 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def upload_document(request):
-
     if request.method == "POST":
         uploaded_file = request.FILES.get("file")
-
-        # -----------------------------------------
-        # STEP 0 — VALIDATE FILE
-        # -----------------------------------------
         if not uploaded_file:
             messages.error(request, "No file uploaded.")
             return redirect("core:upload")
 
-        document = None
+        # --- STEP 1: Save file immediately ---
+        document = Document.objects.create(
+            user=request.user,
+            file=uploaded_file,
+            processed=False,
+        )
+        document.refresh_from_db()  # Ensure file path is available
+        file_path = document.file.path
 
-        try:
-            # -----------------------------------------
-            # STEP 1 — SAVE FILE
-            # -----------------------------------------
-            document = Document.objects.create(
-                user=request.user,
-                file=uploaded_file,
-                processed=False,
-            )
-
-            # Ensure file is saved to disk
-            document.refresh_from_db()
-
-            file_path = document.file.path
-            print("FILE PATH:", file_path)
-
-            # -----------------------------------------
-            # STEP 1.1 — FILE PATH SAFETY CHECK (CRITICAL)
-            # -----------------------------------------
-            if not file_path or not os.path.exists(file_path):
-                print("❌ File path invalid:", file_path)
-
-                document.processed = False
-                document.error_message = "File path invalid or file not saved"
-                document.extracted_data = {}
-                document.save()
-
-                messages.error(request, "File upload failed — file not found.")
-                return redirect("core:document_library")
-
-            logger.info(f"Processing file: {file_path}")
-
-            # -----------------------------------------
-            # STEP 2 — RUN OCR PIPELINE
-            # -----------------------------------------
-            extracted_data = process_document_file_enhanced(file_path)
-
-            # -----------------------------------------
-            # STEP 3 — STOP IF OCR FAILED
-            # -----------------------------------------
-            if not extracted_data:
-                logger.warning("OCR failed — no data extracted")
-
-                document.processed = False
-                document.error_message = "OCR failed — no text detected"
-                document.extracted_data = {}
-                document.save()
-
-                return render(request, "no_fields.html")
-            
-            # -----------------------------------------
-            # STEP 4 — EXTRACT RAW OCR TEXT (CORRECTED)
-            # -----------------------------------------
-            
-            ocr_text = ""
-            
-            if isinstance(extracted_data, dict):
-                
-                for page_key, page_data in extracted_data.items():
-                    
-                    if not isinstance(page_data, dict):
-                        continue
-                    
-                    # Case 1 — raw_text exists
-                    
-                    if "raw_text" in page_data:
-                        ocr_text += page_data.get("raw_text", "") + " "
-                        
-                        # Case 2 — structured fields only
-                        
-                    else:
-                        for field, value in page_data.items():
-                            if field != "_metadata" and value:
-                                ocr_text = ocr_text.strip()
-                                
-                                print("\n================ OCR DEBUG ================")
-                                print("OCR TEXT LENGTH:", len(ocr_text))
-                                print("OCR TEXT SAMPLE:", ocr_text[:500])
-                                print("===========================================\n")
-
-            # -----------------------------------------
-            # STEP 5 — DETECT DOCUMENT TYPE
-            # -----------------------------------------
-            if not ocr_text or len(ocr_text) < 20:
-                detected_type = "Other_Document"
-                print("⚠️ OCR text too small — detection skipped")
-            else:
-                print("✅ Calling OpenAI detection...")
-                detected_type = detect_document_type(ocr_text)
-
-            document.doc_type = detected_type
-            logger.info(f"Detected document type: {detected_type}")
-            
-            # -----------------------------------------
-            # STEP 5.5 — AI STRUCTURED EXTRACTION
-            # -----------------------------------------
-            
-            structured_data = {}
-            if ocr_text and len(ocr_text) > 30:
-                print("🤖 Calling OpenAI structured extraction...")
-                structured_data = extract_structured_data(ocr_text)
-                
-                if structured_data:
-                    print("✅ Structured data extracted:", structured_data)
-                else:
-                    print("⚠️ AI returned empty structured data")
-                    
-            # -----------------------------------------
-            # STEP 6 — SAVE CLEAN JSON DATA
-            # -----------------------------------------
-            
-            if structured_data:
-                final_data = {
-                    "page_1": structured_data
-                    }
-            else:
-                final_data = extracted_data
-                
-                clean_data = convert_numpy(final_data)
-                
-                document.extracted_data = clean_data
-                document.processed = True
-                document.error_message = None
-                document.save()
-
-            messages.success(request, "✅ Document processed successfully!")
+        # --- STEP 2: Check if already processed (shouldn't happen for new docs, but safe) ---
+        if document.extracted_data or document.extracted_text:
+            messages.info(request, "Document already processed.")
             return redirect("core:edit_document", document.id)
 
-        # -----------------------------------------
-        # STEP 7 — GLOBAL ERROR HANDLER
-        # -----------------------------------------
-        except Exception as e:
-            logger.exception("Upload processing failed")
+        # --- STEP 3: Start OCR in background thread ---
+        def process_in_background(doc_id):
+            try:
+                # Re-fetch document to avoid stale instance
+                doc = Document.objects.get(id=doc_id)
+                # Run OCR (this is the heavy part)
+                extracted_data = process_document_file_enhanced(doc.file.path)
+                if not extracted_data:
+                    doc.processed = False
+                    doc.error_message = "OCR failed – no text detected"
+                    doc.extracted_data = {}
+                else:
+                    # Build OCR text and detect type, etc.
+                    ocr_text = ""
+                    if isinstance(extracted_data, dict):
+                        for page_data in extracted_data.values():
+                            if isinstance(page_data, dict):
+                                if "raw_text" in page_data:
+                                    ocr_text += page_data["raw_text"] + " "
+                                else:
+                                    for field, value in page_data.items():
+                                        if field != "_metadata" and value:
+                                            ocr_text += str(value) + " "
+                    doc.extracted_text = ocr_text.strip()
 
-            if document:
-                document.processed = False
-                document.error_message = str(e)
-                document.extracted_data = {}
-                document.save()
+                    # Detect document type if enough text
+                    if len(ocr_text) >= 20:
+                        doc.doc_type = detect_document_type(ocr_text)
+                    else:
+                        doc.doc_type = "Other_Document"
 
-            messages.error(request, f"Processing failed: {str(e)}")
-            return redirect("core:upload")
+                    # Structured extraction
+                    structured_data = {}
+                    if len(ocr_text) > 30:
+                        structured_data = extract_structured_data(ocr_text)
 
-    # -----------------------------------------
-    # STEP 8 — GET REQUEST
-    # -----------------------------------------
+                    if structured_data:
+                        final_data = {"page_1": structured_data}
+                    else:
+                        final_data = extracted_data
+
+                    doc.extracted_data = convert_numpy(final_data)
+                    doc.processed = True
+                    doc.error_message = None
+
+                doc.save()
+                logger.info(f"Background processing completed for doc {doc_id}")
+            except Exception as e:
+                logger.exception(f"Background OCR failed for doc {doc_id}")
+                Document.objects.filter(id=doc_id).update(
+                    processed=False, error_message=str(e), extracted_data={}
+                )
+
+        # Start thread
+        thread = threading.Thread(target=process_in_background, args=(document.id,))
+        thread.daemon = True  # Allow program to exit even if thread is running
+        thread.start()
+
+        messages.success(request, "✅ File uploaded. Processing will complete shortly.")
+        return redirect("core:document_library")  # or a "processing" page
+
+    # GET request
     return render(request, "upload_document.html")
 
 

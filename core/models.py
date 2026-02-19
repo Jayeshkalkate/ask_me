@@ -87,7 +87,7 @@ def validate_file_extension(value):
 
 class DocumentManager(models.Manager):
     def get_display_data(self, document):
-        """Prioritize user_edited_data over extracted_data"""
+        """Prioritize user edited data over extracted data"""
         if document.user_edited_data:
             return document.user_edited_data, True
         return document.extracted_data, False
@@ -118,7 +118,10 @@ class Document(models.Model):
         null=True,
     )
 
-    # 🔥 FILE STORAGE (IMPORTANT)
+    # -------------------------------------------------
+    # 🔥 FILE STORAGE
+    # -------------------------------------------------
+
     file = models.FileField(
         upload_to="documents/",
         validators=[validate_file_size, validate_file_extension],
@@ -126,18 +129,37 @@ class Document(models.Model):
         blank=True,
     )
 
-    # OCR TEXT
+    # -------------------------------------------------
+    # 🔹 OCR + AI DATA STORAGE (CACHED)
+    # -------------------------------------------------
+
+    # Raw OCR text (or reconstructed text)
     extracted_text = models.TextField(blank=True, null=True)
 
-    # Structured data from OCR
+    # Structured data from OCR parsing
     extracted_data = models.JSONField(default=dict, blank=True)
 
-    # User-edited structured data (Primary after editing)
+    # User edited structured data (highest priority)
     user_edited_data = models.JSONField(default=dict, blank=True)
 
+    # ✅ AI structured extraction cache (VERY IMPORTANT)
+    ai_extracted_json = models.JSONField(default=dict, blank=True)
+
+    # -------------------------------------------------
+    # 🔹 PROCESSING STATUS
+    # -------------------------------------------------
+
     processed = models.BooleanField(default=False)
+
+    # ✅ When OCR + AI completed
+    processed_at = models.DateTimeField(blank=True, null=True)
+
     error_message = models.TextField(blank=True, null=True)
     quality_score = models.FloatField(blank=True, null=True)
+
+    # -------------------------------------------------
+    # 🔹 TIMESTAMPS
+    # -------------------------------------------------
 
     created_at = models.DateTimeField(auto_now_add=True)
     uploaded_at = models.DateTimeField(auto_now=True)
@@ -171,8 +193,8 @@ class Document(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Override save to keep extracted_text synced
-        with user_edited_data OR extracted_data.
+        Keep extracted_text synced with
+        user edited OR extracted structured data.
         """
 
         text_lines = []
@@ -198,5 +220,5 @@ class Document(models.Model):
 
     def update_user_data(self, new_data):
         self.user_edited_data = convert_numpy(new_data)
-        self.extracted_data = {}  # Clear original data
+        self.extracted_data = {}
         self.save()

@@ -7,12 +7,9 @@ import os
 from pathlib import Path
 from decouple import config
 from dotenv import load_dotenv
-
-load_dotenv()
-
 import pytesseract
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+load_dotenv()
 
 # --------------------
 # FILE UPLOAD LIMITS
@@ -51,16 +48,6 @@ CSRF_TRUSTED_ORIGINS = [
 GROQ_API_KEY = config("GROQ_API_KEY", default=None)
 
 # --------------------
-# OCR SETTINGS
-# --------------------
-# Windows default path; Render/Linux won't use it unless set manually
-PYTESSERACT_CMD = config("PYTESSERACT_CMD", default=None)
-
-YOLO_CFG_PATH = config("YOLO_CFG_PATH", default=None)
-YOLO_WEIGHTS_PATH = config("YOLO_WEIGHTS_PATH", default=None)
-YOLO_NAMES_PATH = config("YOLO_NAMES_PATH", default=None)
-
-# --------------------
 # INSTALLED APPS
 # --------------------
 INSTALLED_APPS = [
@@ -74,7 +61,7 @@ INSTALLED_APPS = [
     # Local apps
     "account",
     "ask_me",
-    "core",
+    "core.apps.CoreConfig",
 ]
 
 # --------------------
@@ -206,3 +193,16 @@ LOGGING = {
         },
     },
 }
+
+
+# --------------------
+# OCR SETTINGS
+# --------------------
+# Windows default path; Render/Linux won't use it unless set manually
+# PYTESSERACT_CMD = config("PYTESSERACT_CMD", default=None)
+
+PYTESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+YOLO_CFG_PATH = config("YOLO_CFG_PATH", default=None)
+YOLO_WEIGHTS_PATH = config("YOLO_WEIGHTS_PATH", default=None)
+YOLO_NAMES_PATH = config("YOLO_NAMES_PATH", default=None)

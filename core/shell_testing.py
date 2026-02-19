@@ -2,7 +2,7 @@ import cv2
 import pytesseract
 
 # Set the location of document
-img_path = r"C:\chatbot\ask_me\media\documents\Screenshot_174.png"
+img_path = r"C:\chatbot\ask_me\media\documents\Screenshot_175.png"
 
 img = cv2.imread(img_path)
 

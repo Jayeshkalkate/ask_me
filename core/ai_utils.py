@@ -77,6 +77,34 @@ def mask_sensitive_data(text: str) -> str:
 
 
 # =========================================
+# 🧼 Clean OCR text before any AI processing
+# =========================================
+def clean_ocr_text(text: str) -> str:
+    """
+    Clean OCR-extracted text to improve AI parsing.
+    - Remove excessive whitespace
+    - Normalize line breaks
+    - Remove stray non-printable characters
+    """
+    if not text:
+        return ""
+
+    # Remove control characters except newlines/tabs
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
+
+    # Replace multiple newlines with a single newline
+    text = re.sub(r"\n\s*\n", "\n", text)
+
+    # Replace multiple spaces/tabs with a single space
+    text = re.sub(r"[ \t]+", " ", text)
+
+    # Trim leading/trailing whitespace
+    text = text.strip()
+
+    return text
+
+
+# =========================================
 # 📄 Document Type Detection (OCR-based)
 # =========================================
 def detect_document_type(text: str) -> Optional[str]:
@@ -89,22 +117,24 @@ def detect_document_type(text: str) -> Optional[str]:
         logger.warning("Document detection skipped: invalid OCR text")
         return None
 
-    text = text.strip().lower()
+    # Clean OCR text for better rule matching (optional but beneficial)
+    cleaned = clean_ocr_text(text)
+    cleaned = cleaned.lower()
 
-    if len(text) < 20:
+    if len(cleaned) < 20:
         logger.warning("Document detection skipped: text too short")
         return None
 
-    if "government of india" in text and "aadhaar" in text:
+    if "aadhaar" in cleaned or "uidai" in cleaned:
         return "Aadhaar Card"
 
-    if "income tax department" in text and "permanent account number" in text:
+    if "income tax department" in cleaned and "permanent account number" in cleaned:
         return "PAN Card"
 
-    if "driving licence" in text or "transport department" in text:
+    if "driving licence" in cleaned or "transport department" in cleaned:
         return "Driving License"
 
-    if "passport" in text and "republic of india" in text:
+    if "passport" in cleaned and "republic of india" in cleaned:
         return "Passport"
 
     return "Other_Document"
@@ -119,6 +149,11 @@ def extract_structured_data(text: str) -> Dict:
     Returns dictionary or {}.
     """
 
+    global client
+
+    # -----------------------------------------
+    # Safety checks
+    # -----------------------------------------
     if not client:
         logger.warning("AI extraction skipped: OpenAI client not configured")
         return {}
@@ -127,13 +162,24 @@ def extract_structured_data(text: str) -> Dict:
         logger.warning("AI extraction skipped: empty text")
         return {}
 
-    safe_text = mask_sensitive_data(text)
+    # -----------------------------------------
+    # Step 1 — Clean OCR text
+    # -----------------------------------------
+    cleaned_text = clean_ocr_text(text)
+
+    # -----------------------------------------
+    # Step 2 — Mask sensitive data
+    # -----------------------------------------
+    safe_text = mask_sensitive_data(cleaned_text)
 
     try:
-        response = client.chat.completions.create(
+        # -----------------------------------------
+        # Step 3 — OpenAI extraction
+        # -----------------------------------------
+        response = client.responses.create(
             model="gpt-4o-mini",
             temperature=0,
-            messages=[
+            input=[
                 {
                     "role": "system",
                     "content": (
@@ -152,11 +198,34 @@ def extract_structured_data(text: str) -> Dict:
             ],
         )
 
-        content = response.choices[0].message.content or ""
+        content = response.output_text or ""
+
+        # -----------------------------------------
+        # Step 4 — Clean JSON
+        # -----------------------------------------
         result = clean_json_response(content)
 
-        return result if isinstance(result, dict) else {}
+        # -----------------------------------------
+        # Step 5 — Validate result
+        # -----------------------------------------
+        if not isinstance(result, dict):
+            logger.warning("AI returned non-dictionary value")
+            return {}
+
+        if not result:
+            logger.warning("AI returned empty JSON")
+
+        return result
 
     except Exception as e:
         logger.error(f"AI extraction failed: {e}")
+
+        # -----------------------------------------
+        # Disable AI if API key invalid
+        # -----------------------------------------
+        error_text = str(e).lower()
+        if "401" in error_text or "invalid_api_key" in error_text:
+            logger.critical("Invalid OpenAI API key detected. Disabling AI extraction.")
+            client = None
+
         return {}
