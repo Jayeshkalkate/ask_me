@@ -2,8 +2,8 @@ services:
   - type: web
     name: ask-me-chatbot
     env: python
-    plan: free               # change if you use a paid plan
-    region: oregon           # or frankfurt/singapore etc.
+    plan: free
+    region: oregon
 
     buildCommand: |
       pip install -r requirements.txt
@@ -12,24 +12,21 @@ services:
 
     startCommand: gunicorn ask_me.wsgi:application
 
-
     envVars:
       - key: SECRET_KEY
-        generateValue: true          # Render will auto-generate a secure key
+        generateValue: true
 
       - key: DEBUG
         value: "False"
 
       - key: ALLOWED_HOSTS
-        value: "127.0.0.1,localhost,.onrender.com"
+        value: ".onrender.com"
 
       - key: TIME_ZONE
         value: "Asia/Kolkata"
 
-      # Optional: only if you use it in code
       - key: GROQ_API_KEY
-        sync: false                  # set value manually in dashboard later
+        sync: false
 
-      # Optional: only for Windows local, keep empty on Render
       - key: PYTESSERACT_CMD
-        value: ""
+        value: "/usr/bin/tesseract"
