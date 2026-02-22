@@ -202,7 +202,7 @@ if not PYTESSERACT_CMD and os.name == "nt":
     if os.path.exists(default_windows_path):
         PYTESSERACT_CMD = default_windows_path
 
-# 3️⃣ Linux auto detect (Docker / Render)
+# 3️⃣ Linux auto detect (Render)
 if not PYTESSERACT_CMD:
     detected_path = shutil.which("tesseract")
     if detected_path:
