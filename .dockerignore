@@ -1,0 +1,12 @@
+# C:\chatbot\ask_me\.dockerignore
+
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+venv
+.venv
+.git
+db.sqlite3
+media

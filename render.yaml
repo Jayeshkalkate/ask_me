@@ -25,8 +25,5 @@ services:
       - key: TIME_ZONE
         value: "Asia/Kolkata"
 
-      - key: GROQ_API_KEY
-        sync: false
-
       - key: PYTESSERACT_CMD
         value: "/usr/bin/tesseract"

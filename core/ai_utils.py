@@ -129,6 +129,35 @@ def extract_structured_data(text: str) -> Dict:
 
 
 # =====================================================
+# 🟢 AADHAAR CARD
+# =====================================================
+def extract_aadhaar(text: str) -> Dict:
+    data = {"detected_document_type": "Aadhaar Card"}
+
+    # Aadhaar number (12 digits with or without spaces)
+    aadhaar = re.search(r"\b\d{4}\s?\d{4}\s?\d{4}\b", text)
+    if aadhaar:
+        data["aadhaar_number"] = aadhaar.group()
+
+    # Name (usually uppercase line)
+    name = re.search(r"\n([A-Z][A-Za-z ]{3,})\n", text)
+    if name:
+        data["name"] = name.group(1).strip()
+
+    # DOB (common formats)
+    dob = re.search(r"\d{2}/\d{2}/\d{4}", text)
+    if dob:
+        data["date_of_birth"] = dob.group()
+
+    # Gender
+    gender = re.search(r"\b(MALE|FEMALE|Male|Female)\b", text)
+    if gender:
+        data["gender"] = gender.group()
+
+    return data
+
+
+# =====================================================
 # 🟢 PAN CARD (Income Tax Department)
 # =====================================================
 def extract_pan(text: str) -> Dict:

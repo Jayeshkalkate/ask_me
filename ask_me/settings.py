@@ -8,6 +8,8 @@ from pathlib import Path
 from decouple import config
 from dotenv import load_dotenv
 import pytesseract
+import dj_database_url
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -26,15 +28,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # --------------------
 # SECURITY
 # --------------------
-SECRET_KEY = config("SECRET_KEY", default="unsafe-secret")
+SECRET_KEY = config("SECRET_KEY")
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-DEBUG = config("DEBUG", default=True, cast=bool)
+DEBUG = config("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = config(
-    "ALLOWED_HOSTS", default="127.0.0.1,localhost,.onrender.com"
-).split(",")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
 # --------------------
 # CSRF TRUSTED ORIGIN
@@ -46,7 +46,7 @@ CSRF_TRUSTED_ORIGINS = [
 # --------------------
 # API KEYS
 # --------------------
-GROQ_API_KEY = config("GROQ_API_KEY", default=None)
+# GROQ_API_KEY = config("GROQ_API_KEY", default=None)
 
 # --------------------
 # INSTALLED APPS
@@ -107,10 +107,9 @@ WSGI_APPLICATION = "ask_me.wsgi.application"
 # DATABASE
 # --------------------
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.parse(
+        config("DATABASE_URL"), conn_max_age=600, ssl_require=True
+    )
 }
 
 # --------------------
@@ -195,15 +194,33 @@ LOGGING = {
     },
 }
 
-
 # --------------------
 # OCR SETTINGS
 # --------------------
-# Windows default path; Render/Linux won't use it unless set manually
-# PYTESSERACT_CMD = config("PYTESSERACT_CMD", default=None)
+# --------------------
+# OCR SETTINGS
+# --------------------
+import shutil
+import pytesseract
 
-PYTESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# 1️⃣ Try env variable first
+PYTESSERACT_CMD = os.getenv("PYTESSERACT_CMD")
 
-YOLO_CFG_PATH = config("YOLO_CFG_PATH", default=None)
-YOLO_WEIGHTS_PATH = config("YOLO_WEIGHTS_PATH", default=None)
-YOLO_NAMES_PATH = config("YOLO_NAMES_PATH", default=None)
+# 2️⃣ Windows default install path
+if not PYTESSERACT_CMD and os.name == "nt":
+    default_windows_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    if os.path.exists(default_windows_path):
+        PYTESSERACT_CMD = default_windows_path
+
+# 3️⃣ Linux auto detect (Docker / Render)
+if not PYTESSERACT_CMD:
+    detected_path = shutil.which("tesseract")
+    if detected_path:
+        PYTESSERACT_CMD = detected_path
+
+# 4️⃣ FINAL CHECK (required by ocr_utils)
+if not PYTESSERACT_CMD:
+    raise RuntimeError("❌ Tesseract not found. Install it or define PYTESSERACT_CMD")
+
+# 5️⃣ Apply to pytesseract
+pytesseract.pytesseract.tesseract_cmd = PYTESSERACT_CMD

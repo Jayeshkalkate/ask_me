@@ -436,9 +436,20 @@
     chatHistory.addEventListener("click", () => messageInput.focus());
 
     // Add initial example bot messages
+    // function initWelcome() {
+    //   const botIntro = createMessageEl({
+    //     text: "Hi! I'm ASK_ME, your document intelligence assistant powered by GroqCloud API. Upload documents like Aadhar cards, invoices, or forms, and I'll extract the information for you to review. Then you can ask me questions about your documents!",
+    //     who: "bot",
+    //   });
+    //   chatHistory.appendChild(botIntro);
+    //   scrollToBottom();
+    // }
+    // initWelcome();
+    // Add initial example bot messages
+    
     function initWelcome() {
       const botIntro = createMessageEl({
-        text: "Hi! I'm ASK_ME, your document intelligence assistant powered by GroqCloud API. Upload documents like Aadhar cards, invoices, or forms, and I'll extract the information for you to review. Then you can ask me questions about your documents!",
+        text: "Hi! I'm ASK_ME, your document intelligence assistant. Upload documents like Aadhar cards, invoices, or forms, and I'll extract the information for you to review. Then you can ask me questions about your documents!",
         who: "bot",
       });
       chatHistory.appendChild(botIntro);
