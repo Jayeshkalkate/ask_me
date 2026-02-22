@@ -186,31 +186,29 @@ LOGGING = {
         },
     },
 }
-
 # --------------------
-# OCR SETTINGS
+# OCR SETTINGS (Safe for Render)
 # --------------------
 import shutil
 import pytesseract
 
-# 1️⃣ Try env variable first
 PYTESSERACT_CMD = os.getenv("PYTESSERACT_CMD")
 
-# 2️⃣ Windows default install path
+# Windows default path
 if not PYTESSERACT_CMD and os.name == "nt":
     default_windows_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     if os.path.exists(default_windows_path):
         PYTESSERACT_CMD = default_windows_path
 
-# 3️⃣ Linux auto detect (Render)
+# Linux / Render auto detect
 if not PYTESSERACT_CMD:
     detected_path = shutil.which("tesseract")
     if detected_path:
         PYTESSERACT_CMD = detected_path
 
-# 4️⃣ FINAL CHECK (required by ocr_utils)
-if not PYTESSERACT_CMD:
-    raise RuntimeError("❌ Tesseract not found. Install it or define PYTESSERACT_CMD")
-
-# 5️⃣ Apply to pytesseract
-pytesseract.pytesseract.tesseract_cmd = PYTESSERACT_CMD
+# Apply if available
+if PYTESSERACT_CMD:
+    pytesseract.pytesseract.tesseract_cmd = PYTESSERACT_CMD
+    print(f"✅ Tesseract found at: {PYTESSERACT_CMD}")
+else:
+    print("⚠ Tesseract not installed — OCR using pytesseract disabled")
