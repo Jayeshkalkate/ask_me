@@ -1,6 +1,3 @@
-# C:\chatbot\ask_me\core\ai_utils.py
-
-import os
 import json
 import re
 import logging
@@ -11,8 +8,6 @@ logger = logging.getLogger(__name__)
 # =====================================================
 # 🚫 OpenAI Disabled (Free Mode)
 # =====================================================
-# We keep structure ready for future upgrade,
-# but no API call will happen.
 
 client = None
 logger.info("Running in FREE rule-based extraction mode. OpenAI disabled.")

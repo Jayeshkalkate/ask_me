@@ -6,8 +6,8 @@
     margin: 0;
     padding: 0;
     color: #333;
-    background: url("{% static 'C:\chatbot\ask_me\static\img\ASK_ME_Admin_List.png' %}") no-repeat center
-      center/cover;
+    background: url("{% static 'C:\chatbot\ask_me\static\img\ASK_ME_Admin_List.png' %}")
+      no-repeat center center/cover;
     background-size: cover;
     animation: moveBg 20s linear infinite;
   }
@@ -43,7 +43,9 @@
     text-align: center;
     letter-spacing: 1.5px;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
-    transition: color 0.3s ease, transform 0.3s ease;
+    transition:
+      color 0.3s ease,
+      transform 0.3s ease;
   }
 
   h2.page-title:hover {
@@ -191,10 +193,11 @@
         <td>{{ items.phone_number|default:"No phone number" }}</td>
         <td>{{ items.address|default:"No address" }}</td>
         <td>{{ items.city|default:"No city" }}</td>
-        <td>{% if user.items and user.items.is_online %}
-          <span style="color: green; font-weight: bold;">🟢</span>
+        <td>
+          {% if user.items and user.items.is_online %}
+          <span style="color: green; font-weight: bold">🟢</span>
           {% else %}
-          <span style="color: gray;">🔴</span>
+          <span style="color: gray">🔴</span>
           {% endif %}
         </td>
 

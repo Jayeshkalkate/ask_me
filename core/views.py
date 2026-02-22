@@ -1,5 +1,3 @@
-# C:\chatbot\ask_me\core\views.py
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -10,29 +8,32 @@ from django.db.models import Q
 from django.core.paginator import Paginator
 import json, tempfile, os, logging, uuid
 from rapidfuzz import fuzz
-import numpy as np
 import base64
-from .ocr_utils import extract_text_from_document
-from .models import Document, DOCUMENT_FIELD_TEMPLATES
-from .forms import DocumentUploadForm, DocumentEditForm
+from .models import Document
+from .forms import DocumentEditForm
 from .ai_utils import detect_document_type, extract_structured_data
 from .ocr_utils import (
     process_document_file_enhanced,
-    process_document_file,  # legacy support
     batch_process_documents,
     validate_ocr_environment,
     get_supported_document_types,
     is_image_blurry,
     DocumentAnalyzer,
 )
-# At the top, add threading import
 import threading
 from .models import convert_numpy
+
+# -------------------------------------------------
+# 🔹 ENHANCED UPLOAD DOCUMENT (JSON-safe)
+# -------------------------------------------------
+
 logger = logging.getLogger(__name__)
 
 # -------------------------------------------------
 # 🔹 HOMEPAGE WITH DASHBOARD
 # -------------------------------------------------
+
+
 @login_required
 def homepage(request):
     recent_docs = Document.objects.filter(user=request.user).order_by("-created_at")[:5]
@@ -52,13 +53,12 @@ def homepage(request):
 # -------------------------------------------------
 # 🔹 DOCUMENT LIBRARY
 # -------------------------------------------------
+
+
 @login_required
 def document_library(request):
     """Display all user documents with filtering and pagination."""
     documents = Document.objects.filter(user=request.user).order_by("-created_at")
-    # documents = Document.objects.filter(user=request.user).order_by("-created_at")[:5]
-
-    # Filtering
     doc_type = request.GET.get("doc_type")
     status = request.GET.get("status")
     search_query = request.GET.get("search")
@@ -80,8 +80,7 @@ def document_library(request):
             | Q(doc_type__icontains=search_query)
         )
 
-    # Pagination
-    paginator = Paginator(documents, 10)  # 10 documents per page
+    paginator = Paginator(documents, 10)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
@@ -102,6 +101,8 @@ def document_library(request):
 # -------------------------------------------------
 # 🔹 ENHANCED EDIT DOCUMENT - WITH DATA CLEANUP
 # -------------------------------------------------
+
+
 @login_required
 def edit_document(request, pk):
     """Document editing that replaces extracted_data with user_edited_data"""
@@ -110,10 +111,8 @@ def edit_document(request, pk):
     if request.method == "POST":
         form = DocumentEditForm(request.POST, instance=document)
         if form.is_valid():
-            # Get the cleaned user_edited_data
             user_edited_data = form.cleaned_data["user_edited_data"]
 
-            # Use the model method to update and clean data
             document.update_user_data(user_edited_data)
 
             messages.success(
@@ -124,7 +123,6 @@ def edit_document(request, pk):
         else:
             messages.error(request, "❌ Please correct the errors below.")
     else:
-        # Initialize with current display data (prioritizes user_edited_data)
         display_data = document.display_data
         form = DocumentEditForm(
             instance=document,
@@ -135,7 +133,6 @@ def edit_document(request, pk):
             },
         )
 
-    # Prepare page data for template display
     page_data = []
     display_data = document.display_data
 
@@ -168,12 +165,6 @@ def edit_document(request, pk):
 # -------------------------------------------------
 # 🔹 ENHANCED UPLOAD DOCUMENT (JSON-safe)
 # -------------------------------------------------
-logger = logging.getLogger(__name__)
-
-
-# -------------------------------------------------
-# 🔹 ENHANCED UPLOAD DOCUMENT (JSON-safe)
-# -------------------------------------------------
 
 
 @login_required
@@ -184,33 +175,27 @@ def upload_document(request):
             messages.error(request, "No file uploaded.")
             return redirect("core:upload")
 
-        # --- STEP 1: Save file immediately ---
         document = Document.objects.create(
             user=request.user,
             file=uploaded_file,
             processed=False,
         )
-        document.refresh_from_db()  # Ensure file path is available
+        document.refresh_from_db()
         file_path = document.file.path
 
-        # --- STEP 2: Check if already processed (shouldn't happen for new docs, but safe) ---
         if document.extracted_data or document.extracted_text:
             messages.info(request, "Document already processed.")
             return redirect("core:edit_document", document.id)
 
-        # --- STEP 3: Start OCR in background thread ---
         def process_in_background(doc_id):
             try:
-                # Re-fetch document to avoid stale instance
                 doc = Document.objects.get(id=doc_id)
-                # Run OCR (this is the heavy part)
                 extracted_data = process_document_file_enhanced(doc.file.path)
                 if not extracted_data:
                     doc.processed = False
                     doc.error_message = "OCR failed – no text detected"
                     doc.extracted_data = {}
                 else:
-                    # Build OCR text and detect type, etc.
                     ocr_text = ""
                     if isinstance(extracted_data, dict):
                         for page_data in extracted_data.values():
@@ -223,13 +208,11 @@ def upload_document(request):
                                             ocr_text += str(value) + " "
                     doc.extracted_text = ocr_text.strip()
 
-                    # Detect document type if enough text
                     if len(ocr_text) >= 20:
                         doc.doc_type = detect_document_type(ocr_text)
                     else:
                         doc.doc_type = "Other_Document"
 
-                    # Structured extraction
                     structured_data = {}
                     if len(ocr_text) > 30:
                         structured_data = extract_structured_data(ocr_text)
@@ -251,21 +234,21 @@ def upload_document(request):
                     processed=False, error_message=str(e), extracted_data={}
                 )
 
-        # Start thread
         thread = threading.Thread(target=process_in_background, args=(document.id,))
-        thread.daemon = True  # Allow program to exit even if thread is running
+        thread.daemon = True
         thread.start()
 
         messages.success(request, "✅ File uploaded. Processing will complete shortly.")
-        return redirect("core:document_library")  # or a "processing" page
+        return redirect("core:document_library")
 
-    # GET request
     return render(request, "upload_document.html")
 
 
 # -------------------------------------------------
 # 🔹 BATCH UPLOAD DOCUMENTS
 # -------------------------------------------------
+
+
 @login_required
 def batch_upload_documents(request):
     """Handle multiple document uploads at once."""
@@ -273,11 +256,10 @@ def batch_upload_documents(request):
         files = request.FILES.getlist("files")
         doc_type = request.POST.get("doc_type", "other_document")
 
-        if len(files) > 10:  # Limit batch size
+        if len(files) > 10:
             messages.error(request, "❌ Maximum 10 files allowed per batch upload.")
             return redirect("core:batch_upload")
 
-        # Create documents first
         documents = []
         for file in files:
             document = Document.objects.create(
@@ -289,7 +271,6 @@ def batch_upload_documents(request):
             documents.append(document)
 
         try:
-            # Process all documents
             file_paths = [doc.file.path for doc in documents]
             batch_results = batch_process_documents(
                 file_paths, [doc_type] * len(documents)
@@ -298,7 +279,6 @@ def batch_upload_documents(request):
             success_count = 0
             for doc, (filename, result) in zip(documents, batch_results.items()):
                 if "error" not in result:
-                    # Update document with result (simplified - you'd want full processing here)
                     doc.processed = True
                     clean_data = convert_numpy(result)
                     doc.extracted_data = clean_data
@@ -336,6 +316,8 @@ def batch_upload_documents(request):
 # -------------------------------------------------
 # 🔹 ENHANCED DOCUMENT DETAIL VIEW
 # -------------------------------------------------
+
+
 @login_required
 def document_detail(request, pk):
 
@@ -368,6 +350,8 @@ def document_detail(request, pk):
 # -------------------------------------------------
 # 🔹 REPROCESS DOCUMENT
 # -------------------------------------------------
+
+
 @login_required
 def reprocess_document(request, pk):
     """Reprocess a document with different settings."""
@@ -378,13 +362,10 @@ def reprocess_document(request, pk):
         enhancement_level = request.POST.get("enhancement_level", "auto")
 
         try:
-            # For reprocessing, we'd use the enhanced function with specific parameters
-            # This is a simplified version - you'd integrate the full reprocessing logic
             ocr_result = process_document_file_enhanced(
                 document.file.path, doc_type=new_doc_type, auto_detect=True
             )
 
-            # Update document (similar to upload logic)
             clean_data = convert_numpy(ocr_result)
             document.extracted_data = clean_data
             document.doc_type = new_doc_type
@@ -411,6 +392,8 @@ def reprocess_document(request, pk):
 # -------------------------------------------------
 # 🔹 ENHANCED CHAT API - PRIORITIZE USER EDITED DATA
 # -------------------------------------------------
+
+
 @login_required
 @csrf_exempt
 def chat_api(request):
@@ -448,21 +431,18 @@ def handle_chat_query_enhanced(request, user_message, conversation_id):
     threshold = 65
 
     for doc in docs:
-        # ALWAYS use user_edited_data if available, otherwise extracted_data
         search_data = doc.display_data
         search_text = doc.extracted_text or ""
 
         if not search_data and not search_text:
             continue
 
-        # Strategy 1: Direct text search
         if search_text:
             text_ratio = fuzz.partial_ratio(user_message, search_text.lower())
             if text_ratio >= threshold:
                 is_user_edited = bool(doc.user_edited_data)
                 best_matches.append((doc, text_ratio, "direct_match", is_user_edited))
 
-        # Strategy 2: Field-value search in structured data
         if search_data:
             for page_key, page_data in search_data.items():
                 if isinstance(page_data, dict):
@@ -470,11 +450,9 @@ def handle_chat_query_enhanced(request, user_message, conversation_id):
                         if field_key == "_metadata" or not field_value:
                             continue
 
-                        # Check field name match
                         field_ratio = fuzz.partial_ratio(
                             user_message, field_key.lower()
                         )
-                        # Check field value match
                         value_ratio = fuzz.partial_ratio(
                             user_message, str(field_value).lower()
                         )
@@ -493,7 +471,6 @@ def handle_chat_query_enhanced(request, user_message, conversation_id):
                                 )
                             )
 
-    # Sort by match score
     best_matches.sort(key=lambda x: x[1], reverse=True)
 
     if best_matches:
@@ -501,7 +478,6 @@ def handle_chat_query_enhanced(request, user_message, conversation_id):
         doc, score = best_match[0], best_match[1]
 
         if "direct_match" in best_match[2]:
-            # Extract relevant snippet
             is_user_edited = best_match[3]
             response_text = extract_relevant_snippet(user_message, search_text)
             source_indicator = (
@@ -511,7 +487,6 @@ def handle_chat_query_enhanced(request, user_message, conversation_id):
             )
             response_text = f"{response_text} {source_indicator}"
         else:
-            # Structured data match
             field_key, field_value, is_user_edited = (
                 best_match[3],
                 best_match[4],
@@ -524,7 +499,6 @@ def handle_chat_query_enhanced(request, user_message, conversation_id):
             )
             response_text = f"{source_indicator}:\n**{field_key}**: {field_value}"
 
-        # Add confidence indicator
         confidence = "high" if score >= 85 else "medium" if score >= 70 else "low"
 
         return JsonResponse(
@@ -538,7 +512,6 @@ def handle_chat_query_enhanced(request, user_message, conversation_id):
             }
         )
 
-    # No good matches found
     suggestion = generate_search_suggestion(user_message, docs)
     return JsonResponse(
         {
@@ -553,9 +526,8 @@ def extract_relevant_snippet(query, text, max_length=200):
     query_words = query.split()
     text_lower = text.lower()
 
-    # Find the best matching segment
     for word in query_words:
-        if len(word) < 4:  # Skip very short words
+        if len(word) < 4:
             continue
         idx = text_lower.find(word)
         if idx != -1:
@@ -564,7 +536,6 @@ def extract_relevant_snippet(query, text, max_length=200):
             snippet = text[start:end]
             return f'📄 Found relevant information:\n"...{snippet}..."'
 
-    # Fallback: return beginning of text
     return f"📄 Found in your documents:\n{text[:max_length]}..."
 
 
@@ -572,8 +543,6 @@ def generate_search_suggestion(query, documents):
     """Generate helpful search suggestions."""
     all_text = " ".join([doc.extracted_text for doc in documents if doc.extracted_text])
     words = all_text.split()
-
-    # Common field names in documents
     common_fields = [
         "name",
         "father_name",
@@ -609,15 +578,12 @@ def handle_base64_upload(file_base64, file_type):
     """Handle base64 file upload and processing."""
     tmp_file_path = None
     try:
-        # Validate base64 data
         if not file_base64.startswith("data:"):
             return JsonResponse({"error": "Invalid base64 format"}, status=400)
 
-        # Extract base64 data
         file_data = file_base64.split("base64,")[1]
         decoded_file = base64.b64decode(file_data)
 
-        # Create temporary file
         file_extension = ".pdf" if file_type == "application/pdf" else ".jpg"
         tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_extension)
         tmp_file.write(decoded_file)
@@ -625,12 +591,10 @@ def handle_base64_upload(file_base64, file_type):
         tmp_file_path = tmp_file.name
         tmp_file.close()
 
-        # Process document
         ocr_result = process_document_file_enhanced(
             tmp_file_path, doc_type=None, auto_detect=True
         )
 
-        # Format response
         response_data = format_ocr_response(ocr_result)
 
         return JsonResponse(response_data)
@@ -639,7 +603,6 @@ def handle_base64_upload(file_base64, file_type):
         logger.error(f"Base64 upload processing failed: {e}")
         return JsonResponse({"error": f"Processing failed: {str(e)}"}, status=500)
     finally:
-        # Cleanup
         if tmp_file_path and os.path.exists(tmp_file_path):
             os.unlink(tmp_file_path)
 
@@ -657,8 +620,6 @@ def format_ocr_response(ocr_result):
             text_lines.append(f"\n❌ {page_key}: {page_data['error']}")
             has_errors = True
         else:
-            # Extract metadata
-            # metadata = page_data.pop("_metadata", {})
             metadata = page_data.get("_metadata", {})
             fields = {k: v for k, v in page_data.items() if k != "_metadata"}
 
@@ -669,7 +630,6 @@ def format_ocr_response(ocr_result):
                 if value:
                     text_lines.append(f"  • {field}: {value}")
 
-            # Collect warnings
             if metadata.get("warnings"):
                 has_warnings = True
                 for warning in metadata["warnings"]:
@@ -693,6 +653,8 @@ def format_ocr_response(ocr_result):
 # -------------------------------------------------
 # 🔹 DOCUMENT ANALYSIS API
 # -------------------------------------------------
+
+
 @login_required
 @csrf_exempt
 def analyze_document_quality(request, pk):
@@ -746,6 +708,8 @@ def generate_quality_recommendations(quality_scores, is_blurry):
 # -------------------------------------------------
 # 🔹 DELETE DOCUMENT
 # -------------------------------------------------
+
+
 @login_required
 def delete_document(request, pk):
 
@@ -762,6 +726,8 @@ def delete_document(request, pk):
 # -------------------------------------------------
 # 🔹 SYSTEM STATUS
 # -------------------------------------------------
+
+
 @login_required
 def system_status(request):
     """Display system status and OCR environment information."""
@@ -769,7 +735,7 @@ def system_status(request):
 
     # Get system statistics
     user_doc_count = Document.objects.filter(user=request.user).count()
-    total_doc_count = Document.objects.count()  # Admin only in real implementation
+    total_doc_count = Document.objects.count()
 
     context = {
         "ocr_status": ocr_status,
@@ -802,6 +768,8 @@ def calculate_success_rate(user):
 # -------------------------------------------------
 # 🔹 SEARCH DOCUMENT FIELD (MATCHES TEMPLATE)
 # -------------------------------------------------
+
+
 @login_required
 def search_document_field(request):
     """
@@ -816,11 +784,9 @@ def search_document_field(request):
             request, "index.html", {"error": "Please enter a search term.", "field": ""}
         )
 
-    # Fetch processed documents for the logged-in user
     documents = Document.objects.filter(user=request.user, processed=True)
 
     for doc in documents:
-        # Prioritize user_edited_data over extracted_data for search
         search_data = (
             doc.user_edited_data if doc.user_edited_data else doc.extracted_data
         )
@@ -833,16 +799,13 @@ def search_document_field(request):
                 continue
 
             for field_key, field_value in page_data.items():
-                # Skip metadata or empty fields
                 if field_key == "_metadata" or not field_value:
                     continue
 
-                # Match either field name or value
                 if (
                     field_query in field_key.lower()
                     or field_query in str(field_value).lower()
                 ):
-                    # Determine if this is from user_edited_data
                     is_user_edited = doc.user_edited_data is not None
                     data_source = "user_edited" if is_user_edited else "extracted"
 
@@ -855,7 +818,6 @@ def search_document_field(request):
                             "value": field_value,
                             "data_source": data_source,
                             "is_user_edited": is_user_edited,
-                            # For display purposes - show both values if available
                             "extracted_value": (
                                 doc.extracted_data.get(page_key, {}).get(field_key, "")
                                 if doc.extracted_data
@@ -870,7 +832,6 @@ def search_document_field(request):
         "total_results": len(results),
     }
 
-    # If nothing found
     if not results:
         context["error"] = f'No matches found for "{field_query}".'
 

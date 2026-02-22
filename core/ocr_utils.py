@@ -1,27 +1,19 @@
-# C:\chatbot\ask_me\core\ocr_utils.py
-
 import os
 import cv2
 import pytesseract
 import numpy as np
 from django.conf import settings
 from pdf2image import convert_from_path
-import json
-from PIL import Image, ImageEnhance, ImageFilter
 import logging
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Dict, List, Tuple
 import re
 import tempfile
-from skimage import exposure
-import imutils
-import sys
-# 🔐 Safe OpenBharatOCR import
+
 try:
     import openbharatocr
 except ImportError:
     openbharatocr = None
 
-# Configure logging
 logger = logging.getLogger(__name__)
 
 print("🔥 OCR_UTILS LOADED")
@@ -46,6 +38,8 @@ logger.info(f"✅ Tesseract configured: {TESSERACT_PATH}")
 # =============================================================================
 # Custom Exceptions
 # =============================================================================
+
+
 class OCRException(Exception):
     """Base exception for OCR related errors."""
 
@@ -67,6 +61,8 @@ class PDFConversionError(OCRException):
 # =============================================================================
 # Strict Image Loader
 # =============================================================================
+
+
 def load_image_strict(image_path: str) -> np.ndarray:
     """
     Strictly load an image from disk.
@@ -90,6 +86,8 @@ def load_image_strict(image_path: str) -> np.ndarray:
 # =============================================================================
 # Safe Tesseract Wrapper with Confidence Filtering
 # =============================================================================
+
+
 def run_tesseract_safe(
     image: np.ndarray,
     config: str = "--oem 3 --psm 6",
@@ -124,9 +122,12 @@ def run_tesseract_safe(
         logger.error("Tesseract OCR failed", exc_info=True)
         return ""
 
+
 # =============================================================================
 # OCR Text Cleaner
 # =============================================================================
+
+
 def clean_ocr_text(text: str) -> str:
     """
     Clean OCR output: remove excess whitespace, fix common artifacts.
@@ -174,9 +175,7 @@ class DocumentAnalyzer:
     @staticmethod
     def calculate_image_quality_score(image_path: str) -> Dict[str, float]:
         try:
-            img = load_image_strict(
-                image_path
-            )  # replaced safe_read_image with load_image_strict
+            img = load_image_strict(image_path)
         except ImageLoadError:
             return {
                 "overall_score": 0.0,
@@ -216,7 +215,7 @@ class DocumentAnalyzer:
 def is_image_blurry(image_path: str, threshold: float = 100.0) -> Tuple[bool, float]:
     """Enhanced blur detection with multiple metrics"""
     try:
-        img = load_image_strict(image_path)  # use strict loader
+        img = load_image_strict(image_path)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     except ImageLoadError:
         return True, 0.0
@@ -252,7 +251,7 @@ def preprocess_image_advanced(image_path: str) -> np.ndarray:
     No over-processing.
     """
     try:
-        img = load_image_strict(image_path)  # use strict loader
+        img = load_image_strict(image_path)
     except ImageLoadError as e:
         logger.error(f"Image load failed in preprocess_image_advanced: {e}")
         raise ImageLoadError("Preprocessing failed")
@@ -277,6 +276,8 @@ def preprocess_image_advanced(image_path: str) -> np.ndarray:
 # -------------------------------------------------
 # 🔹 ENHANCED PDF TO IMAGE CONVERSION (with validation)
 # -------------------------------------------------
+
+
 def pdf_to_images_enhanced(pdf_path: str, dpi: int = 300, poppler_path: str = None):
     try:
         if not os.path.exists(pdf_path):
@@ -310,6 +311,8 @@ def pdf_to_images_enhanced(pdf_path: str, dpi: int = 300, poppler_path: str = No
 # -------------------------------------------------
 # 🔹 SINGLE OCR EXTRACTION (UPDATED WITH SAFE WRAPPER)
 # -------------------------------------------------
+
+
 def extract_text_with_tesseract(image_path: str) -> str:
     """
     Extract text using Tesseract OCR only.
@@ -375,6 +378,7 @@ def extract_text_with_tesseract(image_path: str) -> str:
 # 🔹 SMART OCR EXTRACTION (NOW JUST WRAPPER)
 # -------------------------------------------------
 
+
 def smart_ocr_extraction(image_path: str, doc_type: str = None) -> Dict:
     """
     Improved OCR extraction - SINGLE OCR CALL ONLY.
@@ -387,7 +391,7 @@ def smart_ocr_extraction(image_path: str, doc_type: str = None) -> Dict:
         # -----------------------------------------
         # STEP 1 — SINGLE OCR CALL
         # -----------------------------------------
-        
+
         text = extract_text_with_tesseract(image_path)
 
         if not text or len(text.strip()) < 10:
@@ -429,6 +433,8 @@ def smart_ocr_extraction(image_path: str, doc_type: str = None) -> Dict:
 # -------------------------------------------------
 # 🔹 ENHANCED MAIN OCR PIPELINE
 # -------------------------------------------------
+
+
 def process_document_file_enhanced(
     file_path: str, doc_type: str = None, auto_detect: bool = True
 ) -> Dict:
@@ -541,6 +547,8 @@ def process_document_file_enhanced(
 # -------------------------------------------------
 # 🔹 BATCH PROCESSING
 # -------------------------------------------------
+
+
 def batch_process_documents(file_paths: List[str], doc_types: List[str] = None) -> Dict:
     # ... unchanged
     pass

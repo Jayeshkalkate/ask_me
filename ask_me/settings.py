@@ -30,8 +30,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # --------------------
 SECRET_KEY = config("SECRET_KEY")
 
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 DEBUG = config("DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
@@ -42,11 +40,6 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 CSRF_TRUSTED_ORIGINS = [
     "https://ask-me-smart-document-assistant.onrender.com",
 ]
-
-# --------------------
-# API KEYS
-# --------------------
-# GROQ_API_KEY = config("GROQ_API_KEY", default=None)
 
 # --------------------
 # INSTALLED APPS
@@ -194,9 +187,6 @@ LOGGING = {
     },
 }
 
-# --------------------
-# OCR SETTINGS
-# --------------------
 # --------------------
 # OCR SETTINGS
 # --------------------

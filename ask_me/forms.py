@@ -1,8 +1,7 @@
-# C:\chatbot\ask_me\ask_me\forms.py
-
 from django import forms
 from django.contrib.auth.models import User
 from .models import Profile
+
 
 class UserForm(forms.ModelForm):
     class Meta:

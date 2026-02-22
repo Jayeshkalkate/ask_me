@@ -1,18 +1,16 @@
 {% load static %}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login - ASK_ME - Document Intelligence Chatbot</title>
 
-    <!-- Google Fonts -->
     <link
       href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap"
       rel="stylesheet"
     />
 
-    <!-- Font Awesome -->
     <script
       src="https://kit.fontawesome.com/a076d05399.js"
       crossorigin="anonymous"
@@ -32,7 +30,8 @@
         align-items: center;
         justify-content: center;
         padding: 10px;
-        background: url("{% static 'img/ASK_ME_Login.png' %}") no-repeat center center/cover;
+        background: url("{% static 'img/ASK_ME_Login.png' %}") no-repeat center
+          center/cover;
         animation: moveBg 20s linear infinite;
       }
 
@@ -250,7 +249,8 @@
       </form>
 
       <div class="register">
-        Don’t have an account? <a href="{% url 'account:register' %}">Register</a>
+        Don’t have an account?
+        <a href="{% url 'account:register' %}">Register</a>
       </div>
     </div>
 

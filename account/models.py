@@ -15,7 +15,6 @@ class Items(models.Model):
         return self.user.username
 
     def is_online(self):
-        # User considered online if active in last 5 minutes
         if self.last_activity:
             return timezone.now() - self.last_activity < timedelta(minutes=5)
         return False

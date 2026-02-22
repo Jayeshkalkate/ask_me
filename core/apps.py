@@ -25,8 +25,3 @@ class CoreConfig(AppConfig):
                 print("✅ Tesseract configured for Windows")
             else:
                 print("⚠️ Windows Tesseract not found")
-
-        # 3️⃣ Linux fallback
-        else:
-            pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
-            print("✅ Tesseract configured for Linux (fallback)")

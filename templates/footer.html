@@ -1,9 +1,7 @@
 <!-- {% load static %} -->
 
-<!-- JavaScript -->
 <script>
   (function () {
-    // Elements
     const chatHistory = document.getElementById("chatHistory");
     const messageInput = document.getElementById("messageInput");
     const sendBtn = document.getElementById("sendBtn");
@@ -22,8 +20,6 @@
     const uploadProgress = document.getElementById("uploadProgress");
     const progressBar = document.getElementById("progressBar");
     const progressPercent = document.getElementById("progressPercent");
-
-    // Backend API configuration
     const API_URL = "/api/chat/";
 
     let isDark = false;
@@ -33,11 +29,9 @@
       isDark = true;
     }
 
-    // Document data storage
     let documentData = null;
     let extractedFields = {};
 
-    // Utility: auto-scroll to bottom smoothly
     function scrollToBottom() {
       chatHistory.scrollTo({
         top: chatHistory.scrollHeight,
@@ -45,7 +39,6 @@
       });
     }
 
-    // Utility: create message element
     function createMessageEl({ text, who = "bot", timestamp = Date.now(), html = null }) {
       const wrapper = document.createElement("div");
       wrapper.className = "flex " + (who === "user" ? "justify-end" : "justify-start") + " px-1";
@@ -72,7 +65,6 @@
       return wrapper;
     }
 
-    // Create document extraction form
     function createExtractionForm(fields) {
       let html = `
         <div class="mb-3">
@@ -109,32 +101,27 @@
       return html;
     }
 
-    // Show typing indicator
     function showTyping(show = true) {
       typingIndicator.classList.toggle("hidden", !show);
       scrollToBottom();
     }
 
-    // Show error message
     function showError(msg) {
       errorBanner.innerText = msg;
       errorBanner.classList.remove("hidden");
       setTimeout(() => errorBanner.classList.add("hidden"), 6000);
     }
 
-    // Update upload progress
     function updateProgress(percent) {
       progressBar.style.width = `${percent}%`;
       progressPercent.textContent = `${percent}%`;
     }
 
-    // Convert file to base64
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = () => {
-          // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
           const base64 = reader.result.split(',')[1];
           resolve(base64);
         };
@@ -142,7 +129,6 @@
       });
     }
 
-    // Extract text from image using backend API
     async function extractTextFromImage(base64Image, fileType) {
       try {
         const apiResponse = await fetch(API_URL, {
@@ -167,27 +153,21 @@
       }
     }
 
-    // Send message flow
     async function sendMessage(text, opts = {}) {
       const trimmed = String(text || "").trim();
       if (!trimmed) return;
 
-      // add user message immediately
       const userMsg = createMessageEl({ text: trimmed, who: "user" });
       chatHistory.appendChild(userMsg);
       scrollToBottom();
 
-      // clear input
       messageInput.value = "";
       messageInput.focus();
 
-      // show typing
       showTyping(true);
 
       try {
         let response;
-
-        // Call backend endpoint instead of Groq directly
         const apiResponse = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -204,7 +184,6 @@
         const data = await apiResponse.json();
         response = data.response || data.text || "No response from server.";
 
-        // show bot message
         const botMsg = createMessageEl({ text: response, who: "bot" });
         chatHistory.appendChild(botMsg);
 
@@ -218,31 +197,25 @@
       }
     }
 
-    // Process uploaded document
     async function processUploadedDocument(file) {
-      // Show progress
       uploadProgress.classList.remove("hidden");
       updateProgress(10);
 
       try {
         updateProgress(30);
         
-        // Convert file to base64
         const base64Data = await fileToBase64(file);
         
         updateProgress(60);
         
-        // Extract text using backend API
         const extractedText = await extractTextFromImage(base64Data, file.type);
         
         updateProgress(80);
         
-        // Parse the extracted text into structured fields
         extractedFields = parseExtractedText(extractedText);
         
         updateProgress(100);
 
-        // Create and show the extraction form
         const formHtml = createExtractionForm(extractedFields);
         const botMsg = createMessageEl({ 
           html: formHtml, 
@@ -252,7 +225,6 @@
         chatHistory.appendChild(botMsg);
         scrollToBottom();
         
-        // Add event listeners for the form buttons
         document.getElementById('saveDocumentData').addEventListener('click', saveDocumentData);
         document.getElementById('cancelEdit').addEventListener('click', () => {
           chatHistory.removeChild(botMsg);
@@ -266,7 +238,6 @@
         });
         chatHistory.appendChild(botMsg);
       } finally {
-        // Hide progress
         setTimeout(() => {
           uploadProgress.classList.add("hidden");
           updateProgress(0);
@@ -276,19 +247,15 @@
       }
     }
 
-    // Save document data
     function saveDocumentData() {
-      // Update extractedFields with any edits
       const inputs = document.querySelectorAll('input[data-field]');
       inputs.forEach(input => {
         const field = input.getAttribute('data-field');
         extractedFields[field] = input.value;
       });
-
-      // Store the data
+      
       documentData = extractedFields;
       
-      // Show confirmation message
       const botMsg = createMessageEl({
         text: "Document data saved successfully! You can now ask questions about your document.",
         who: "bot",
@@ -297,12 +264,8 @@
       scrollToBottom();
     }
 
-    // Event Listeners
-
-    // handle Send button
     sendBtn.addEventListener("click", () => sendMessage(messageInput.value));
 
-    // handle Enter to send, Shift+Enter for newline
     messageInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -310,7 +273,6 @@
       }
     });
 
-    // Quick replies click
     quickReplies.addEventListener("click", (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
@@ -328,7 +290,6 @@
       }
     });
 
-    // Dark mode toggle
     darkToggle.addEventListener("click", () => {
       isDark = !isDark;
       if (isDark) {
@@ -340,7 +301,6 @@
       }
     });
 
-    // File upload functionality
     fileUploadBtn.addEventListener("click", () => {
       uploadModal.classList.remove("hidden");
     });
@@ -388,7 +348,6 @@
       }
     });
 
-    // Microphone / Speech-to-text
     let recognition = null;
     let listening = false;
     if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
@@ -432,21 +391,8 @@
       }
     });
 
-    // For accessibility: focus input when anywhere in chat clicked
     chatHistory.addEventListener("click", () => messageInput.focus());
 
-    // Add initial example bot messages
-    // function initWelcome() {
-    //   const botIntro = createMessageEl({
-    //     text: "Hi! I'm ASK_ME, your document intelligence assistant powered by GroqCloud API. Upload documents like Aadhar cards, invoices, or forms, and I'll extract the information for you to review. Then you can ask me questions about your documents!",
-    //     who: "bot",
-    //   });
-    //   chatHistory.appendChild(botIntro);
-    //   scrollToBottom();
-    // }
-    // initWelcome();
-    // Add initial example bot messages
-    
     function initWelcome() {
       const botIntro = createMessageEl({
         text: "Hi! I'm ASK_ME, your document intelligence assistant. Upload documents like Aadhar cards, invoices, or forms, and I'll extract the information for you to review. Then you can ask me questions about your documents!",
@@ -457,15 +403,12 @@
     }
     initWelcome();
 
-    // Resize textarea auto-grow
     function autoResizeTA(el) {
       el.style.height = "auto";
       el.style.height = el.scrollHeight + "px";
     }
     messageInput.addEventListener("input", () => autoResizeTA(messageInput));
     autoResizeTA(messageInput);
-
-    // Hide quick-replies if mobile small view
     function adaptQuickReplies() {
       if (window.innerWidth < 420) quickReplies.classList.add("hidden");
       else quickReplies.classList.remove("hidden");

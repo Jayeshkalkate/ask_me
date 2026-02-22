@@ -1,9 +1,8 @@
-# C:\chatbot\ask_me\core\forms.py
-
 from django import forms
 from .models import Document
 import json
 from .models import convert_numpy
+
 
 class DocumentUploadForm(forms.ModelForm):
     """Form for uploading documents with type selection."""
@@ -23,6 +22,7 @@ class DocumentUploadForm(forms.ModelForm):
     class Meta:
         model = Document
         fields = ["file", "doc_type"]
+
 
 class DocumentEditForm(forms.ModelForm):
     """
@@ -55,7 +55,6 @@ class DocumentEditForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance:
-            # Always show the current display data (user_edited_data prioritized)
             display_data = self.instance.display_data
             self.initial["user_edited_data"] = json.dumps(
                 display_data, indent=2, ensure_ascii=False
@@ -67,7 +66,6 @@ class DocumentEditForm(forms.ModelForm):
             return {}
         try:
             parsed_data = json.loads(data)
-            # Convert numpy types to native Python types
             return convert_numpy(parsed_data)
         except json.JSONDecodeError as e:
             raise forms.ValidationError(

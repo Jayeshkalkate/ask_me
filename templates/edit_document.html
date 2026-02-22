@@ -1,236 +1,227 @@
-{% load static %}
-{% include "header.html" %}
+{% load static %} {% include "header.html" %}
 
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+<body
+  class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen"
+>
+  <main class="max-w-6xl mx-auto py-8 px-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-center mb-2">
+          ✏️ Edit Document Data
+        </h1>
 
-<main class="max-w-6xl mx-auto py-8 px-4">
-<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+        <p class="text-center text-gray-600 dark:text-gray-400">
+          {{ document.get_doc_type_display }} • Uploaded: {{
+          document.created_at|date:"M d, Y" }}
+        </p>
 
-<!-- ================= HEADER ================= -->
-<div class="mb-6">
-  <h1 class="text-2xl font-bold text-center mb-2">✏️ Edit Document Data</h1>
+        <div class="text-center mt-4">
+          <span
+            class="inline-block px-4 py-2 rounded-xl {% if document.user_edited_data %} bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 {% else %} bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 {% endif %}"
+          >
+            {% if document.user_edited_data %} ✏️ Editing your previously edited
+            data {% else %} 📄 Editing originally extracted data {% endif %}
+          </span>
+        </div>
+      </div>
 
-  <p class="text-center text-gray-600 dark:text-gray-400">
-    {{ document.get_doc_type_display }} • Uploaded: {{ document.created_at|date:"M d, Y" }}
-  </p>
+      {% if form.errors %}
+      <div
+        class="mb-4 p-4 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+      >
+        <strong>Please correct the following errors:</strong>
+        <ul class="list-disc list-inside mt-2">
+          {% for field, errors in form.errors.items %} {% for error in errors %}
+          <li>{{ error }}</li>
+          {% endfor %} {% endfor %}
+        </ul>
+      </div>
+      {% endif %} {% if document.user_edited_data or document.extracted_data %}
+      {% if document.user_edited_data %} {{
+      document.user_edited_data|json_script:"document-data" }} {% else %} {{
+      document.extracted_data|json_script:"document-data" }} {% endif %}
 
-  <div class="text-center mt-4">
-    <span class="inline-block px-4 py-2 rounded-xl
-      {% if document.user_edited_data %}
-        bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300
+      <div class="mb-6">
+        <div class="flex border-b border-gray-200 dark:border-gray-700">
+          <button
+            id="visual-tab"
+            class="tab-button active px-4 py-2 font-medium text-indigo-600 border-b-2 border-indigo-600"
+          >
+            🎨 Visual Editor
+          </button>
+          <button
+            id="json-tab"
+            class="tab-button px-4 py-2 font-medium text-gray-500 dark:text-gray-400"
+          >
+            ⚙️ JSON Editor
+          </button>
+        </div>
+      </div>
+
+      <div id="visual-editor" class="editor-section">
+        <form id="visual-form" method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="user_edited_data" id="json-output" />
+
+          <label class="block text-sm font-medium mb-2">Select Page:</label>
+          <select
+            id="page-selector"
+            class="w-full p-3 border rounded-xl dark:bg-gray-700"
+          ></select>
+
+          <div id="fields-container" class="my-6"></div>
+
+          <button
+            type="button"
+            id="add-field-btn"
+            class="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl"
+          >
+            ➕ Add New Field
+          </button>
+        </form>
+      </div>
+
+      <div id="json-editor" class="editor-section hidden">
+        <form method="POST">
+          {% csrf_token %}
+
+          <label class="block text-sm font-medium mb-2">Edit JSON:</label>
+          {{ form.user_edited_data }}
+
+          <p class="text-sm text-gray-500 mt-2">
+            Make sure JSON format is valid.
+          </p>
+        </form>
+      </div>
+
       {% else %}
-        bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300
-      {% endif %}">
-      {% if document.user_edited_data %}
-        ✏️ Editing your previously edited data
-      {% else %}
-        📄 Editing originally extracted data
+
+      <div class="text-center py-12 text-gray-500">
+        📭 No extracted fields available to edit.
+      </div>
+
       {% endif %}
-    </span>
-  </div>
-</div>
 
+      <div
+        class="flex flex-col sm:flex-row gap-4 justify-between items-center pt-6 border-t mt-6"
+      >
+        <a
+          href="{% url 'core:document_detail' document.pk %}"
+          class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl"
+        >
+          ← Cancel
+        </a>
 
-<!-- ================= FORM ERRORS ================= -->
-{% if form.errors %}
-<div class="mb-4 p-4 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
-<strong>Please correct the following errors:</strong>
-<ul class="list-disc list-inside mt-2">
-{% for field, errors in form.errors.items %}
-{% for error in errors %}
-<li>{{ error }}</li>
-{% endfor %}
-{% endfor %}
-</ul>
-</div>
-{% endif %}
+        <div class="flex gap-4">
+          <button
+            type="button"
+            onclick="formatJSON()"
+            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+          >
+            🔧 Format JSON
+          </button>
 
+          <button
+            type="submit"
+            form="visual-form"
+            class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl"
+          >
+            💾 Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
 
-<!-- ========================================================= -->
-<!-- ================= DATA EXIST CHECK ===================== -->
-<!-- ========================================================= -->
+  <style>
+    .hidden {
+      display: none;
+    }
+    .tab-button.active {
+      color: rgb(79 70 229);
+      border-color: rgb(79 70 229);
+    }
+    .field-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .field-input {
+      flex: 1;
+    }
+    .delete-field {
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+    }
+  </style>
 
-{% if document.user_edited_data or document.extracted_data %}
+  <script>
+    let documentData = {};
+    const jsonElement = document.getElementById("document-data");
+    if (jsonElement) {
+      documentData = JSON.parse(jsonElement.textContent);
+    }
 
-{% if document.user_edited_data %}
-{{ document.user_edited_data|json_script:"document-data" }}
-{% else %}
-{{ document.extracted_data|json_script:"document-data" }}
-{% endif %}
+    document.addEventListener("DOMContentLoaded", () => {
+      initializeVisualEditor();
+      switchToTab("visual");
 
+      document
+        .getElementById("visual-tab")
+        ?.addEventListener("click", () => switchToTab("visual"));
+      document
+        .getElementById("json-tab")
+        ?.addEventListener("click", () => switchToTab("json"));
+      document
+        .getElementById("add-field-btn")
+        ?.addEventListener("click", addNewField);
+    });
 
-<!-- ================= TABS ================= -->
-<div class="mb-6">
-  <div class="flex border-b border-gray-200 dark:border-gray-700">
-    <button id="visual-tab" class="tab-button active px-4 py-2 font-medium text-indigo-600 border-b-2 border-indigo-600">
-      🎨 Visual Editor
-    </button>
-    <button id="json-tab" class="tab-button px-4 py-2 font-medium text-gray-500 dark:text-gray-400">
-      ⚙️ JSON Editor
-    </button>
-  </div>
-</div>
+    function switchToTab(tab) {
+      document
+        .getElementById("visual-editor")
+        ?.classList.toggle("hidden", tab !== "visual");
+      document
+        .getElementById("json-editor")
+        ?.classList.toggle("hidden", tab !== "json");
+    }
 
+    function initializeVisualEditor() {
+      const selector = document.getElementById("page-selector");
+      if (!selector) return;
 
-<!-- ================= VISUAL EDITOR ================= -->
-<div id="visual-editor" class="editor-section">
+      selector.innerHTML = "";
+      Object.keys(documentData).forEach((page) => {
+        if (!page.startsWith("_")) {
+          const opt = document.createElement("option");
+          opt.value = page;
+          opt.textContent = "Page " + page.split("_")[1];
+          selector.appendChild(opt);
+        }
+      });
+      loadPageData(selector.value);
+      selector.addEventListener("change", () => loadPageData(selector.value));
+    }
 
-<form id="visual-form" method="POST">
-{% csrf_token %}
-<input type="hidden" name="user_edited_data" id="json-output">
+    function loadPageData(page) {
+      const container = document.getElementById("fields-container");
+      container.innerHTML = "";
+      const data = documentData[page];
 
-<label class="block text-sm font-medium mb-2">Select Page:</label>
-<select id="page-selector" class="w-full p-3 border rounded-xl dark:bg-gray-700"></select>
+      Object.keys(data).forEach((field) => {
+        if (field !== "_metadata") addFieldRow(field, data[field]);
+      });
+      updateJSONOutput();
+    }
 
-<div id="fields-container" class="my-6"></div>
+    function addFieldRow(name = "", value = "") {
+      const row = document.createElement("div");
+      row.className = "field-row";
 
-<button type="button" id="add-field-btn"
-class="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl">
-➕ Add New Field
-</button>
-
-</form>
-</div>
-
-
-<!-- ================= JSON EDITOR ================= -->
-<div id="json-editor" class="editor-section hidden">
-<form method="POST">
-{% csrf_token %}
-
-<label class="block text-sm font-medium mb-2">Edit JSON:</label>
-{{ form.user_edited_data }}
-
-<p class="text-sm text-gray-500 mt-2">
-Make sure JSON format is valid.
-</p>
-</form>
-</div>
-
-
-{% else %}
-
-<div class="text-center py-12 text-gray-500">
-📭 No extracted fields available to edit.
-</div>
-
-{% endif %}
-
-
-<!-- ================= ACTION BUTTONS ================= -->
-<div class="flex flex-col sm:flex-row gap-4 justify-between items-center pt-6 border-t mt-6">
-
-<a href="{% url 'core:document_detail' document.pk %}"
-class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl">
-← Cancel
-</a>
-
-<div class="flex gap-4">
-<button type="button" onclick="formatJSON()"
-class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
-🔧 Format JSON
-</button>
-
-<button type="submit" form="visual-form"
-class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl">
-💾 Save Changes
-</button>
-</div>
-
-</div>
-
-</div>
-</main>
-
-
-
-<!-- ========================================================= -->
-<!-- ===================== STYLES ============================ -->
-<!-- ========================================================= -->
-
-<style>
-.hidden{display:none}
-.tab-button.active{color:rgb(79 70 229);border-color:rgb(79 70 229)}
-.field-row{display:flex;gap:12px;margin-bottom:12px}
-.field-input{flex:1}
-.delete-field{background:#ef4444;color:white;border:none;border-radius:8px;padding:10px}
-</style>
-
-
-
-<!-- ========================================================= -->
-<!-- ===================== JAVASCRIPT ======================== -->
-<!-- ========================================================= -->
-
-<script>
-
-let documentData = {};
-const jsonElement = document.getElementById("document-data");
-if(jsonElement){ documentData = JSON.parse(jsonElement.textContent); }
-
-document.addEventListener("DOMContentLoaded", ()=>{
-initializeVisualEditor();
-switchToTab("visual");
-
-document.getElementById("visual-tab")?.addEventListener("click",()=>switchToTab("visual"));
-document.getElementById("json-tab")?.addEventListener("click",()=>switchToTab("json"));
-document.getElementById("add-field-btn")?.addEventListener("click",addNewField);
-});
-
-
-function switchToTab(tab){
-document.getElementById("visual-editor")?.classList.toggle("hidden",tab!=="visual");
-document.getElementById("json-editor")?.classList.toggle("hidden",tab!=="json");
-}
-
-
-function initializeVisualEditor(){
-const selector=document.getElementById("page-selector");
-if(!selector) return;
-
-selector.innerHTML="";
-Object.keys(documentData).forEach(page=>{
-if(!page.startsWith("_")){
-const opt=document.createElement("option");
-opt.value=page;
-opt.textContent="Page "+page.split("_")[1];
-selector.appendChild(opt);
-}
-});
-loadPageData(selector.value);
-selector.addEventListener("change",()=>loadPageData(selector.value));
-}
-
-
-function loadPageData(page){
-const container=document.getElementById("fields-container");
-container.innerHTML="";
-const data=documentData[page];
-
-Object.keys(data).forEach(field=>{
-if(field!=="_metadata") addFieldRow(field,data[field]);
-});
-updateJSONOutput();
-}
-
-
-// function addFieldRow(name="",value=""){
-// const row=document.createElement("div");
-// row.className="field-row";
-// row.innerHTML=`
-// <input class="field-input p-3 border rounded-xl" placeholder="Field Name" value="${name}">
-// <input class="field-input p-3 border rounded-xl" placeholder="Field Value" value="${value}">
-// <button type="button" class="delete-field">🗑️</button>`;
-// row.querySelector(".delete-field").onclick=()=>{row.remove();updateJSONOutput()};
-// row.querySelectorAll("input").forEach(i=>i.onchange=updateJSONOutput);
-// document.getElementById("fields-container").appendChild(row);
-// }
-
-function addFieldRow(name="", value=""){
-    const row = document.createElement("div");
-    row.className = "field-row";
-
-    row.innerHTML = `
+      row.innerHTML = `
         <input class="field-input p-3 border border-gray-300 rounded-xl text-black dark:text-black bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
                placeholder="Field Name"
                value="${name}">
@@ -242,50 +233,58 @@ function addFieldRow(name="", value=""){
         <button type="button" class="delete-field">🗑️</button>
     `;
 
-    row.querySelector(".delete-field").onclick = () => {
+      row.querySelector(".delete-field").onclick = () => {
         row.remove();
         updateJSONOutput();
-    };
+      };
 
-    row.querySelectorAll("input").forEach(i => i.onchange = updateJSONOutput);
+      row
+        .querySelectorAll("input")
+        .forEach((i) => (i.onchange = updateJSONOutput));
 
-    document.getElementById("fields-container").appendChild(row);
-}
+      document.getElementById("fields-container").appendChild(row);
+    }
 
+    function addNewField() {
+      addFieldRow();
+    }
 
-function addNewField(){ addFieldRow(); }
+    function updateJSONOutput() {
+      const page = document.getElementById("page-selector").value;
+      const rows = document.querySelectorAll(".field-row");
+      const updated = { ...documentData[page] };
+      Object.keys(updated).forEach((k) => {
+        if (k !== "_metadata") delete updated[k];
+      });
 
-function updateJSONOutput(){
-const page=document.getElementById("page-selector").value;
-const rows=document.querySelectorAll(".field-row");
-const updated={...documentData[page]};
-Object.keys(updated).forEach(k=>{ if(k!=="_metadata") delete updated[k]; });
+      rows.forEach((r) => {
+        const name = r.children[0].value.trim();
+        const val = r.children[1].value;
+        if (name) updated[name] = val;
+      });
 
-rows.forEach(r=>{
-const name=r.children[0].value.trim();
-const val=r.children[1].value;
-if(name) updated[name]=val;
-});
+      documentData[page] = updated;
+      document.getElementById("json-output").value = JSON.stringify(
+        documentData,
+        null,
+        2,
+      );
 
-documentData[page]=updated;
-document.getElementById("json-output").value=JSON.stringify(documentData,null,2);
+      const txt = document.querySelector('textarea[name="user_edited_data"]');
+      if (txt) txt.value = JSON.stringify(documentData, null, 2);
+    }
 
-const txt=document.querySelector('textarea[name="user_edited_data"]');
-if(txt) txt.value=JSON.stringify(documentData,null,2);
-}
-
-
-function formatJSON(){
-const txt=document.querySelector('textarea[name="user_edited_data"]');
-try{
-const parsed=JSON.parse(txt.value);
-txt.value=JSON.stringify(parsed,null,2);
-documentData=parsed;
-initializeVisualEditor();
-}catch{ alert("Invalid JSON"); }
-}
-
-</script>
-
+    function formatJSON() {
+      const txt = document.querySelector('textarea[name="user_edited_data"]');
+      try {
+        const parsed = JSON.parse(txt.value);
+        txt.value = JSON.stringify(parsed, null, 2);
+        documentData = parsed;
+        initializeVisualEditor();
+      } catch {
+        alert("Invalid JSON");
+      }
+    }
+  </script>
 </body>
 {% include "footer.html" %}

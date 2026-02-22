@@ -3,12 +3,11 @@
   <body
     class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center p-4 transition-colors duration-300"
   >
-    <!-- Main Container -->
     <main class="w-full max-w-4xl mx-auto">
       <div
         class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden grid grid-rows-[auto_1fr_auto] h-[90vh] md:h-[85vh]"
       >
-        <!-- Header -->
+      
         <header
           class="flex items-center justify-between gap-3 p-4 border-b dark:border-gray-700"
         >
@@ -27,13 +26,11 @@
                 ASK_ME - Secure & Smart Document Assistant
               </div>
               <div class="text-xs text-gray-500 dark:text-gray-400">
-                <!-- Created by DEVJAYESH -->
               </div>
             </div>
           </div>
 
           <div class="flex items-center gap-2">
-            <!-- Dark mode toggle -->
             <button
               id="darkToggle"
               aria-label="Toggle dark mode"
@@ -72,7 +69,6 @@
               </svg>
             </button>
 
-            <!-- Files Button -->
             <a
               href="{% url 'core:document_library' %}"
               title="Back to Document Library"
@@ -95,7 +91,6 @@
               📁
             </a>
             
-            <!-- User & Admin profile Button -->
             <a
               href="{% url 'userprofile' %}"
               title="Back to Document Library"
@@ -118,7 +113,6 @@
               😎
             </a>
             
-            <!-- File Upload -->
             <button
               id="fileUploadBtn"
               title="Upload document"
@@ -142,7 +136,6 @@
           </div>
         </header>
 
-        <!-- Django messages -->
         <div class="p-4">
           {% if messages %} {% for message in messages %}
           <div
@@ -153,7 +146,6 @@
           {% endfor %} {% endif %}
         </div>
 
-        <!-- Chat / Results Section -->
         <section
           id="chatHistory"
           class="flex-1 p-4 overflow-y-auto bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 space-y-4 scroll-smooth hide-scrollbar"
@@ -180,7 +172,6 @@
               <div
                 class="p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 shadow-sm hover:shadow-md transition"
               >
-                <!-- Document Info -->
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                   <strong>Document ID:</strong> {{ result.document_id }}
                 </p>
@@ -191,21 +182,18 @@
                   <strong>Page:</strong> {{ result.page|title }}
                 </p>
 
-                <!-- Field Info -->
                 <p
                   class="text-base font-medium mt-1 text-gray-900 dark:text-gray-100"
                 >
                   <strong>{{ result.field|capfirst }}:</strong>
                 </p>
 
-                <!-- Extracted / Raw Value -->
                 {% if result.extracted_value %}
                 <p class="text-sm text-gray-600 dark:text-gray-400 ml-4">
                   <strong>Extracted:</strong> {{ result.extracted_value }}
                 </p>
                 {% endif %}
 
-                <!-- User Edited Value -->
                 {% if result.value %}
                 <p
                   class="text-sm text-green-700 dark:text-green-400 ml-4 font-medium"
@@ -214,7 +202,6 @@
                 </p>
                 {% endif %}
 
-                <!-- Highlight if value is user-edited -->
                 {% if result.is_user_edited %}
                 <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1 ml-4">
                   ⚠️ This field has been edited by you.
@@ -233,7 +220,6 @@
           </div>
           {% endif %}
 
-          <!-- Welcome Message -->
           <div
             id="welcome"
             class="text-center text-sm text-gray-500 dark:text-gray-400"
@@ -244,7 +230,6 @@
           </div>
         </section>
 
-        <!-- Footer -->
         <footer
           class="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800"
         >
@@ -293,7 +278,6 @@
       </div>
     </main>
 
-    <!-- Upload Modal -->
     <div
       id="uploadModal"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
@@ -392,7 +376,6 @@
     {% include "footer.html" %}
 
     <script>
-      // --- Dark Mode Toggle ---
       const darkToggle = document.getElementById("darkToggle");
       const darkIcon = document.getElementById("darkIcon");
       const lightIcon = document.getElementById("lightIcon");
@@ -422,7 +405,6 @@
         else enableDark();
       });
 
-      // --- Modal logic ---
       const uploadBtn = document.getElementById("fileUploadBtn");
       const uploadModal = document.getElementById("uploadModal");
       const closeModal = document.getElementById("closeUploadModal");
@@ -439,13 +421,11 @@
           fileInput.files[0]?.name || "Drag & drop files here or click to browse";
       };
 
-      // Smooth scroll improvement
       document.querySelector("#chatHistory").scrollTo({
         top: document.querySelector("#chatHistory").scrollHeight,
         behavior: "smooth",
       });
 
-      // Quick reply
       document.querySelectorAll(".quick-reply").forEach((btn) => {
         btn.addEventListener("click", () =>
           uploadModal.classList.remove("hidden")

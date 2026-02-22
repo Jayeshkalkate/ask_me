@@ -1,18 +1,16 @@
 {% load static %}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <title>Register</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Google Fonts -->
     <link
       href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@200;300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
 
-    <!-- Font Awesome -->
     <script
       src="https://kit.fontawesome.com/a076d05399.js"
       crossorigin="anonymous"
@@ -34,7 +32,8 @@
         width: 100%;
         padding: 0 10px;
         position: relative;
-        background: url("{% static 'img/ASK_ME_Register.png' %}") no-repeat center center/cover;
+        background: url("{% static 'img/ASK_ME_Register.png' %}") no-repeat
+          center center/cover;
         animation: moveBg 20s linear infinite;
       }
 
@@ -192,7 +191,10 @@
   <body>
     <div class="container">
       <hr style="border: 1px solid #ff6600" />
-      <h2><i class="fas fa-user-plus"></i> Register to ASK_ME - Document Intelligence Chatbot</h2>
+      <h2>
+        <i class="fas fa-user-plus"></i> Register to ASK_ME - Document
+        Intelligence Chatbot
+      </h2>
       <hr style="border: 1px solid #ff6600" />
 
       {% if messages %}
