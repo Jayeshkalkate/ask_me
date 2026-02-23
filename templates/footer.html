@@ -32,6 +32,30 @@
     let documentData = null;
     let extractedFields = {};
 
+    // ---------- Helper: parse extracted text into fields ----------
+    function parseExtractedText(text) {
+      const fields = {};
+      // Look for lines containing "key: value" patterns
+      const lines = text.split('\n');
+      lines.forEach(line => {
+        line = line.trim();
+        if (line.includes(':')) {
+          const [key, ...valueParts] = line.split(':');
+          const value = valueParts.join(':').trim();
+          if (key && value) {
+            // Normalise key: lowercase, underscores
+            const fieldKey = key.trim().toLowerCase().replace(/\s+/g, '_');
+            fields[fieldKey] = value;
+          }
+        }
+      });
+      // If no structured fields found, store the first 200 chars as a fallback
+      if (Object.keys(fields).length === 0) {
+        fields.extracted_text = text.substring(0, 200) + (text.length > 200 ? '…' : '');
+      }
+      return fields;
+    }
+
     function scrollToBottom() {
       chatHistory.scrollTo({
         top: chatHistory.scrollHeight,

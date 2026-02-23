@@ -1,77 +1,82 @@
 {% load static %}
 <!doctype html>
 <html lang="en" class="antialiased">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>ASK_ME - Document Intelligence Chatbot</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ASK_ME - Document Intelligence Chatbot</title>
 
-    <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-    <link rel="icon" href="{% static 'img/ASK_ME_Logo.png' %}" />
+  <!-- Favicon -->
+  <link rel="icon" href="{% static 'img/ASK_ME_Logo.png' %}" />
 
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            keyframes: {
-              "dot-flash": {
-                "0%": { opacity: 0.2, transform: "translateY(0.25rem)" },
-                "50%": { opacity: 1, transform: "translateY(0)" },
-                "100%": { opacity: 0.2, transform: "translateY(0.25rem)" },
-              },
-              "fade-in-up": {
-                "0%": { opacity: 0, transform: "translateY(8px)" },
-                "100%": { opacity: 1, transform: "translateY(0)" },
-              },
-              "fade-in": {
-                "0%": { opacity: 0 },
-                "100%": { opacity: 1 },
-              },
-              "pulse-soft": {
-                "0%, 100%": { opacity: 1 },
-                "50%": { opacity: 0.7 },
-              },
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          keyframes: {
+            "dot-flash": {
+              "0%": { opacity: 0.2, transform: "translateY(0.25rem)" },
+              "50%": { opacity: 1, transform: "translateY(0)" },
+              "100%": { opacity: 0.2, transform: "translateY(0.25rem)" },
             },
-            animation: {
-              "dot-flash": "dot-flash 1s ease-in-out infinite",
-              "fade-in-up": "fade-in-up 220ms ease-out both",
-              "fade-in": "fade-in 300ms ease-out both",
-              "pulse-soft": "pulse-soft 2s ease-in-out infinite",
+            "fade-in-up": {
+              "0%": { opacity: 0, transform: "translateY(8px)" },
+              "100%": { opacity: 1, transform: "translateY(0)" },
+            },
+            "fade-in": {
+              "0%": { opacity: 0 },
+              "100%": { opacity: 1 },
+            },
+            "pulse-soft": {
+              "0%, 100%": { opacity: 1 },
+              "50%": { opacity: 0.7 },
             },
           },
+          animation: {
+            "dot-flash": "dot-flash 1s ease-in-out infinite",
+            "fade-in-up": "fade-in-up 220ms ease-out both",
+            "fade-in": "fade-in 300ms ease-out both",
+            "pulse-soft": "pulse-soft 2s ease-in-out infinite",
+          },
         },
-      };
-    </script>
+      },
+    };
+  </script>
 
-    <style>
-      .chat-scrollbar::-webkit-scrollbar {
-        width: 8px;
-      }
-      .chat-scrollbar::-webkit-scrollbar-thumb {
-        background-color: rgba(100, 100, 100, 0.2);
-        border-radius: 8px;
-      }
-      .quick-reply {
-        white-space: nowrap;
-      }
-      .input-shadow:focus {
-        box-shadow: 0 6px 18px rgba(2, 6, 23, 0.25);
-      }
-      .document-preview {
-        max-height: 200px;
-        overflow-y: auto;
-      }
-      .field-row {
-        transition: all 0.2s ease;
-      }
-      .field-row:hover {
-        background-color: rgba(0, 0, 0, 0.02);
-      }
-      .progress-bar {
-        transition: width 0.3s ease;
-      }
-    </style>
-  </head>
-</html>
+  <!-- Custom Styles -->
+  <style>
+    .chat-scrollbar::-webkit-scrollbar {
+      width: 8px;
+    }
+    .chat-scrollbar::-webkit-scrollbar-thumb {
+      background-color: rgba(100, 100, 100, 0.2);
+      border-radius: 8px;
+    }
+    .quick-reply {
+      white-space: nowrap;
+    }
+    .input-shadow:focus {
+      box-shadow: 0 6px 18px rgba(2, 6, 23, 0.25);
+    }
+    .document-preview {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .field-row {
+      transition: all 0.2s ease;
+    }
+    .field-row:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
