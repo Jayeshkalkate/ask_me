@@ -22,18 +22,18 @@ print("🔥 OCR_UTILS LOADED")
 # 🔐 SAFE TESSERACT CONFIGURATION (MANDATORY)
 # =============================================================================
 
+TESSERACT_AVAILABLE = False
 TESSERACT_PATH = getattr(settings, "PYTESSERACT_CMD", None)
 
-if not TESSERACT_PATH:
-    raise RuntimeError("❌ PYTESSERACT_CMD not defined in Django settings.py")
-
-if not os.path.exists(TESSERACT_PATH):
-    raise RuntimeError(f"❌ Tesseract executable not found at: {TESSERACT_PATH}")
-
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
-
-logger.info(f"✅ Tesseract configured: {TESSERACT_PATH}")
-
+if TESSERACT_PATH and os.path.exists(TESSERACT_PATH):
+    try:
+        pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+        TESSERACT_AVAILABLE = True
+        logger.info(f"✅ Tesseract configured: {TESSERACT_PATH}")
+    except Exception as e:
+        logger.warning(f"⚠ Failed to initialize Tesseract: {e}")
+else:
+    logger.warning("⚠ Tesseract not installed — pytesseract OCR disabled")
 
 # =============================================================================
 # Custom Exceptions
@@ -95,6 +95,12 @@ def run_tesseract_safe(
     confidence_threshold: int = 60,
 ) -> str:
 
+    # ✅ NEW — Skip if Tesseract not available
+    if not TESSERACT_AVAILABLE:
+        logger.warning("⚠ Tesseract not available — OCR skipped")
+        return ""
+
+    # Existing validation
     if image is None or image.size == 0:
         logger.warning("Empty image passed to Tesseract")
         return ""
