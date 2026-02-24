@@ -1,0 +1,221 @@
+{% load static %}
+{% include "header.html" %}
+
+<style>
+  /* ---------- Global enhancements ---------- */
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  /* ---------- Hero section ---------- */
+  .hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 5rem 0;
+    margin-bottom: 3rem;
+  }
+  .hero h1 {
+    font-weight: 700;
+    font-size: 3rem;
+    letter-spacing: -0.02em;
+  }
+  .hero p {
+    font-size: 1.2rem;
+    opacity: 0.95;
+    max-width: 90%;
+  }
+  .hero .btn {
+    background: white;
+    color: #667eea;
+    border-radius: 2rem;
+    padding: 0.8rem 2rem;
+    font-weight: 600;
+    border: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .hero .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    background: #f8f9fa;
+  }
+
+  /* ---------- Feature cards ---------- */
+  .feature-card {
+    background: white;
+    border-radius: 1.5rem;
+    padding: 2rem 1rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+    text-align: center;
+  }
+  .feature-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  }
+  .feature-icon {
+    font-size: 3rem;
+    line-height: 1;
+    margin-bottom: 1rem;
+    display: inline-block;
+    background: #f8f9fa;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .feature-card h5 {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #333;
+  }
+  .feature-card p {
+    color: #6c757d;
+    font-size: 0.95rem;
+    margin-bottom: 0;
+  }
+
+  /* ---------- Mission section ---------- */
+  .mission-section {
+    background-color: #f8f9fa;
+    padding: 4rem 0;
+  }
+  .mission-section h2 {
+    font-weight: 700;
+    font-size: 2.5rem;
+    color: #333;
+  }
+  .mission-section p {
+    font-size: 1.2rem;
+    color: #555;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* ---------- Footer refinements ---------- */
+  footer a {
+    transition: color 0.2s;
+  }
+  footer a:hover {
+    color: #667eea !important;
+    text-decoration: underline !important;
+  }
+
+  /* ---------- Responsive tweaks ---------- */
+  @media (max-width: 768px) {
+    .hero h1 {
+      font-size: 2.2rem;
+    }
+    .hero p {
+      font-size: 1rem;
+      max-width: 100%;
+    }
+    .feature-card {
+      padding: 1.5rem 0.5rem;
+    }
+    .mission-section h2 {
+      font-size: 2rem;
+    }
+    .mission-section p {
+      font-size: 1rem;
+    }
+  }
+</style>
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8">
+        <h1 class="display-4 fw-bold mb-4">About Ask Me</h1>
+        <p class="lead mb-4">
+          Ask Me is an intelligent AI assistant built to make knowledge
+          accessible, conversations smarter, and problem-solving easier.
+          Our platform helps users get instant answers, learn new things,
+          and receive guidance anytime, anywhere.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= WHY CHOOSE US ================= -->
+<section class="py-5">
+  <div class="container">
+    <h2 class="text-center mb-5 fw-bold">Why Choose Ask Me?</h2>
+    <div class="row g-4">
+
+      <div class="col-md-6 col-lg-3">
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h5>AI Powered Intelligence</h5>
+          <p>Advanced AI technology delivers accurate responses.</p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h5>Instant Responses</h5>
+          <p>Get answers immediately without waiting.</p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="feature-card">
+          <div class="feature-icon">💬</div>
+          <h5>24/7 Availability</h5>
+          <p>Always available anytime, day or night.</p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="feature-card">
+          <div class="feature-icon">📚</div>
+          <h5>Learning & Guidance</h5>
+          <p>Improve knowledge with smart, step-by-step guidance.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ================= MISSION ================= -->
+<section class="mission-section">
+  <div class="container text-center">
+    <div class="col-lg-8 mx-auto">
+      <h2 class="mb-4">Our Mission</h2>
+      <p class="mb-0">
+        Our mission is to make information simple, accessible, and useful
+        for everyone. We believe technology should empower people by making
+        learning easier, communication smarter, and decisions more informed.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer class="border-top mt-5 pt-4 pb-3 bg-white">
+  <div class="container text-center small text-muted">
+
+    <div class="mb-2">
+      <a href="{% url 'termsandconditions' %}" class="text-muted text-decoration-none mx-2">Terms & Conditions</a> |
+      <a href="{% url 'privacy_policy' %}" class="text-muted text-decoration-none mx-2">Privacy Policy</a> |
+      <a href="{% url 'aboutus' %}" class="text-muted text-decoration-none mx-2">About</a> |
+      <a href="{% url 'services' %}" class="text-muted text-decoration-none mx-2">Services</a> |
+      <a href="{% url 'contactus' %}" class="text-muted text-decoration-none mx-2">Contact</a>
+    </div>
+
+    <div>
+      © 2026 ASK ME. All rights reserved ❤️
+    </div>
+
+  </div>
+</footer>

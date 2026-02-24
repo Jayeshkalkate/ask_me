@@ -36,17 +36,13 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def homepage(request):
-    recent_docs = Document.objects.filter(user=request.user).order_by("-created_at")[:5]
-
+    recent_docs = Document.objects.order_by("-created_at")
+    
     context = {
-        "recent_documents": recent_docs,
-        "total_documents": recent_docs.count(),
+        "recent_docs": recent_docs[:5],
         "processed_documents": recent_docs.filter(processed=True).count(),
-        "failed_documents": recent_docs.filter(error_message__isnull=False).count(),
-        "ocr_status": validate_ocr_environment(),
-        "supported_doc_types": get_supported_document_types(),
-    }
-
+        }
+    
     return render(request, "index.html", context)
 
 

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms and Conditions | Ask Me</title>
+    <style>
+        /* ---------- Global enhancements ---------- */
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            scroll-behavior: smooth;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+
+        /* ---------- Hero section ---------- */
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5rem 0;
+            margin-bottom: 3rem;
+        }
+        .hero h1 {
+            font-weight: 700;
+            font-size: 3rem;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+        }
+        .hero p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            max-width: 90%;
+        }
+
+        /* ---------- Terms content card ---------- */
+        .terms-card {
+            background: white;
+            border-radius: 2rem;
+            padding: 2.5rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+        .terms-section {
+            margin-bottom: 2.5rem;
+        }
+        .terms-section:last-child {
+            margin-bottom: 0;
+        }
+        .terms-section h2 {
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .terms-section h3 {
+            font-weight: 600;
+            font-size: 1.4rem;
+            color: #333;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .terms-section p {
+            color: #555;
+            line-height: 1.8;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+        .terms-section ul {
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .terms-section li {
+            color: #555;
+            line-height: 1.8;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        .terms-section li strong {
+            color: #333;
+        }
+
+        /* ---------- Footer refinements ---------- */
+        footer a {
+            transition: color 0.2s;
+        }
+        footer a:hover {
+            color: #667eea !important;
+            text-decoration: underline !important;
+        }
+
+        /* ---------- Responsive tweaks ---------- */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.2rem;
+            }
+            .hero p {
+                font-size: 1rem;
+                max-width: 100%;
+            }
+            .terms-card {
+                padding: 1.5rem;
+            }
+            .terms-section h2 {
+                font-size: 1.5rem;
+            }
+            .terms-section h3 {
+                font-size: 1.2rem;
+            }
+            .terms-section p,
+            .terms-section li {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include "header.html" %}
+
+    <!-- ================= HERO ================= -->
+    <section class="hero">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8">
+                    <h1 class="display-4 fw-bold">Terms and Conditions</h1>
+                    <p class="lead mb-0">
+                        Please read these terms carefully before using Ask Me. By accessing or using our service,
+                        you agree to be bound by these terms.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= TERMS CONTENT ================= -->
+    <section class="py-3">
+        <div class="container">
+            <div class="col-lg-10 mx-auto">
+                <div class="terms-card">
+
+                    <div class="terms-section">
+                        <h2>Welcome to Ask Me</h2>
+                        <p>
+                            By accessing or using Ask Me, you agree to comply with and be bound by
+                            the following Terms and Conditions. Please read them carefully before
+                            using our services.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <h3>1. Acceptance of Terms</h3>
+                        <p>
+                            By using Ask Me, you confirm that you accept these terms and agree to
+                            follow them. If you do not agree, please do not use the platform.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <h3>2. Description of Service</h3>
+                        <p>
+                            Ask Me is an AI-powered digital assistant that provides information,
+                            guidance, and conversational responses. The service is provided for
+                            informational and educational purposes only.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <h3>3. Accuracy of Information</h3>
+                        <p>
+                            While we strive to provide accurate and helpful responses, Ask Me does
+                            not guarantee that all information is complete, reliable, or error-free.
+                            Users should verify important information independently.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <h3>4. User Responsibilities</h3>
+                        <p>
+                            You agree to use Ask Me responsibly and not for unlawful, harmful, or
+                            abusive purposes. You must not misuse the service, attempt to disrupt
+                            functionality, or submit harmful content.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <h3>5. Privacy and Data Usage</h3>
+                        <p>
+                            We respect your privacy. Conversations may be processed to improve
+                            system performance and user experience. Personal data is handled
+                            securely and not shared without consent, except where required by law.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <h3>6. Intellectual Property</h3>
+                        <p>
+                            All platform content, design, and functionality belong to Ask Me and are
+                            protected by applicable intellectual property laws. Unauthorized use or
+                            reproduction is prohibited.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <h3>7. Service Availability</h3>
+                        <p>
+                            We aim to provide uninterrupted service, but we do not guarantee that
+                            Ask Me will always be available or error-free. Maintenance or technical
+                            issues may temporarily affect access.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <h3>8. Limitation of Liability</h3>
+                        <p>
+                            Ask Me is not responsible for any direct, indirect, or consequential
+                            damages resulting from the use of our service, including decisions made
+                            based on AI-generated responses.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <h3>9. Changes to Terms</h3>
+                        <p>
+                            We may update these Terms and Conditions at any time. Continued use of
+                            Ask Me after updates means you accept the revised terms.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <h3>10. Governing Law</h3>
+                        <p>
+                            These Terms are governed by the laws of India. Any disputes shall be
+                            subject to the jurisdiction of Indian courts.
+                        </p>
+                    </div>
+
+                    <div class="terms-section">
+                        <p>
+                            By using Ask Me, you acknowledge that you have read, understood, and
+                            agreed to these Terms and Conditions.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= FOOTER ================= -->
+    <footer class="border-top mt-5 pt-4 pb-3 bg-white">
+        <div class="container text-center small text-muted">
+
+            <div class="mb-2">
+                <a href="{% url 'termsandconditions' %}" class="text-muted text-decoration-none mx-2">Terms & Conditions</a> |
+                <a href="{% url 'privacy_policy' %}" class="text-muted text-decoration-none mx-2">Privacy Policy</a> |
+                <a href="{% url 'aboutus' %}" class="text-muted text-decoration-none mx-2">About</a> |
+                <a href="{% url 'services' %}" class="text-muted text-decoration-none mx-2">Services</a> |
+                <a href="{% url 'contactus' %}" class="text-muted text-decoration-none mx-2">Contact</a>
+            </div>
+
+            <div>
+                © 2026 ASK ME. All rights reserved ❤️
+            </div>
+
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,211 +1,353 @@
 {% include "header.html" %}
 {% load static %}
 
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
-  <div class="max-w-5xl mx-auto py-10 px-6">
+<style>
+  /* ---------- Global enhancements ---------- */
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    scroll-behavior: smooth;
+    background-color: #f8f9fa;
+    margin: 0;
+    padding: 0;
+  }
 
-    <!-- HEADER -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
-      <div class="mb-4 sm:mb-0">
-        <h1 class="text-3xl font-bold">📄 Document Library</h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-2">
-          Manage and search your documents
-        </p>
-      </div>
+  /* ---------- Hero section ---------- */
+  .library-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 3rem 0;
+    margin-bottom: 2rem;
+  }
+  .library-hero h1 {
+    font-weight: 700;
+    font-size: 2.5rem;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+  .library-hero p {
+    font-size: 1.2rem;
+    opacity: 0.95;
+    max-width: 90%;
+  }
 
-      <div class="flex flex-wrap gap-3">
-        <a href="{% url 'core:index' %}"
-           class="px-5 py-2 rounded-xl bg-gray-200 text-gray-800 font-medium hover:bg-gray-300 transition">
-          Home
-        </a>
+  /* ---------- Filter card ---------- */
+  .filter-card {
+    background: white;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    margin-bottom: 2rem;
+  }
+  .filter-card label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.3rem;
+    display: block;
+  }
+  .filter-card select,
+  .filter-card input {
+    border: 2px solid #e9ecef;
+    border-radius: 1rem;
+    padding: 0.6rem 1rem;
+    width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: white;
+  }
+  .filter-card select:focus,
+  .filter-card input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.25rem rgba(102,126,234,0.25);
+    outline: none;
+  }
+  .filter-card button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 1rem;
+    padding: 0.6rem 1.5rem;
+    color: white;
+    font-weight: 600;
+    transition: opacity 0.2s, transform 0.2s;
+    cursor: pointer;
+    height: 100%;
+  }
+  .filter-card button:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+
+  /* ---------- Document cards ---------- */
+  .document-card {
+    background: white;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    margin-bottom: 1rem;
+  }
+  .document-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  }
+  .document-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #667eea;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .document-title:hover {
+    text-decoration: underline;
+  }
+  .document-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+  .document-meta span {
+    background: #f1f3f5;
+    padding: 0.25rem 0.75rem;
+    border-radius: 2rem;
+    font-size: 0.85rem;
+    color: #495057;
+  }
+  .status-badge {
+    padding: 0.25rem 1rem;
+    border-radius: 2rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  .status-processed {
+    background: #d3f9d8;
+    color: #2b8a3e;
+  }
+  .status-pending {
+    background: #fff3bf;
+    color: #e67700;
+  }
+  .status-failed {
+    background: #ffe3e3;
+    color: #c92a2a;
+  }
+  .extracted-text {
+    color: #495057;
+    font-size: 0.95rem;
+    margin-top: 1rem;
+    line-height: 1.6;
+    background: #f8f9fa;
+    padding: 0.75rem;
+    border-radius: 1rem;
+  }
+  .error-message {
+    color: #c92a2a;
+    font-size: 0.9rem;
+    margin-top: 0.75rem;
+    background: #ffe3e3;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+  }
+
+  /* ---------- Pagination ---------- */
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  .pagination a {
+    background: white;
+    padding: 0.5rem 1.2rem;
+    border-radius: 2rem;
+    text-decoration: none;
+    color: #667eea;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: background 0.2s, color 0.2s;
+  }
+  .pagination a:hover {
+    background: #667eea;
+    color: white;
+  }
+  .pagination span {
+    color: #868e96;
+  }
+
+  /* ---------- Utility classes ---------- */
+  .container-custom {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+  .clear-filters {
+    color: #667eea;
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+  .clear-filters:hover {
+    text-decoration: underline;
+  }
+  .btn-home {
+    background: white;
+    color: #667eea;
+    border-radius: 2rem;
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+  }
+  .btn-home:hover {
+    background: #f1f3f5;
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 640px) {
+    .library-hero h1 {
+      font-size: 2rem;
+    }
+    .library-hero p {
+      font-size: 1rem;
+    }
+    .filter-card .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<!-- ================= HERO ================= -->
+<section class="library-hero">
+  <div class="container-custom">
+    <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between">
+      <div>
+        <h1>📄 Document Library</h1>
+        <p>Manage and search your documents</p>
       </div>
     </div>
+  </div>
+</section>
 
-    <!-- FILTERS -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow mb-6">
-      <form method="get" class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+<!-- ================= MAIN CONTENT ================= -->
+<div class="container-custom py-4">
 
-        <!-- DOCUMENT TYPE -->
-        <div>
-          <label class="block mb-2 font-medium text-sm">Document Type</label>
-          <select name="doc_type"
-                  class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700">
-            <option value="all">All Types</option>
-            {% for type in doc_types %}
-              <option value="{{ type }}"
-                {% if current_filters.doc_type == type %}selected{% endif %}>
-                {{ type|title }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <!-- STATUS -->
-        <div>
-          <label class="block mb-2 font-medium text-sm">Status</label>
-          <select name="status"
-                  class="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700">
-            <option value="">All Statuses</option>
-
-            <option value="processed"
-              {% if current_filters.status == "processed" %}selected{% endif %}>
-              Processed
+  <!-- FILTERS -->
+  <div class="filter-card">
+    <form method="get" class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <!-- Document Type -->
+      <div>
+        <label>Document Type</label>
+        <select name="doc_type">
+          <option value="all">All Types</option>
+          {% for type in doc_types %}
+            <option value="{{ type }}" {% if current_filters.doc_type == type %}selected{% endif %}>
+              {{ type|title }}
             </option>
-
-            <option value="pending"
-              {% if current_filters.status == "pending" %}selected{% endif %}>
-              Pending
-            </option>
-
-            <option value="failed"
-              {% if current_filters.status == "failed" %}selected{% endif %}>
-              Failed
-            </option>
-          </select>
-        </div>
-
-        <!-- SEARCH -->
-        <div class="sm:col-span-2">
-          <label class="block mb-2 font-medium text-sm">Search Documents</label>
-          <div class="flex">
-            <input type="text"
-                   name="search"
-                   value="{{ current_filters.search }}"
-                   placeholder="Search by name, content, or type"
-                   class="flex-grow border border-gray-300 dark:border-gray-600 rounded-l-lg p-2 bg-white dark:bg-gray-700"/>
-
-            <button type="submit"
-                    class="px-4 bg-indigo-600 text-white rounded-r-lg hover:bg-indigo-700 transition">
-              🔍 Search
-            </button>
-          </div>
-        </div>
-
-      </form>
-    </div>
-
-    <!-- COUNT -->
-    <div class="flex justify-between items-center mb-4">
-      <div class="text-sm text-gray-600 dark:text-gray-400">
-        Showing {{ page_obj|length }} of {{ total_docs }} documents
+          {% endfor %}
+        </select>
       </div>
 
-      {% if current_filters.search or current_filters.doc_type != "all" or current_filters.status %}
-        <a href="{% url 'core:document_library' %}"
-           class="text-sm text-indigo-600 hover:text-indigo-800">
-          Clear filters
-        </a>
-      {% endif %}
+      <!-- Status -->
+      <div>
+        <label>Status</label>
+        <select name="status">
+          <option value="">All Statuses</option>
+          <option value="processed" {% if current_filters.status == "processed" %}selected{% endif %}>Processed</option>
+          <option value="pending" {% if current_filters.status == "pending" %}selected{% endif %}>Pending</option>
+          <option value="failed" {% if current_filters.status == "failed" %}selected{% endif %}>Failed</option>
+        </select>
+      </div>
+
+      <!-- Search -->
+      <div class="sm:col-span-2">
+        <label>Search Documents</label>
+        <div class="flex">
+          <input type="text" name="search" value="{{ current_filters.search }}"
+                 placeholder="Search by name, content, or type" class="flex-grow">
+          <button type="submit" class="ml-2">🔍 Search</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- COUNT AND CLEAR FILTERS -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="text-muted">
+      Showing {{ page_obj|length }} of {{ total_docs }} documents
     </div>
+    {% if current_filters.search or current_filters.doc_type != "all" or current_filters.status %}
+      <a href="{% url 'core:document_library' %}" class="clear-filters">✕ Clear filters</a>
+    {% endif %}
+  </div>
 
-    <!-- DOCUMENT LIST -->
-    {% if page_obj %}
-      <div class="space-y-4">
-
-        {% for doc in page_obj %}
-        <div class="p-5 bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-lg transition">
-          <div class="flex justify-between items-start">
-
-            <div class="flex-1">
-              <h2 class="text-lg font-semibold text-indigo-600">
-                <a href="{% url 'core:document_detail' doc.id %}" class="flex items-start">
-
-                  {% if doc.doc_type == "pdf" %}
-                    📄
-                  {% elif doc.doc_type == "image" %}
-                    🖼️
-                  {% elif doc.doc_type == "text" %}
-                    📝
-                  {% else %}
-                    📎
-                  {% endif %}
-
-                  <span class="ml-2">
-                    {{ doc.file.name|default:"Untitled Document" }}
-                  </span>
-                </a>
-              </h2>
-
-              <div class="flex flex-wrap gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                  Type: {{ doc.doc_type|title }}
-                </span>
+  <!-- DOCUMENT LIST -->
+  {% if page_obj %}
+    <div>
+      {% for doc in page_obj %}
+        <div class="document-card">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <a href="{% url 'core:document_detail' doc.id %}" class="document-title">
                 <span>
-                  Uploaded: {{ doc.created_at|date:"M d, Y H:i" }}
+                  {% if doc.doc_type == "pdf" %}📄
+                  {% elif doc.doc_type == "image" %}🖼️
+                  {% elif doc.doc_type == "text" %}📝
+                  {% else %}📎
+                  {% endif %}
                 </span>
-              </div>
-            </div>
+                <span>{{ doc.file.name|default:"Untitled Document" }}</span>
+              </a>
 
-            <!-- STATUS BADGE -->
-            <div class="ml-4 flex-shrink-0">
+              <div class="document-meta">
+                <span>Type: {{ doc.doc_type|title }}</span>
+                <span>Uploaded: {{ doc.created_at|date:"M d, Y H:i" }}</span>
+              </div>
+
+              {% if doc.extracted_text %}
+                <div class="extracted-text">
+                  {{ doc.extracted_text|truncatechars:150 }}
+                </div>
+              {% endif %}
+
               {% if doc.error_message %}
-                <span class="px-3 py-1 rounded-full text-sm bg-red-100 text-red-700">
-                  Failed
-                </span>
-              {% elif doc.processed %}
-                <span class="px-3 py-1 rounded-full text-sm bg-green-100 text-green-700">
-                  Processed
-                </span>
-              {% else %}
-                <span class="px-3 py-1 rounded-full text-sm bg-yellow-100 text-yellow-700">
-                  Pending
-                </span>
+                <div class="error-message">
+                  <strong>Error:</strong> {{ doc.error_message|truncatechars:100 }}
+                </div>
               {% endif %}
             </div>
 
-          </div>
-
-          {% if doc.extracted_text %}
-            <p class="text-gray-600 dark:text-gray-300 text-sm mt-3">
-              {{ doc.extracted_text|truncatechars:150 }}
-            </p>
-          {% endif %}
-
-          {% if doc.error_message %}
-            <div class="mt-2 text-sm text-red-600">
-              <strong>Error:</strong>
-              {{ doc.error_message|truncatechars:100 }}
+            <!-- Status Badge -->
+            <div class="ml-3">
+              {% if doc.error_message %}
+                <span class="status-badge status-failed">Failed</span>
+              {% elif doc.processed %}
+                <span class="status-badge status-processed">Processed</span>
+              {% else %}
+                <span class="status-badge status-pending">Pending</span>
+              {% endif %}
             </div>
-          {% endif %}
-
+          </div>
         </div>
-        {% endfor %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-5">
+      <div style="font-size: 4rem;">📄</div>
+      <h3 class="mt-3">No documents found</h3>
+    </div>
+  {% endif %}
 
-      </div>
+  <!-- PAGINATION -->
+  {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}">← Previous</a>
+      {% endif %}
+      <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}">Next →</a>
+      {% endif %}
+    </div>
+  {% endif %}
 
-    {% else %}
-      <div class="text-center py-12">
-        <div class="text-6xl mb-4">📄</div>
-        <h3 class="text-xl font-medium">No documents found</h3>
-      </div>
-    {% endif %}
-
-    <!-- PAGINATION -->
-    {% if page_obj.paginator.num_pages > 1 %}
-      <div class="flex justify-center items-center gap-2 mt-10">
-
-        {% if page_obj.has_previous %}
-          <a href="?page={{ page_obj.previous_page_number }}"
-             class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg">
-            ← Previous
-          </a>
-        {% endif %}
-
-        <span class="mx-4 text-sm">
-          Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-        </span>
-
-        {% if page_obj.has_next %}
-          <a href="?page={{ page_obj.next_page_number }}"
-             class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg">
-            Next →
-          </a>
-        {% endif %}
-
-      </div>
-    {% endif %}
-
-  </div>
-</body>
-
-{% include "footer.html" %}
+</div>

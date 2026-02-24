@@ -1,4 +1,48 @@
-<!-- {% load static %} -->
+
+  <div class="container position-relative">
+    <div class="border-top copyright">
+      <div class="row pt-4 align-items-center">
+          <div class="container text-center small text-muted">
+
+            <div class="footer-line">
+              <a href="{% url 'aboutus' %}" class="text-muted text-decoration-none mx-2">About</a> |
+              <a href="{% url 'services' %}" class="text-muted text-decoration-none mx-2">Services</a> |
+              <a href="{% url 'contactus' %}" class="text-muted text-decoration-none mx-2">Contact</a> |
+              <a href="{% url 'homepage' %}" class="text-muted text-decoration-none mx-2">Dashboard</a> |
+              <a href="{% url 'privacy_policy' %}" class="text-muted text-decoration-none mx-2">Privacy Policy</a> |
+              <a href="{% url 'termsandconditions' %}" class="text-muted text-decoration-none mx-2">Terms & Conditions</a> |
+            </div>
+
+            <div class="footer-line">
+              © 2026 ASK ME. All rights reserved
+              
+              <a href="https://devjayesh-portfolio.netlify.app/" target="_blank">
+                <i class="fas fa-globe"></i>
+              </a>
+              
+              <a href="https://www.linkedin.com/in/jayesh-kalkate-31a250242" target="_blank">
+                <i class="fab fa-linkedin-in"></i>
+              </a>
+            </div>
+
+          </div>
+      </div>
+    </div>
+  </div>
+<!-- End Footer Section -->
+
+<style>
+  .footer-line a {
+  margin-left: 12px;
+  color: white;
+  font-size: 18px;
+  transition: 0.3s;
+}
+
+.footer-line a:hover {
+  color: #ff5e00;
+}
+</style>
 
 <script>
   (function () {

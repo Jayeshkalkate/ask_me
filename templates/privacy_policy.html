@@ -1,0 +1,296 @@
+{% include "header.html" %}
+{% load static %}
+
+<style>
+  /* ---------- Global enhancements ---------- */
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  /* ---------- Hero section ---------- */
+  .hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 5rem 0;
+    margin-bottom: 3rem;
+  }
+  .hero h1 {
+    font-weight: 700;
+    font-size: 3rem;
+    letter-spacing: -0.02em;
+  }
+  .hero p {
+    font-size: 1.2rem;
+    opacity: 0.95;
+    max-width: 90%;
+  }
+
+  /* ---------- Policy content card ---------- */
+  .policy-card {
+    background: white;
+    border-radius: 2rem;
+    padding: 2.5rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+    margin-bottom: 2rem;
+  }
+  .policy-section {
+    margin-bottom: 2.5rem;
+  }
+  .policy-section:last-child {
+    margin-bottom: 0;
+  }
+  .policy-section h2 {
+    font-weight: 700;
+    font-size: 1.8rem;
+    color: #333;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #f0f0f0;
+  }
+  .policy-section p {
+    color: #555;
+    line-height: 1.8;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+  }
+  .policy-section ul {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .policy-section li {
+    color: #555;
+    line-height: 1.8;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+  }
+  .policy-section li strong {
+    color: #333;
+  }
+
+  /* ---------- Contact details in last section ---------- */
+  .contact-details {
+    background: #f8f9fa;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  .contact-details p {
+    margin-bottom: 0.5rem;
+  }
+  .contact-details p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ---------- Footer refinements ---------- */
+  footer a {
+    transition: color 0.2s;
+  }
+  footer a:hover {
+    color: #667eea !important;
+    text-decoration: underline !important;
+  }
+
+  /* ---------- Responsive tweaks ---------- */
+  @media (max-width: 768px) {
+    .hero h1 {
+      font-size: 2.2rem;
+    }
+    .hero p {
+      font-size: 1rem;
+      max-width: 100%;
+    }
+    .policy-card {
+      padding: 1.5rem;
+    }
+    .policy-section h2 {
+      font-size: 1.5rem;
+    }
+    .policy-section p,
+    .policy-section li {
+      font-size: 1rem;
+    }
+  }
+</style>
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8">
+        <h1 class="display-4 fw-bold mb-4">Privacy Policy</h1>
+        <p class="lead mb-0">
+          At Ask Me, we are committed to protecting your privacy and ensuring a safe
+          digital experience. This policy explains how we collect, use, and safeguard
+          your information when you use our services.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PRIVACY POLICY CONTENT ================= -->
+<section class="py-3">
+  <div class="container">
+    <div class="col-lg-10 mx-auto">
+      <div class="policy-card">
+
+        <!-- Introduction -->
+        <div class="policy-section">
+          <h2>Introduction</h2>
+          <p>
+            At Ask Me, we are committed to protecting your privacy and ensuring a safe
+            digital experience. This Privacy Policy explains how we collect, use,
+            and protect your information when you interact with our AI assistant and
+            use our services.
+          </p>
+          <p>
+            By accessing or using Ask Me, you agree to the practices described in this policy.
+          </p>
+        </div>
+
+        <!-- 1. Information We Collect -->
+        <div class="policy-section">
+          <h2>1. Information We Collect</h2>
+          <p>We may collect the following types of information:</p>
+          <ul>
+            <li>
+              <strong>User Information:</strong> Name, email address, or account details
+              if you register or contact us.
+            </li>
+            <li>
+              <strong>Conversation Data:</strong> Messages, questions, and interactions
+              with the AI assistant to provide responses and improve service quality.
+            </li>
+            <li>
+              <strong>Usage Data:</strong> Device type, browser, IP address, and
+              interaction patterns to improve performance.
+            </li>
+            <li>
+              <strong>Cookies & Tracking:</strong> We use cookies to enhance user
+              experience and remember preferences.
+            </li>
+          </ul>
+        </div>
+
+        <!-- 2. How We Use Your Information -->
+        <div class="policy-section">
+          <h2>2. How We Use Your Information</h2>
+          <p>We use collected information to:</p>
+          <ul>
+            <li>Provide accurate AI responses and improve assistance quality.</li>
+            <li>Enhance system performance and user experience.</li>
+            <li>Monitor usage and prevent misuse or security threats.</li>
+            <li>Communicate updates, support, or service notifications.</li>
+            <li>Comply with legal obligations.</li>
+          </ul>
+        </div>
+
+        <!-- 3. Sharing Your Information -->
+        <div class="policy-section">
+          <h2>3. Sharing Your Information</h2>
+          <p>
+            We do not sell or rent your personal data. We may share information only in
+            the following cases:
+          </p>
+          <ul>
+            <li>
+              <strong>Service Providers:</strong> Trusted partners who help operate
+              infrastructure, hosting, or analytics.
+            </li>
+            <li>
+              <strong>Legal Requirements:</strong> When required by law or to protect
+              our rights and users.
+            </li>
+            <li>
+              <strong>Business Changes:</strong> In case of merger, acquisition, or
+              restructuring.
+            </li>
+          </ul>
+        </div>
+
+        <!-- 4. Data Security -->
+        <div class="policy-section">
+          <h2>4. Data Security</h2>
+          <p>
+            We implement reasonable security measures to protect your data from
+            unauthorized access, misuse, or disclosure. However, no internet-based
+            service is completely secure, and we cannot guarantee absolute security.
+          </p>
+        </div>
+
+        <!-- 5. Your Rights -->
+        <div class="policy-section">
+          <h2>5. Your Rights</h2>
+          <p>You have the right to:</p>
+          <ul>
+            <li>Access or update your personal information.</li>
+            <li>Request deletion of your data where applicable.</li>
+            <li>Disable cookies through browser settings.</li>
+            <li>Stop using the service at any time.</li>
+          </ul>
+        </div>
+
+        <!-- 6. Third-Party Links -->
+        <div class="policy-section">
+          <h2>6. Third-Party Links</h2>
+          <p>
+            Ask Me may contain links to external websites. We are not responsible for
+            their privacy practices or content. Please review their policies separately.
+          </p>
+        </div>
+
+        <!-- 7. Children’s Privacy -->
+        <div class="policy-section">
+          <h2>7. Children’s Privacy</h2>
+          <p>
+            Ask Me is not intended for children under 13 years of age. We do not
+            knowingly collect personal data from children. If such data is identified,
+            it will be removed promptly.
+          </p>
+        </div>
+
+        <!-- 8. Changes to This Policy -->
+        <div class="policy-section">
+          <h2>8. Changes to This Policy</h2>
+          <p>
+            We may update this Privacy Policy periodically. Updates will be posted on
+            this page with a revised effective date.
+          </p>
+        </div>
+
+        <!-- 9. Contact Us -->
+        <div class="policy-section">
+          <h2>9. Contact Us</h2>
+          <p>If you have any questions about this Privacy Policy, contact us:</p>
+
+          <div class="contact-details">
+            <p><strong>📧 Email:</strong> jayeshkalkate432@gmail.com</p>
+            <p><strong>🌐 Website:</strong> https://ask-me-smart-document-assistant.onrender.com</p>
+            <p><strong>📍 Location:</strong> India</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer class="border-top mt-5 pt-4 pb-3 bg-white">
+  <div class="container text-center small text-muted">
+
+    <div class="mb-2">
+      <a href="{% url 'termsandconditions' %}" class="text-muted text-decoration-none mx-2">Terms & Conditions</a> |
+      <a href="{% url 'privacy_policy' %}" class="text-muted text-decoration-none mx-2">Privacy Policy</a> |
+      <a href="{% url 'aboutus' %}" class="text-muted text-decoration-none mx-2">About</a> |
+      <a href="{% url 'services' %}" class="text-muted text-decoration-none mx-2">Services</a> |
+      <a href="{% url 'contactus' %}" class="text-muted text-decoration-none mx-2">Contact</a>
+    </div>
+
+    <div>
+      © 2026 ASK ME. All rights reserved ❤️
+    </div>
+
+  </div>
+</footer>

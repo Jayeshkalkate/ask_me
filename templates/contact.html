@@ -1,0 +1,251 @@
+{% load static %}
+{% include "header.html" %}
+
+<style>
+  /* ---------- Global enhancements ---------- */
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    scroll-behavior: smooth;
+  }
+  .hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 5rem 0;
+    margin-bottom: 2rem;
+  }
+  .hero h1 {
+    font-weight: 700;
+    font-size: 3rem;
+    letter-spacing: -0.02em;
+  }
+  .hero p {
+    font-size: 1.2rem;
+    opacity: 0.95;
+    max-width: 90%;
+  }
+
+  /* ---------- Contact info cards ---------- */
+  .info-card {
+    background: white;
+    border-radius: 1.5rem;
+    padding: 2rem 1rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+  }
+  .info-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  }
+  .info-icon {
+    font-size: 3rem;
+    line-height: 1;
+    margin-bottom: 1rem;
+    display: inline-block;
+    background: #f8f9fa;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .info-card h6 {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #555;
+    margin-bottom: 0.5rem;
+  }
+  .info-card p {
+    color: #777;
+    font-size: 1rem;
+  }
+
+  /* ---------- Contact form ---------- */
+  .form-card {
+    background: white;
+    border-radius: 2rem;
+    padding: 2.5rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+  }
+  .form-label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.3rem;
+  }
+  .form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 1rem;
+    padding: 0.75rem 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.25rem rgba(102,126,234,0.25);
+    outline: none;
+  }
+  textarea.form-control {
+    resize: vertical;
+    min-height: 140px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 2rem;
+    padding: 0.8rem 2.5rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .btn-primary:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+
+  /* ---------- Footer refinements ---------- */
+  footer a {
+    transition: color 0.2s;
+  }
+  footer a:hover {
+    color: #667eea !important;
+    text-decoration: underline !important;
+  }
+
+  /* ---------- Responsive tweaks ---------- */
+  @media (max-width: 768px) {
+    .hero h1 {
+      font-size: 2.2rem;
+    }
+    .hero p {
+      font-size: 1rem;
+      max-width: 100%;
+    }
+    .form-card {
+      padding: 1.5rem;
+    }
+  }
+</style>
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8">
+        <h1 class="display-4 fw-bold mb-4">Contact Ask Me</h1>
+        <p class="lead mb-0">
+          Need help, have a question, or want to share feedback? Our support team is here for you.
+          Whether it’s technical issues, guidance, or suggestions — we’re always happy to help.
+          Send us a message and we’ll respond as soon as possible.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CONTACT INFO ================= -->
+<section class="py-5">
+  <div class="container">
+    <div class="row g-4">
+
+      <div class="col-md-4">
+        <div class="info-card text-center">
+          <div class="info-icon">📍</div>
+          <h6>Location</h6>
+          <p class="mb-0">India</p>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="info-card text-center">
+          <div class="info-icon">📞</div>
+          <h6>Phone</h6>
+          <p class="mb-0">+91 84829 98343</p>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="info-card text-center">
+          <div class="info-icon">📧</div>
+          <h6>Email</h6>
+          <p class="mb-0">jayeshkalkate432@gmail.com</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ================= CONTACT FORM ================= -->
+<section class="py-5 bg-light">
+  <div class="container">
+    <div class="col-lg-8 mx-auto">
+      <div class="form-card">
+        <h2 class="mb-4 text-center fw-bold">Send Us a Message</h2>
+
+        <!-- Django messages -->
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="row mb-3">
+            <div class="col-md-6 mb-3 mb-md-0">
+              <label class="form-label">First Name</label>
+              <input type="text" class="form-control" name="first_name" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Last Name</label>
+              <input type="text" class="form-control" name="last_name" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Email Address</label>
+            <input type="email" class="form-control" name="email" required>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label">Message</label>
+            <textarea class="form-control" name="message" rows="5" required></textarea>
+          </div>
+
+          <div class="text-center">
+            <button type="submit" class="btn btn-primary px-5 py-2">
+              Send Message
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer class="border-top mt-5 pt-4 pb-3 bg-white">
+  <div class="container text-center small text-muted">
+
+    <div class="mb-2">
+      <a href="{% url 'termsandconditions' %}" class="text-muted text-decoration-none mx-2">Terms & Conditions</a> |
+      <a href="{% url 'privacy_policy' %}" class="text-muted text-decoration-none mx-2">Privacy Policy</a> |
+      <a href="{% url 'aboutus' %}" class="text-muted text-decoration-none mx-2">About</a> |
+      <a href="{% url 'services' %}" class="text-muted text-decoration-none mx-2">Services</a> |
+      <a href="{% url 'contactus' %}" class="text-muted text-decoration-none mx-2">Contact</a>
+    </div>
+
+    <div>
+      © 2026 ASK ME. All rights reserved ❤️
+    </div>
+
+  </div>
+</footer>
