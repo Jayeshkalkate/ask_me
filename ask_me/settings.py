@@ -8,8 +8,7 @@ from pathlib import Path
 from decouple import config
 from dotenv import load_dotenv
 import pytesseract
-import dj_database_url
-
+from urllib.parse import urlparse, parse_qsl
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -26,6 +25,26 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+# --------------------
+# DATABASE
+# --------------------
+
+load_dotenv()
+
+# Replace the DATABASES section of your settings.py with this
+tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": tmpPostgres.path.replace("/", ""),
+        "USER": tmpPostgres.username,
+        "PASSWORD": tmpPostgres.password,
+        "HOST": tmpPostgres.hostname,
+        "PORT": 5432,
+        "OPTIONS": dict(parse_qsl(tmpPostgres.query)),
+    }
+}
 # --------------------
 # EMAIL
 # --------------------
@@ -106,15 +125,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "ask_me.wsgi.application"
-
-# --------------------
-# DATABASE
-# --------------------
-DATABASES = {
-    "default": dj_database_url.parse(
-        config("DATABASE_URL"), conn_max_age=600, ssl_require=True
-    )
-}
 
 # --------------------
 # PASSWORD VALIDATION

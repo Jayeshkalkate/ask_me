@@ -277,20 +277,5 @@
 </section>
 
 <!-- ================= FOOTER ================= -->
-<footer class="border-top mt-5 pt-4 pb-3 bg-white">
-  <div class="container text-center small text-muted">
 
-    <div class="mb-2">
-      <a href="{% url 'termsandconditions' %}" class="text-muted text-decoration-none mx-2">Terms & Conditions</a> |
-      <a href="{% url 'privacy_policy' %}" class="text-muted text-decoration-none mx-2">Privacy Policy</a> |
-      <a href="{% url 'aboutus' %}" class="text-muted text-decoration-none mx-2">About</a> |
-      <a href="{% url 'services' %}" class="text-muted text-decoration-none mx-2">Services</a> |
-      <a href="{% url 'contactus' %}" class="text-muted text-decoration-none mx-2">Contact</a>
-    </div>
-
-    <div>
-      © 2026 ASK ME. All rights reserved ❤️
-    </div>
-
-  </div>
-</footer>
+{% include "footer.html" %}
