@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: ask-me-chatbot
+    env: python
+    plan: free
+    region: oregon
+
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate
+
+    startCommand: gunicorn ask_me.wsgi:application
+
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+
+      - key: DEBUG
+        value: "False"
+
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+
+      - key: TIME_ZONE
+        value: "Asia/Kolkata"
+
+      - key: PYTESSERACT_CMD
+        value: "/usr/bin/tesseract"
+
+      # 👇 You must set these in the Render dashboard (not in the yaml)
+      # - DATABASE_URL
+      # - EMAIL_HOST_PASSWORD

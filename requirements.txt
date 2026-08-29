@@ -1,0 +1,14 @@
+Django==5.1.7
+pytesseract==0.3.13
+opencv-python==4.10.0.84
+pdf2image==1.17.0
+numpy==1.26.4
+rapidfuzz==3.9.7
+python-decouple==3.8
+python-dotenv==1.0.1
+Pillow==10.4.0
+gunicorn==23.0.0
+whitenoise==6.7.0
+psycopg2-binary==2.9.10
+django-cors-headers==4.4.0
+# Celery and Redis are temporarily disabled

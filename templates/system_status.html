@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<main class="max-w-4xl mx-auto px-4 py-8">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8 border border-gray-200 dark:border-gray-700">
+        <h1 class="text-2xl font-bold text-center text-gray-800 dark:text-white mb-6">🖥️ System Status</h1>
+
+        <!-- OCR Environment -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                <span>📡</span> OCR Environment
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {% for key, value in ocr_status.items %}
+                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                    <span class="text-gray-700 dark:text-gray-300 capitalize">{{ key|title }}</span>
+                    <span class="px-2 py-1 rounded text-sm font-medium {% if value %}bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300{% else %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300{% endif %}">
+                        {{ value|yesno:"✅ Available,❌ Unavailable" }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-3 p-3 rounded-xl {% if system_ready %}bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300{% else %}bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300{% endif %}">
+                <strong>System Readiness:</strong> {% if system_ready %}✅ All components ready{% else %}⚠️ Some components missing – OCR may be limited{% endif %}
+            </div>
+        </div>
+
+        <!-- Supported Document Types -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                <span>📋</span> Supported Document Types
+            </h2>
+            <div class="flex flex-wrap gap-2">
+                {% for doc_type in supported_doc_types %}
+                <span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm">{{ doc_type }}</span>
+                {% empty %}
+                <span class="text-gray-500 dark:text-gray-400">No document types loaded</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- User Statistics -->
+        <div>
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                <span>📊</span> Your Statistics
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-center">
+                    <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ user_statistics.documents_uploaded }}</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Uploaded</div>
+                </div>
+                <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl text-center">
+                    <div class="text-3xl font-bold text-green-600 dark:text-green-400">{{ user_statistics.documents_processed }}</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Processed</div>
+                </div>
+                <div class="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl text-center">
+                    <div class="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{{ user_statistics.success_rate }}%</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Success Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center">
+            <a href="{% url 'core:index' %}" class="text-indigo-600 dark:text-indigo-400 hover:underline">← Back to Dashboard</a>
+        </div>
+    </div>
+</main>
+{% endblock %}

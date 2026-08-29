@@ -1,0 +1,76 @@
+# Virtual environment
+venv/
+env/
+.venv/
+ENV/
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+
+# Databases
+*.sqlite3
+db.sqlite3
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+log/
+
+# Media & uploaded files
+media/
+documents/
+uploads/
+
+# Static files (collected)
+staticfiles/
+static_root/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Python package / build
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Local development settings (if any)
+local_settings.py
+
+# Any machine-specific files
+*.py.local
+*.yaml.local
+
+# Jupyter notebooks (if used)
+*.ipynb_checkpoints/
+
+# Testing & coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Celery / Redis / etc. (if used later)
+*.pid
+
+# Compiled documentation
+docs/_build/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json

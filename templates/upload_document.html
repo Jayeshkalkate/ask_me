@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<!-- ============================================================ -->
+<!-- OFFLINE OCR PIPELINE (loaded once via base.html normally, but -->
+<!-- included here too in case this page is opened directly / SW   -->
+<!-- serves it from cache without base.html's script tags loading) -->
+<!-- Note: if base.html already includes these globally, remove    -->
+<!-- this block to avoid double-loading them.                      -->
+<!-- ============================================================ -->
+{% if not offline_scripts_loaded_in_base %}
+<script src="{% static 'js/vendor/tesseract.min.js' %}" defer></script>
+<script src="{% static 'js/vendor/pdf.min.js' %}" defer></script>
+<script src="{% static 'js/csrf.js' %}" defer></script>
+<script src="{% static 'js/db.js' %}" defer></script>
+<script src="{% static 'js/tesseract-ocr.js' %}" defer></script>
+<script src="{% static 'js/extract-fields.js' %}" defer></script>
+<script src="{% static 'js/offline-processor.js' %}" defer></script>
+<script src="{% static 'js/pwa.js' %}" defer></script>
+{% endif %}
+
+<main class="max-w-3xl mx-auto px-4 py-8">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8">
+
+        <!-- ============================================================ -->
+        <!-- NAVIGATION BUTTONS -->
+        <!-- ============================================================ -->
+        <div class="flex flex-wrap gap-3 justify-center mb-8">
+            <a href="{% url 'core:index' %}"
+               class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200 hover:shadow-lg active:scale-95">
+                🏠 Home
+            </a>
+            <a href="{% url 'core:upload' %}"
+               class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-all duration-200 hover:shadow-lg active:scale-95">
+                📤 Upload
+            </a>
+            <a href="{% url 'core:document_library' %}"
+               class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-all duration-200 hover:shadow-lg active:scale-95">
+                📚 Library
+            </a>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- OFFLINE STATUS -->
+        <!-- ============================================================ -->
+        <div class="mb-4 p-3 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-700 hidden" id="offlineWarning">
+            ⚡ You are offline. Documents will be processed locally and synced when you reconnect.
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- UPLOAD FORM -->
+        <!-- ============================================================ -->
+        <h1 class="text-3xl font-bold text-center text-gray-800 dark:text-white mb-2">
+            📤 Upload Document
+        </h1>
+        <p class="text-center text-gray-500 dark:text-gray-400 mb-6 text-sm">
+            Select a document and choose its type for accurate extraction
+        </p>
+
+        <!-- Django Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-4 p-3 rounded-xl {% if message.tags == 'success' %}bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-700{% elif message.tags == 'error' %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-700{% else %}bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-700{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Upload Status -->
+        <div id="uploadStatus" class="mb-4 hidden"></div>
+
+        <form id="uploadForm" method="POST" enctype="multipart/form-data" action="{% url 'core:upload' %}">
+            {% csrf_token %}
+
+            <!-- ============================================================ -->
+            <!-- FILE INPUT -->
+            <!-- ============================================================ -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    📁 Select Document
+                </label>
+                <div id="dropZone"
+                     class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 group">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 group-hover:text-indigo-500 transition-colors mb-3"
+                         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors" id="fileLabel">
+                        Drag & drop files here or click to browse
+                    </p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1" id="fileSizeLabel"></p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        Supported: PDF, JPG, JPEG, PNG, TIFF (max 10MB)
+                    </p>
+                    <input type="file"
+                           name="file"
+                           id="fileInput"
+                           class="hidden"
+                           accept=".pdf,.jpg,.jpeg,.png,.tiff,.tif"
+                           required />
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- DOCUMENT TYPE - ALL 26 TYPES -->
+            <!-- ============================================================ -->
+            <div>
+                <label for="docType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    📋 Document Type
+                </label>
+                <select name="doc_type" id="docType"
+                        class="w-full rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-gray-800 dark:text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition">
+
+                    <!-- Identity Documents -->
+                    <optgroup label="🆔 Identity Documents">
+                        <option value="aadhaar_card">Aadhaar Card</option>
+                        <option value="pan_card">PAN Card</option>
+                        <option value="voter_id_card">Voter ID Card</option>
+                        <option value="passport">Passport</option>
+                        <option value="driving_license">Driving License</option>
+                        <option value="vehicle_registration_certificate">Vehicle Registration Certificate</option>
+                    </optgroup>
+
+                    <!-- Civil & Residency Documents -->
+                    <optgroup label="🏠 Civil & Residency">
+                        <option value="domicile_certificate">Domicile Certificate</option>
+                        <option value="nationality_certificate">Nationality Certificate</option>
+                        <option value="birth_certificate">Birth Certificate</option>
+                        <option value="marriage_certificate">Marriage Certificate</option>
+                        <option value="death_certificate">Death Certificate</option>
+                    </optgroup>
+
+                    <!-- Land & Property Documents -->
+                    <optgroup label="🌾 Land & Property">
+                        <option value="property_card">Property Card</option>
+                        <option value="income_certificate">Income Certificate</option>
+                        <option value="ration_card">Ration Card</option>
+                    </optgroup>
+
+                    <!-- Educational Documents -->
+                    <optgroup label="🎓 Educational Documents">
+                        <option value="school_leaving_certificate">School Leaving Certificate</option>
+                        <option value="ssc_marksheet">SSC Marksheet</option>
+                        <option value="hsc_marksheet">HSC Marksheet</option>
+                        <option value="degree_certificate">Degree Certificate</option>
+                        <option value="board_passing_certificate">Board Passing Certificate</option>
+                    </optgroup>
+
+                    <!-- Category & Welfare Certificates -->
+                    <optgroup label="🛡️ Category & Welfare">
+                        <option value="caste_certificate">Caste Certificate</option>
+                        <option value="caste_validity_certificate">Caste Validity Certificate</option>
+                        <option value="non_creamy_layer_certificate">Non-Creamy Layer Certificate</option>
+                        <option value="ews_certificate">EWS Certificate</option>
+                    </optgroup>
+
+                    <!-- Other Documents -->
+                    <optgroup label="📄 Other Documents">
+                        <option value="gst_certificate">GST Certificate</option>
+                        <option value="invoice">Invoice</option>
+                        <option value="other_document" selected>Other Document</option>
+                    </optgroup>
+                </select>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    Select the document type for better extraction accuracy
+                </p>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- SUBMIT -->
+            <!-- ============================================================ -->
+            <div class="text-center pt-4">
+                <button type="submit" id="submitBtn"
+                        class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition-all duration-200 hover:shadow-lg active:scale-95 flex items-center gap-2 mx-auto">
+                    <span>📤 Process Document</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- ============================================================ -->
+        <!-- QUICK TIPS -->
+        <!-- ============================================================ -->
+        <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">💡 Quick Tips</h4>
+            <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                <li>• 📸 Use clear, well-lit photos for better OCR accuracy</li>
+                <li>• 📄 PDF files with text are processed faster than images</li>
+                <li>• 🏷️ Select the correct document type for accurate field extraction</li>
+                <li>• 📊 Supported formats: PDF, JPG, PNG, TIFF (max 10MB)</li>
+                <li>• 🔄 Documents are processed offline and synced when online</li>
+            </ul>
+        </div>
+    </div>
+</main>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT -->
+<!-- ============================================================ -->
+<script>
+    (function() {
+        "use strict";
+
+        // ============================================================
+        // DOCUMENT TYPE ICONS
+        // ============================================================
+        const DOCUMENT_ICONS = {
+            'aadhaar_card': '🪪',
+            'pan_card': '💳',
+            'voter_id_card': '🗳️',
+            'passport': '🛂',
+            'driving_license': '🚗',
+            'vehicle_registration_certificate': '🚘',
+            'domicile_certificate': '🏠',
+            'nationality_certificate': '🌍',
+            'birth_certificate': '👶',
+            'marriage_certificate': '💑',
+            'death_certificate': '🕊️',
+            'property_card': '🏘️',
+            'income_certificate': '💰',
+            'ration_card': '🛒',
+            'school_leaving_certificate': '🏫',
+            'ssc_marksheet': '📊',
+            'hsc_marksheet': '📈',
+            'degree_certificate': '🎓',
+            'board_passing_certificate': '📜',
+            'caste_certificate': '📋',
+            'caste_validity_certificate': '✅',
+            'non_creamy_layer_certificate': '📑',
+            'ews_certificate': '🤝',
+            'gst_certificate': '📊',
+            'invoice': '🧾',
+            'other_document': '📄',
+        };
+
+        // ============================================================
+        // DRAG & DROP
+        // ============================================================
+        const dropZone = document.getElementById("dropZone");
+        const fileInput = document.getElementById("fileInput");
+        const fileLabel = document.getElementById("fileLabel");
+        const fileSizeLabel = document.getElementById("fileSizeLabel");
+        const docTypeSelect = document.getElementById("docType");
+
+        // Drag events
+        dropZone.addEventListener("click", () => fileInput.click());
+
+        dropZone.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropZone.classList.add(
+                "border-indigo-400",
+                "bg-indigo-50",
+                "dark:bg-indigo-900/20"
+            );
+        });
+
+        dropZone.addEventListener("dragleave", () => {
+            dropZone.classList.remove(
+                "border-indigo-400",
+                "bg-indigo-50",
+                "dark:bg-indigo-900/20"
+            );
+        });
+
+        dropZone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dropZone.classList.remove(
+                "border-indigo-400",
+                "bg-indigo-50",
+                "dark:bg-indigo-900/20"
+            );
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileLabel(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener("change", () => {
+            if (fileInput.files.length) {
+                updateFileLabel(fileInput.files[0]);
+            }
+        });
+
+        function updateFileLabel(file) {
+            fileLabel.textContent = file.name;
+            const size = (file.size / 1024 / 1024).toFixed(2);
+            fileSizeLabel.textContent = `${size} MB`;
+            if (file.size > 10 * 1024 * 1024) {
+                fileSizeLabel.style.color = "red";
+                fileSizeLabel.textContent += " (⚠️ Exceeds 10MB limit)";
+            } else {
+                fileSizeLabel.style.color = "";
+            }
+
+            // Auto-detect document type from filename
+            autoDetectDocType(file.name);
+        }
+
+        // ============================================================
+        // AUTO-DETECT DOCUMENT TYPE FROM FILENAME
+        // ============================================================
+        function autoDetectDocType(fileName) {
+            const name = fileName.toLowerCase();
+            
+            const typeMap = {
+                'aadhaar': 'aadhaar_card',
+                'uidai': 'aadhaar_card',
+                'pan': 'pan_card',
+                'voter': 'voter_id_card',
+                'epic': 'voter_id_card',
+                'passport': 'passport',
+                'driving': 'driving_license',
+                'license': 'driving_license',
+                'vehicle': 'vehicle_registration_certificate',
+                'registration': 'vehicle_registration_certificate',
+                'rc': 'vehicle_registration_certificate',
+                'domicile': 'domicile_certificate',
+                'nationality': 'nationality_certificate',
+                'birth': 'birth_certificate',
+                'marriage': 'marriage_certificate',
+                'death': 'death_certificate',
+                'property': 'property_card',
+                'income': 'income_certificate',
+                'ration': 'ration_card',
+                'school': 'school_leaving_certificate',
+                'leaving': 'school_leaving_certificate',
+                'ssc': 'ssc_marksheet',
+                '10th': 'ssc_marksheet',
+                'hsc': 'hsc_marksheet',
+                '12th': 'hsc_marksheet',
+                'degree': 'degree_certificate',
+                'caste': 'caste_certificate',
+                'validity': 'caste_validity_certificate',
+                'ncl': 'non_creamy_layer_certificate',
+                'creamy': 'non_creamy_layer_certificate',
+                'ews': 'ews_certificate',
+                'gst': 'gst_certificate',
+                'invoice': 'invoice',
+                'bill': 'invoice',
+            };
+
+            for (const [keyword, type] of Object.entries(typeMap)) {
+                if (name.includes(keyword)) {
+                    docTypeSelect.value = type;
+                    // Show detection feedback
+                    const icon = DOCUMENT_ICONS[type] || '📄';
+                    fileLabel.textContent += ` (${icon} ${type.replace(/_/g, ' ').title()} detected)`;
+                    break;
+                }
+            }
+        }
+
+        // ============================================================
+        // OFFLINE STATUS
+        // ============================================================
+        const offlineWarning = document.getElementById("offlineWarning");
+
+        function updateOnlineStatus() {
+            const isOnline = navigator.onLine;
+            if (offlineWarning) {
+                if (isOnline) {
+                    offlineWarning.classList.add("hidden");
+                } else {
+                    offlineWarning.classList.remove("hidden");
+                }
+            }
+        }
+
+        window.addEventListener("online", updateOnlineStatus);
+        window.addEventListener("offline", updateOnlineStatus);
+        updateOnlineStatus();
+
+        // ============================================================
+        // FORM SUBMISSION WITH LOADING STATE
+        // ============================================================
+        const uploadForm = document.getElementById("uploadForm");
+        const submitBtn = document.getElementById("submitBtn");
+        const uploadStatus = document.getElementById("uploadStatus");
+
+        if (uploadForm) {
+            uploadForm.addEventListener("submit", function(e) {
+                const file = fileInput.files[0];
+                if (!file) {
+                    e.preventDefault();
+                    showStatus("❌ Please select a file to upload.", "error");
+                    return;
+                }
+
+                if (file.size > 10 * 1024 * 1024) {
+                    e.preventDefault();
+                    showStatus("❌ File size must be under 10MB.", "error");
+                    return;
+                }
+
+                // ----------------------------------------------------------
+                // OFFLINE PATH: no network at all, so don't even attempt the
+                // Django POST — it would just hang/fail. Instead run OCR +
+                // field extraction entirely in-browser (tesseract-ocr.js +
+                // extract-fields.js via offline-processor.js) and save the
+                // result straight into IndexedDB.
+                // ----------------------------------------------------------
+                if (!navigator.onLine) {
+                    e.preventDefault();
+                    processFileOffline(file, docTypeSelect.value);
+                    return;
+                }
+
+                // ----------------------------------------------------------
+                // ONLINE PATH: unchanged — submit to Django, which still
+                // gives higher-accuracy server-side OCR (pytesseract + cv2).
+                // ----------------------------------------------------------
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <span class="inline-block animate-spin-slow w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                    Processing...
+                `;
+                showStatus("📄 Uploading and processing document...", "info");
+            });
+        }
+
+        // ============================================================
+        // OFFLINE PROCESSING (OCR + extraction fully in-browser)
+        // ============================================================
+        async function processFileOffline(file, docType) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <span class="inline-block animate-spin-slow w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                Processing offline...
+            `;
+            showStatus("⚡ You're offline — running OCR and field extraction on this device. This can take a bit longer than online processing...", "warning");
+
+            try {
+                if (!window.pwa || !window.pwa.processFileOffline) {
+                    throw new Error("Offline processing isn't available yet — the offline scripts may still be loading. Please try again in a moment.");
+                }
+
+                const saved = await window.pwa.processFileOffline(file, {
+                    docType: docType,
+                    onProgress: (status, progress) => {
+                        if (status === "ocr_progress") {
+                            const pct = Math.round((progress || 0) * 100);
+                            showStatus(`🔎 Reading document text offline... ${pct}%`, "info");
+                        }
+                    },
+                });
+
+                const localId = saved && saved.id !== undefined ? saved.id : saved;
+                showStatus("✅ Document processed offline and saved to this device. It will sync automatically once you're back online.", "success");
+
+                submitBtn.innerHTML = `<span>✅ Saved locally</span>`;
+
+                setTimeout(() => {
+                    window.location.href = "{% url 'core:document_library' %}?local=" + encodeURIComponent(localId);
+                }, 1200);
+            } catch (error) {
+                console.error("[Offline Upload] Failed:", error);
+                showStatus("❌ Offline processing failed: " + error.message, "error");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<span>📤 Process Document</span>`;
+            }
+        }
+
+        function showStatus(message, type) {
+            const classes = {
+                success: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-700",
+                error: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-700",
+                info: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-700",
+                warning: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-700",
+            };
+
+            uploadStatus.className = `p-3 rounded-xl ${classes[type] || classes.info}`;
+            uploadStatus.textContent = message;
+            uploadStatus.classList.remove("hidden");
+        }
+
+        // ============================================================
+        // KEYBOARD SHORTCUTS
+        // ============================================================
+        document.addEventListener("keydown", function(e) {
+            // Ctrl+U or Cmd+U to open file picker
+            if ((e.ctrlKey || e.metaKey) && e.key === "u") {
+                e.preventDefault();
+                fileInput.click();
+            }
+        });
+
+        console.log("📤 Upload page initialized with 26 document types");
+        console.log("📡 Online status:", navigator.onLine ? "Online" : "Offline");
+
+    })();
+</script>
+
+{% endblock %}

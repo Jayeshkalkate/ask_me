@@ -1,0 +1,93 @@
+{% extends "base.html" %} {% load static %} {% block content %}
+
+<main class="max-w-3xl mx-auto px-4 py-8">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8">
+    <h1
+      class="text-3xl font-bold text-center text-gray-800 dark:text-white mb-6"
+    >
+      🔄 Reprocess Document
+    </h1>
+
+    <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+      <p>
+        <strong>Document:</strong> {{ document.file.name|default:"Untitled" }}
+      </p>
+      <p><strong>Current Type:</strong> {{ document.get_doc_type_display }}</p>
+      <p>
+        <strong>Uploaded:</strong> {{ document.created_at|date:"M d, Y H:i" }}
+      </p>
+    </div>
+
+    <p class="text-gray-600 dark:text-gray-400 mb-4">
+      Choose new settings and reprocess the document. This will replace the
+      existing extracted data.
+    </p>
+
+    <form method="post" class="space-y-5">
+      {% csrf_token %}
+
+      <!-- Document Type -->
+      <div>
+        <label
+          for="doc_type"
+          class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+        >
+          Document Type
+        </label>
+        <select
+          name="doc_type"
+          id="doc_type"
+          class="w-full rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition"
+        >
+          <option value="">Auto-detect</option>
+          {% for type in supported_doc_types %}
+          <option value="{{ type }}" {% if type == document.doc_type %}selected{% endif %}>
+              {{ type|title }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Enhancement Level -->
+      <div>
+        <label
+          for="enhancement_level"
+          class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+        >
+          Enhancement Level
+        </label>
+        <select
+          name="enhancement_level"
+          id="enhancement_level"
+          class="w-full rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800 outline-none transition"
+        >
+          <option value="auto">Auto (Recommended)</option>
+          <option value="high">High Quality</option>
+          <option value="fast">Fast Processing</option>
+        </select>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          "Auto" balances speed and quality; "High" may take longer but improves
+          accuracy.
+        </p>
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+        <button
+          type="submit"
+          class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition transform hover:scale-105"
+        >
+          🔄 Reprocess
+        </button>
+        <a
+          href="{% url 'core:document_detail' document.pk %}"
+          class="px-8 py-3 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-xl shadow-md transition transform hover:scale-105 text-center"
+        >
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</main>
+
+{% endblock %}

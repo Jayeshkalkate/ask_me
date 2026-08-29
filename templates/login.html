@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<main class="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 py-8 bg-[#F8F9FA] dark:bg-[#121212] transition-colors duration-300">
+    <div class="w-full max-w-md">
+        <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-lg p-6 md:p-8 border border-[#E9ECEF] dark:border-[#2A2A2A] transition-colors duration-300">
+            
+            <h2 class="text-[24px] font-bold text-center text-[#121416] dark:text-[#F8F9FA] mb-6 transition-colors duration-300">
+                🔐 Login to ASK_ME
+            </h2>
+
+            <!-- Django messages -->
+            {% if messages %}
+                {% for message in messages %}
+                <div class="mb-4 p-3 rounded-xl text-[14px] leading-[1.5] bg-[#D93025] text-white">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Frontend validation error -->
+            <div id="frontend-error" class="mb-4 p-3 rounded-xl text-[14px] leading-[1.5] bg-[#D93025] text-white hidden"></div>
+
+            <form method="POST" action="{% url 'account:login' %}" id="login-form" class="space-y-5">
+
+                {% csrf_token %}
+
+                <!-- Username -->
+                <div>
+                    <label for="username" class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        <i class="fas fa-user mr-2"></i>Username
+                    </label>
+                    <input type="text"
+                           name="username"
+                           id="username"
+                           required
+                           autofocus
+                           class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                </div>
+
+                <!-- Password -->
+                <div>
+                    <label for="password" class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        <i class="fas fa-lock mr-2"></i>Password
+                    </label>
+                    <input type="password"
+                           name="password"
+                           id="password"
+                           required
+                           class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                </div>
+
+                <!-- Show password toggle -->
+                <div class="flex items-center gap-2 text-[14px] text-[#495057] dark:text-[#ADB5BD] transition-colors duration-300">
+                    <input type="checkbox"
+                           id="toggle-password"
+                           class="rounded border-[#E9ECEF] dark:border-[#2A2A2A] accent-[#1A73E8] w-4 h-4" />
+                    <label for="toggle-password" class="cursor-pointer select-none">Show Password</label>
+                </div>
+
+                <!-- Submit button with spinner -->
+                <button type="submit"
+                        id="login-button"
+                        class="w-full py-3 bg-[#1A73E8] hover:bg-[#1557B0] text-white font-semibold rounded-xl shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-[15px]">
+                    <span>Login</span>
+                    <span id="spinner" class="spinner hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                </button>
+
+                <!-- Forgot password -->
+                <div class="text-center mt-3">
+                    <a href="{% url 'account:password_reset' %}" class="text-[14px] text-[#1A73E8] dark:text-[#1A73E8] hover:underline font-medium transition-colors duration-200">
+                        Forgot Password?
+                    </a>
+                </div>
+
+            </form>
+
+            <!-- Register link -->
+            <div class="mt-6 text-center text-[14px] text-[#495057] dark:text-[#ADB5BD] transition-colors duration-300">
+                Don't have an account?
+                <a href="{% url 'account:register' %}" class="text-[#1A73E8] dark:text-[#1A73E8] font-semibold hover:underline transition-colors duration-200">
+                    Register
+                </a>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT -->
+<!-- ============================================================ -->
+<script>
+    (function() {
+        "use strict";
+
+        const form = document.getElementById("login-form");
+        const button = document.getElementById("login-button");
+        const spinner = document.getElementById("spinner");
+        const username = document.getElementById("username");
+        const password = document.getElementById("password");
+        const togglePassword = document.getElementById("toggle-password");
+        const errorDiv = document.getElementById("frontend-error");
+
+        // Toggle password visibility
+        togglePassword.addEventListener("change", function() {
+            password.type = this.checked ? "text" : "password";
+        });
+
+        // Form validation
+        form.addEventListener("submit", function(e) {
+            errorDiv.classList.add("hidden");
+            errorDiv.textContent = "";
+
+            if (!username.value.trim() || !password.value.trim()) {
+                e.preventDefault();
+                errorDiv.textContent = "Username and Password are required.";
+                errorDiv.classList.remove("hidden");
+                return;
+            }
+
+            button.disabled = true;
+            spinner.classList.remove("hidden");
+            button.querySelector("span:first-child").textContent = "Logging in...";
+        });
+
+        // Reset button state on page load
+        window.addEventListener("pageshow", function() {
+            button.disabled = false;
+            spinner.classList.add("hidden");
+            button.querySelector("span:first-child").textContent = "Login";
+        });
+
+        console.log("🔐 Login page initialized");
+    })();
+</script>
+
+{% endblock %}

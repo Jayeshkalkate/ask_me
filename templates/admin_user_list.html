@@ -1,0 +1,139 @@
+{% extends "base.html" %} {% load static %} {% block content %}
+
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+  <h2 class="text-3xl font-bold text-center mb-8 text-gray-800 dark:text-white">
+    📋 User Management
+  </h2>
+
+  <div class="flex flex-wrap gap-3 justify-center mb-6">
+    <input
+      type="text"
+      id="searchFirstName"
+      placeholder="First Name"
+      class="px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none transition"
+    />
+    <input
+      type="text"
+      id="searchLastName"
+      placeholder="Last Name"
+      class="px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none transition"
+    />
+    <input
+      type="text"
+      id="searchCity"
+      placeholder="City"
+      class="px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none transition"
+    />
+    <button
+      onclick="filterTable()"
+      class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition"
+    >
+      Search
+    </button>
+    <button
+      onclick="resetFilter()"
+      class="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-xl transition"
+    >
+      Reset
+    </button>
+  </div>
+
+  <div class="overflow-x-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
+    <table
+      class="w-full text-sm text-left text-gray-700 dark:text-gray-300"
+      id="userTable"
+    >
+      <thead
+        class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 uppercase text-xs"
+      >
+        <tr>
+          <th class="px-4 py-3">Full Name</th>
+          <th class="px-4 py-3">Username</th>
+          <th class="px-4 py-3">Email</th>
+          <th class="px-4 py-3">Phone</th>
+          <th class="px-4 py-3">Address</th>
+          <th class="px-4 py-3">City</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3 text-center">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr
+          class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
+        >
+          <td class="px-4 py-3 font-medium">{{ user.get_full_name }}</td>
+          <td class="px-4 py-3">{{ user.username }}</td>
+          <td class="px-4 py-3">{{ user.email }}</td>
+          {% with user.profile as items %} {% if items %}
+          <td class="px-4 py-3">{{ items.phone_number|default:"—" }}</td>
+          <td class="px-4 py-3">{{ items.address|default:"—" }}</td>
+          <td class="px-4 py-3">{{ items.city|default:"—" }}</td>
+          <td class="px-4 py-3">
+            {% if user.profile and user.profile.is_online %}
+            <span class="text-green-500 font-bold">🟢 Online</span>
+            {% else %}
+            <span class="text-gray-400">🔴 Offline</span>
+            {% endif %}
+          </td>
+          {% else %}
+          <td colspan="3" class="px-4 py-3 text-gray-400">No profile</td>
+          {% endif %} {% endwith %}
+          <td class="px-4 py-3 text-center">
+            {% if user != request.user %}
+            <a
+              href="{% url 'account:delete_user' user.id %}"
+              onclick="return confirm('Are you sure you want to delete {{ user.username }}?')"
+              class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-bold text-lg"
+            >
+              🗑️
+            </a>
+            {% else %}
+            <span class="text-gray-400 text-sm">You</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function filterTable() {
+    const fname = document
+      .getElementById("searchFirstName")
+      .value.toLowerCase()
+      .trim();
+    const lname = document
+      .getElementById("searchLastName")
+      .value.toLowerCase()
+      .trim();
+    const city = document
+      .getElementById("searchCity")
+      .value.toLowerCase()
+      .trim();
+    const rows = document.querySelectorAll("#userTable tbody tr");
+
+    rows.forEach((row) => {
+      const fullName = row.cells[0].textContent.toLowerCase();
+      const userCity = row.cells[5].textContent.toLowerCase();
+
+      const matchName =
+        (fname === "" || fullName.includes(fname)) &&
+        (lname === "" || fullName.includes(lname));
+      const matchCity = city === "" || userCity.includes(city);
+
+      row.style.display = matchName && matchCity ? "" : "none";
+    });
+  }
+
+  function resetFilter() {
+    document.getElementById("searchFirstName").value = "";
+    document.getElementById("searchLastName").value = "";
+    document.getElementById("searchCity").value = "";
+    filterTable();
+  }
+</script>
+
+{% endblock %}

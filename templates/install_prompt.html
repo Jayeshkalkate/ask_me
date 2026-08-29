@@ -1,0 +1,58 @@
+{% load static %}
+<!-- Install App Banner -->
+<div id="installBanner" class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg p-4 transform translate-y-full transition-transform duration-300 z-50">
+    <div class="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <img src="{% static 'img/ASK_ME_Logo.png' %}" alt="ASK_ME" class="h-12 w-12 rounded-lg">
+            <div>
+                <p class="font-semibold text-gray-800 dark:text-white">Install ASK_ME</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Get offline access and faster loading</p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="dismissInstallBanner()" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+                Not now
+            </button>
+            <button id="installAppAction" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition">
+                Install App
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function dismissInstallBanner() {
+    const banner = document.getElementById('installBanner');
+    banner.style.transform = 'translateY(100%)';
+    setTimeout(() => {
+        banner.style.display = 'none';
+    }, 300);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const installBanner = document.getElementById('installBanner');
+    
+    // Check if app is already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        installBanner.style.display = 'none';
+        return;
+    }
+    
+    // Show banner after 3 seconds
+    setTimeout(() => {
+        installBanner.style.transform = 'translateY(0)';
+    }, 3000);
+    
+    // Install button
+    document.getElementById('installAppAction').addEventListener('click', function() {
+        if (window.pwa && window.pwa.deferredPrompt) {
+            window.pwa.deferredPrompt.prompt();
+            dismissInstallBanner();
+        } else {
+            // Fallback - show instructions
+            alert('To install this app:\n1. Click the share button\n2. Select "Add to Home Screen"');
+            dismissInstallBanner();
+        }
+    });
+});
+</script>

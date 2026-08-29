@@ -1,0 +1,597 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<main class="w-full max-w-4xl mx-auto px-4 py-6">
+    <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-lg overflow-hidden grid grid-rows-[auto_1fr_auto] h-[90vh] md:h-[85vh] transition-colors duration-300">
+
+        <!-- ============================================================ -->
+        <!-- CHAT HEADER -->
+        <!-- ============================================================ -->
+        <header class="flex items-center justify-between gap-3 p-4 border-b border-gray-200 dark:border-[#2A2A2A] bg-[#F1F3F5] dark:bg-[#1E1E1E] transition-colors duration-300">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 bg-white dark:bg-[#1A1A1A]">
+                    <img src="{% static 'img/ASK_ME_Logo.png' %}" alt="ASK_ME Logo" class="w-full h-full object-cover" />
+                </div>
+                <div>
+                    <div class="text-[15px] font-semibold text-[#121416] dark:text-[#F8F9FA] transition-colors duration-300">
+                        ASK_ME - Secure & Smart Document Assistant
+                    </div>
+                    <div class="text-[12px] text-[#6C757D] dark:text-[#ADB5BD] flex items-center gap-2 transition-colors duration-300">
+                        <span id="onlineStatusDot" class="w-2 h-2 rounded-full bg-[#0F9D58] inline-block"></span>
+                        <span id="onlineStatusText" class="font-medium">Online</span>
+                        <span class="hidden" id="offlineBadge">• Offline Mode</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <a href="{% url 'core:document_library' %}" title="Document Library"
+                   class="p-2 rounded-md hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] transition-colors duration-200 text-[#495057] dark:text-[#ADB5BD] hover:text-[#1A73E8] dark:hover:text-[#1A73E8]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </a>
+                <a href="{% url 'userprofile' %}" title="User Profile"
+                   class="p-2 rounded-md hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] transition-colors duration-200 text-[#495057] dark:text-[#ADB5BD] hover:text-[#1A73E8] dark:hover:text-[#1A73E8]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </a>
+                <button id="fileUploadBtn" title="Upload Document"
+                        class="p-2 rounded-md hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] transition-colors duration-200 text-[#495057] dark:text-[#ADB5BD] hover:text-[#1A73E8] dark:hover:text-[#1A73E8]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 8l3-3m-3 3L9 9" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- ============================================================ -->
+        <!-- MESSAGES -->
+        <!-- ============================================================ -->
+        <div class="p-4 bg-[#F8F9FA] dark:bg-[#121212] transition-colors duration-300">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="mb-2 p-3 rounded-lg text-[14px] leading-[1.5] animate-fade-in-up {% if message.tags == 'success' %}bg-[#0F9D58] text-white{% elif message.tags == 'error' %}bg-[#D93025] text-white{% else %}bg-[#1A73E8] text-white{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- CHAT HISTORY -->
+        <!-- ============================================================ -->
+        <section id="chatHistory" class="flex-1 p-4 overflow-y-auto bg-[#F8F9FA] dark:bg-[#121212] space-y-4 scroll-smooth transition-colors duration-300 chat-scrollbar">
+
+            <!-- Search Results -->
+            {% if field %}
+                <div class="mb-4 p-4 rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] shadow-sm bg-white dark:bg-[#1A1A1A] transition-colors duration-300">
+                    <h3 class="text-[18px] font-bold text-[#121416] dark:text-[#F8F9FA] mb-3 transition-colors duration-300">
+                        🔍 Search Results for "<span class="text-[#1A73E8] dark:text-[#1A73E8]">{{ field }}</span>"
+                    </h3>
+                    {% if error %}
+                        <div class="p-3 rounded-lg bg-[#D93025] text-white text-[14px] leading-[1.5]">
+                            {{ error }}
+                        </div>
+                    {% elif results %}
+                        <div class="space-y-3">
+                            {% for result in results %}
+                                <div class="p-3 border border-[#E9ECEF] dark:border-[#2A2A2A] rounded-lg bg-[#F8F9FA] dark:bg-[#121212] shadow-sm hover:shadow-md transition-all duration-200">
+                                    <div class="flex items-start justify-between">
+                                        <div>
+                                            <p class="text-[13px] text-[#495057] dark:text-[#ADB5BD]">
+                                                <strong class="text-[#121416] dark:text-[#F8F9FA]">Document:</strong> {{ result.doc_type|default:"Unknown" }}
+                                            </p>
+                                            <p class="text-[13px] text-[#495057] dark:text-[#ADB5BD]">
+                                                <strong class="text-[#121416] dark:text-[#F8F9FA]">Page:</strong> {{ result.page|title }}
+                                            </p>
+                                        </div>
+                                        {% if result.is_user_edited %}
+                                            <span class="text-[11px] px-2 py-1 rounded-full bg-[#F9AB00] text-white font-medium">
+                                                ✏️ Edited
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <p class="text-[15px] font-medium mt-2 text-[#121416] dark:text-[#F8F9FA]">
+                                        <strong>{{ result.field|capfirst }}:</strong>
+                                    </p>
+                                    {% if result.extracted_value %}
+                                        <p class="text-[14px] text-[#495057] dark:text-[#ADB5BD] ml-4 mt-1">
+                                            <span class="text-[#6C757D] dark:text-[#6C757D]">Extracted:</span> {{ result.extracted_value }}
+                                        </p>
+                                    {% endif %}
+                                    {% if result.value %}
+                                        <p class="text-[14px] text-[#0F9D58] dark:text-[#0F9D58] ml-4 font-medium mt-1">
+                                            <span class="text-[#6C757D] dark:text-[#6C757D]">Edited:</span> {{ result.value }} ✏️
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="p-4 bg-[#F9AB00] text-white rounded-lg text-[14px] leading-[1.5]">
+                            No results found for "{{ field }}"
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Welcome Message -->
+            <div id="welcome" class="text-center py-8 animate-fade-in-up">
+                <div class="text-5xl mb-4">🔒</div>
+                <p class="text-[18px] font-bold text-[#121416] dark:text-[#F8F9FA] transition-colors duration-300">Welcome to ASK_ME</p>
+                <p class="text-[15px] text-[#495057] dark:text-[#ADB5BD] mt-2 transition-colors duration-300">Your secure assistant for personal and important documents 📂</p>
+                <p class="text-[12px] text-[#6C757D] dark:text-[#6C757D] mt-1 transition-colors duration-300">Upload a document to get started</p>
+            </div>
+
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- CHAT INPUT AREA -->
+        <!-- ============================================================ -->
+        <div class="p-4 border-t border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#1A1A1A] transition-colors duration-300">
+            <form method="get" action="{% url 'core:search_document_field' %}" class="flex gap-2 items-center">
+                <input type="text" 
+                       name="q" 
+                       placeholder="🔎 Search for details in your documents..." 
+                       class="flex-1 rounded-lg border border-[#E9ECEF] dark:border-[#2A2A2A] px-4 py-2.5 text-[14px] leading-[1.5] focus:outline-none focus:shadow-focus focus:border-[#1A73E8] bg-white dark:bg-[#121212] text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] transition-all duration-200"
+                       required />
+                <button type="submit" 
+                        class="px-5 py-2.5 rounded-lg bg-[#1A73E8] hover:bg-[#1557B0] text-white font-medium text-[14px] transition-all duration-200 hover:shadow-lg active:scale-95 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Search
+                </button>
+            </form>
+            <div id="typingIndicator" class="mt-3 hidden text-[14px] text-[#6C757D] dark:text-[#6C757D] transition-colors duration-300">
+                <span class="inline-flex items-center gap-2">
+                    <strong>Bot is typing</strong>
+                    <span class="inline-flex items-end gap-1">
+                        <span class="w-2 h-2 rounded-full bg-[#ADB5BD] dark:bg-[#6C757D] inline-block animate-typing-bounce"></span>
+                        <span class="w-2 h-2 rounded-full bg-[#ADB5BD] dark:bg-[#6C757D] inline-block animate-typing-bounce" style="animation-delay: 0.2s"></span>
+                        <span class="w-2 h-2 rounded-full bg-[#ADB5BD] dark:bg-[#6C757D] inline-block animate-typing-bounce" style="animation-delay: 0.4s"></span>
+                    </span>
+                </span>
+            </div>
+            <!-- Offline hint -->
+            <div id="offlineHint" class="mt-2 text-[11px] text-[#F9AB00] dark:text-[#F9AB00] hidden transition-colors duration-300">
+                ⚡ You're offline. Documents will be processed locally and synced when back online.
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- ============================================================ -->
+<!-- UPLOAD MODAL -->
+<!-- ============================================================ -->
+<div id="uploadModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 hidden transition-opacity duration-300">
+    <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 animate-fade-in-up transition-colors duration-300">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-[18px] font-bold text-[#121416] dark:text-[#F8F9FA] flex items-center gap-2 transition-colors duration-300">
+                <span>📤</span> Upload Document
+            </h3>
+            <button id="closeUploadModal" 
+                    class="text-[#6C757D] hover:text-[#212529] dark:text-[#6C757D] dark:hover:text-[#E0E0E0] transition-colors p-1 rounded-lg hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A]">
+                ✖
+            </button>
+        </div>
+
+        <form id="uploadForm" method="POST" enctype="multipart/form-data" action="{% url 'core:upload' %}">
+            {% csrf_token %}
+            <p class="text-[14px] text-[#495057] dark:text-[#ADB5BD] mb-3 transition-colors duration-300">Supported formats: PDF, JPG, PNG, TIFF (max 10MB)</p>
+
+            <!-- Drop Zone -->
+            <div id="dropZone" 
+                 class="border-2 border-dashed border-[#E9ECEF] dark:border-[#2A2A2A] rounded-xl p-8 text-center cursor-pointer hover:bg-[#F8F9FA] dark:hover:bg-[#121212] transition-all duration-200 group">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-[#6C757D] dark:text-[#6C757D] group-hover:text-[#1A73E8] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p class="text-[14px] text-[#495057] dark:text-[#ADB5BD] group-hover:text-[#212529] dark:group-hover:text-[#E0E0E0] transition-colors" id="fileLabel">
+                    Drag & drop files here or click to browse
+                </p>
+                <p class="text-[11px] text-[#6C757D] dark:text-[#6C757D] mt-1" id="fileSizeLabel"></p>
+                <input type="file" name="file" id="fileInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.tiff,.tif" required />
+            </div>
+
+            <!-- Document Type - All 26 Types -->
+            <label for="docType" class="block mt-4 mb-1 text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] transition-colors duration-300">Document Type</label>
+            <select name="doc_type" id="docType" 
+                    class="w-full rounded-lg border border-[#E9ECEF] dark:border-[#2A2A2A] px-4 py-2.5 bg-[#F8F9FA] dark:bg-[#121212] text-[#212529] dark:text-[#E0E0E0] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]">
+                
+                <!-- Identity Documents -->
+                <optgroup label="🆔 Identity Documents" class="font-bold text-[#121416] dark:text-[#F8F9FA]">
+                    <option value="aadhaar_card">Aadhaar Card</option>
+                    <option value="pan_card">PAN Card</option>
+                    <option value="voter_id_card">Voter ID Card</option>
+                    <option value="passport">Passport</option>
+                    <option value="driving_license">Driving License</option>
+                    <option value="vehicle_registration_certificate">Vehicle Registration Certificate</option>
+                </optgroup>
+                
+                <!-- Civil & Residency Documents -->
+                <optgroup label="🏠 Civil & Residency" class="font-bold text-[#121416] dark:text-[#F8F9FA]">
+                    <option value="domicile_certificate">Domicile Certificate</option>
+                    <option value="nationality_certificate">Nationality Certificate</option>
+                    <option value="birth_certificate">Birth Certificate</option>
+                    <option value="marriage_certificate">Marriage Certificate</option>
+                    <option value="death_certificate">Death Certificate</option>
+                </optgroup>
+                
+                <!-- Land & Property Documents -->
+                <optgroup label="🌾 Land & Property" class="font-bold text-[#121416] dark:text-[#F8F9FA]">
+                    <option value="property_card">Property Card</option>
+                    <option value="income_certificate">Income Certificate</option>
+                    <option value="ration_card">Ration Card</option>
+                </optgroup>
+                
+                <!-- Educational Documents -->
+                <optgroup label="🎓 Educational Documents" class="font-bold text-[#121416] dark:text-[#F8F9FA]">
+                    <option value="school_leaving_certificate">School Leaving Certificate</option>
+                    <option value="ssc_marksheet">SSC Marksheet</option>
+                    <option value="hsc_marksheet">HSC Marksheet</option>
+                    <option value="degree_certificate">Degree Certificate</option>
+                    <option value="board_passing_certificate">Board Passing Certificate</option>
+                </optgroup>
+                
+                <!-- Category & Welfare Certificates -->
+                <optgroup label="🛡️ Category & Welfare" class="font-bold text-[#121416] dark:text-[#F8F9FA]">
+                    <option value="caste_certificate">Caste Certificate</option>
+                    <option value="caste_validity_certificate">Caste Validity Certificate</option>
+                    <option value="non_creamy_layer_certificate">Non-Creamy Layer Certificate</option>
+                    <option value="ews_certificate">EWS Certificate</option>
+                </optgroup>
+                
+                <!-- Other Documents -->
+                <optgroup label="📄 Other Documents" class="font-bold text-[#121416] dark:text-[#F8F9FA]">
+                    <option value="gst_certificate">GST Certificate</option>
+                    <option value="invoice">Invoice</option>
+                    <option value="other_document" selected>Other Document</option>
+                </optgroup>
+            </select>
+
+            <!-- Upload Status -->
+            <div id="uploadStatus" class="mt-3 text-[14px] hidden"></div>
+
+            <!-- Actions -->
+            <div class="flex justify-end gap-3 mt-5 pt-4 border-t border-[#E9ECEF] dark:border-[#2A2A2A] transition-colors duration-300">
+                <button type="button" id="cancelUpload" 
+                        class="px-4 py-2 text-[14px] font-medium text-[#495057] dark:text-[#ADB5BD] hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] rounded-lg transition-all duration-200">
+                    Cancel
+                </button>
+                <button type="submit" id="processBtn" 
+                        class="px-5 py-2 text-[14px] font-medium bg-[#1A73E8] hover:bg-[#1557B0] text-white rounded-lg transition-all duration-200 hover:shadow-lg active:scale-95 flex items-center gap-2">
+                    <span>Process Document</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT -->
+<!-- ============================================================ -->
+<script>
+    (function() {
+        "use strict";
+
+        // ============================================================
+        // DOCUMENT TYPE HELPERS
+        // ============================================================
+        const DOCUMENT_TYPES = {
+            // Identity Documents
+            'aadhaar_card': { icon: '🪪', label: 'Aadhaar Card' },
+            'pan_card': { icon: '💳', label: 'PAN Card' },
+            'voter_id_card': { icon: '🗳️', label: 'Voter ID Card' },
+            'passport': { icon: '🛂', label: 'Passport' },
+            'driving_license': { icon: '🚗', label: 'Driving License' },
+            'vehicle_registration_certificate': { icon: '🚘', label: 'Vehicle Registration' },
+            // Civil & Residency
+            'domicile_certificate': { icon: '🏠', label: 'Domicile Certificate' },
+            'nationality_certificate': { icon: '🌍', label: 'Nationality Certificate' },
+            'birth_certificate': { icon: '👶', label: 'Birth Certificate' },
+            'marriage_certificate': { icon: '💑', label: 'Marriage Certificate' },
+            'death_certificate': { icon: '🕊️', label: 'Death Certificate' },
+            // Land & Property
+            'property_card': { icon: '🏘️', label: 'Property Card' },
+            'income_certificate': { icon: '💰', label: 'Income Certificate' },
+            'ration_card': { icon: '🛒', label: 'Ration Card' },
+            // Educational
+            'school_leaving_certificate': { icon: '🏫', label: 'School Leaving Certificate' },
+            'ssc_marksheet': { icon: '📊', label: 'SSC Marksheet' },
+            'hsc_marksheet': { icon: '📈', label: 'HSC Marksheet' },
+            'degree_certificate': { icon: '🎓', label: 'Degree Certificate' },
+            'board_passing_certificate': { icon: '📜', label: 'Board Passing Certificate' },
+            // Category & Welfare
+            'caste_certificate': { icon: '📋', label: 'Caste Certificate' },
+            'caste_validity_certificate': { icon: '✅', label: 'Caste Validity Certificate' },
+            'non_creamy_layer_certificate': { icon: '📑', label: 'Non-Creamy Layer Certificate' },
+            'ews_certificate': { icon: '🤝', label: 'EWS Certificate' },
+            // Other
+            'gst_certificate': { icon: '📊', label: 'GST Certificate' },
+            'invoice': { icon: '🧾', label: 'Invoice' },
+            'other_document': { icon: '📄', label: 'Other Document' },
+        };
+
+        // ============================================================
+        // UPLOAD MODAL
+        // ============================================================
+        const uploadBtn = document.getElementById("fileUploadBtn");
+        const uploadModal = document.getElementById("uploadModal");
+        const closeModal = document.getElementById("closeUploadModal");
+        const cancelBtn = document.getElementById("cancelUpload");
+        const dropZone = document.getElementById("dropZone");
+        const fileInput = document.getElementById("fileInput");
+        const fileLabel = document.getElementById("fileLabel");
+        const fileSizeLabel = document.getElementById("fileSizeLabel");
+        const docTypeSelect = document.getElementById("docType");
+
+        function openModal() {
+            uploadModal.classList.remove("hidden");
+            document.body.style.overflow = "hidden";
+            setTimeout(() => fileInput.focus(), 100);
+        }
+
+        function closeModalFn() {
+            uploadModal.classList.add("hidden");
+            document.body.style.overflow = "";
+            fileInput.value = "";
+            fileLabel.textContent = "Drag & drop files here or click to browse";
+            fileSizeLabel.textContent = "";
+            const status = document.getElementById("uploadStatus");
+            status.className = "mt-3 text-[14px] hidden";
+            status.textContent = "";
+            docTypeSelect.value = "other_document";
+        }
+
+        if (uploadBtn && uploadModal) {
+            uploadBtn.addEventListener("click", openModal);
+            closeModal.addEventListener("click", closeModalFn);
+            cancelBtn.addEventListener("click", closeModalFn);
+
+            uploadModal.addEventListener("click", function(e) {
+                if (e.target === this) closeModalFn();
+            });
+
+            document.addEventListener("keydown", function(e) {
+                if (e.key === "Escape" && !uploadModal.classList.contains("hidden")) {
+                    closeModalFn();
+                }
+            });
+
+            dropZone.addEventListener("click", () => fileInput.click());
+
+            dropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                dropZone.classList.add(
+                    "border-[#1A73E8]",
+                    "bg-[#F8F9FA]",
+                    "dark:bg-[#121212]"
+                );
+            });
+
+            dropZone.addEventListener("dragleave", () => {
+                dropZone.classList.remove(
+                    "border-[#1A73E8]",
+                    "bg-[#F8F9FA]",
+                    "dark:bg-[#121212]"
+                );
+            });
+
+            dropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                dropZone.classList.remove(
+                    "border-[#1A73E8]",
+                    "bg-[#F8F9FA]",
+                    "dark:bg-[#121212]"
+                );
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    updateFileLabel(e.dataTransfer.files[0]);
+                }
+            });
+
+            fileInput.addEventListener("change", () => {
+                if (fileInput.files.length) {
+                    updateFileLabel(fileInput.files[0]);
+                }
+            });
+
+            function updateFileLabel(file) {
+                fileLabel.textContent = file.name;
+                const size = (file.size / 1024 / 1024).toFixed(2);
+                fileSizeLabel.textContent = `${size} MB`;
+                if (file.size > 10 * 1024 * 1024) {
+                    fileSizeLabel.style.color = "#D93025";
+                    fileSizeLabel.textContent += " (⚠️ Exceeds 10MB limit)";
+                } else {
+                    fileSizeLabel.style.color = "";
+                }
+            }
+        }
+
+        // ============================================================
+        // OFFLINE UPLOAD HANDLING
+        // ============================================================
+        const uploadForm = document.getElementById("uploadForm");
+        const processBtn = document.getElementById("processBtn");
+        const uploadStatus = document.getElementById("uploadStatus");
+
+        if (uploadForm) {
+            uploadForm.addEventListener("submit", async function(e) {
+                e.preventDefault();
+
+                const file = fileInput.files[0];
+                const docType = docTypeSelect.value;
+
+                if (!file) {
+                    showStatus("❌ Please select a file.", "text-[#D93025]");
+                    return;
+                }
+
+                if (file.size > 10 * 1024 * 1024) {
+                    showStatus("❌ File size must be under 10MB.", "text-[#D93025]");
+                    return;
+                }
+
+                processBtn.disabled = true;
+                processBtn.innerHTML = `
+                    <span class="inline-block animate-spin-slow w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                    Processing...
+                `;
+                showStatus("📄 Processing document...", "text-[#1A73E8]");
+
+                try {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("doc_type", docType);
+
+                    const response = await fetch("/api/offline/upload/", {
+                        method: "POST",
+                        body: formData,
+                        headers: {
+                            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+                        }
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        if (window.offlineStorage) {
+                            const docInfo = DOCUMENT_TYPES[docType] || DOCUMENT_TYPES['other_document'];
+                            await window.offlineStorage.saveDocument({
+                                ...result.document,
+                                user_id: {{ request.user.id }},
+                                doc_type_display: docInfo.label,
+                                doc_type_icon: docInfo.icon,
+                            });
+                        }
+
+                        const docInfo = DOCUMENT_TYPES[docType] || DOCUMENT_TYPES['other_document'];
+                        showStatus(`✅ ${docInfo.icon} ${docInfo.label} processed and saved offline!`, "text-[#0F9D58]");
+
+                        setTimeout(() => {
+                            closeModalFn();
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        throw new Error(result.error || "Processing failed");
+                    }
+                } catch (error) {
+                    showStatus("❌ " + error.message, "text-[#D93025]");
+                    console.error("Upload error:", error);
+                } finally {
+                    processBtn.disabled = false;
+                    processBtn.innerHTML = "Process Document";
+                }
+            });
+        }
+
+        function showStatus(message, className) {
+            uploadStatus.className = `mt-3 text-[14px] ${className} block`;
+            uploadStatus.textContent = message;
+        }
+
+        // ============================================================
+        // ONLINE / OFFLINE STATUS
+        // ============================================================
+        const onlineDot = document.getElementById("onlineStatusDot");
+        const onlineText = document.getElementById("onlineStatusText");
+        const offlineBadge = document.getElementById("offlineBadge");
+        const offlineHint = document.getElementById("offlineHint");
+
+        function updateOnlineStatus() {
+            const isOnline = navigator.onLine;
+
+            if (onlineDot) {
+                onlineDot.className = `w-2 h-2 rounded-full inline-block ${isOnline ? "bg-[#0F9D58]" : "bg-[#F9AB00]"}`;
+            }
+            if (onlineText) {
+                onlineText.textContent = isOnline ? "Online" : "Offline";
+            }
+            if (offlineBadge) {
+                offlineBadge.className = isOnline ? "hidden" : "inline text-[#F9AB00]";
+            }
+            if (offlineHint) {
+                offlineHint.className = `mt-2 text-[11px] ${isOnline ? "hidden" : "text-[#F9AB00] block"}`;
+            }
+        }
+
+        window.addEventListener("online", updateOnlineStatus);
+        window.addEventListener("offline", updateOnlineStatus);
+        updateOnlineStatus();
+
+        // ============================================================
+        // AUTO-SCROLL CHAT
+        // ============================================================
+        const chatHistory = document.getElementById("chatHistory");
+        if (chatHistory) {
+            chatHistory.scrollTo({
+                top: chatHistory.scrollHeight,
+                behavior: "smooth"
+            });
+        }
+
+        // ============================================================
+        // QUICK REPLY BUTTONS
+        // ============================================================
+        document.querySelectorAll(".quick-reply").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const docType = btn.dataset.docType;
+                if (docType && docTypeSelect) {
+                    docTypeSelect.value = docType;
+                }
+                if (uploadModal) uploadModal.classList.remove("hidden");
+            });
+        });
+
+        // ============================================================
+        // DOCUMENT TYPE AUTO-DETECT FROM FILENAME
+        // ============================================================
+        fileInput.addEventListener("change", function() {
+            const fileName = this.files[0]?.name.toLowerCase() || "";
+            
+            const typeMap = {
+                'aadhaar': 'aadhaar_card',
+                'pan': 'pan_card',
+                'voter': 'voter_id_card',
+                'passport': 'passport',
+                'driving': 'driving_license',
+                'license': 'driving_license',
+                'vehicle': 'vehicle_registration_certificate',
+                'registration': 'vehicle_registration_certificate',
+                'birth': 'birth_certificate',
+                'marriage': 'marriage_certificate',
+                'death': 'death_certificate',
+                'domicile': 'domicile_certificate',
+                'nationality': 'nationality_certificate',
+                'income': 'income_certificate',
+                'ration': 'ration_card',
+                'property': 'property_card',
+                'school': 'school_leaving_certificate',
+                'ssc': 'ssc_marksheet',
+                'hsc': 'hsc_marksheet',
+                'degree': 'degree_certificate',
+                'caste': 'caste_certificate',
+                'ews': 'ews_certificate',
+                'gst': 'gst_certificate',
+                'invoice': 'invoice',
+            };
+
+            for (const [keyword, type] of Object.entries(typeMap)) {
+                if (fileName.includes(keyword)) {
+                    docTypeSelect.value = type;
+                    break;
+                }
+            }
+        });
+
+        console.log("🚀 ASK_ME chat initialized with 26 document types");
+        console.log("📡 Online status:", navigator.onLine ? "Online" : "Offline");
+        console.log("📋 Available document types:", Object.keys(DOCUMENT_TYPES).length);
+
+    })();
+</script>
+
+{% endblock %}

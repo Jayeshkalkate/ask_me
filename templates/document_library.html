@@ -1,0 +1,717 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+{% if not offline_scripts_loaded_in_base %}
+<script src="{% static 'js/csrf.js' %}" defer></script>
+<script src="{% static 'js/db.js' %}" defer></script>
+<script src="{% static 'js/tesseract-ocr.js' %}" defer></script>
+<script src="{% static 'js/extract-fields.js' %}" defer></script>
+<script src="{% static 'js/offline-processor.js' %}" defer></script>
+<script src="{% static 'js/pwa.js' %}" defer></script>
+{% endif %}
+
+<!-- ============================================================ -->
+<!-- HERO SECTION -->
+<!-- ============================================================ -->
+<section class="py-12 bg-gradient-to-r from-[#1A73E8] via-[#1557B0] to-[#0D47A1] text-white">
+    <div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+        <div>
+            <h1 class="text-[28px] md:text-[32px] font-bold flex items-center gap-3">
+                📄 Document Library
+                <span id="docCountBadge" class="text-[13px] bg-white/20 px-3 py-1 rounded-full font-medium">0</span>
+            </h1>
+            <p class="text-[16px] opacity-95">Manage, search, and view your documents</p>
+        </div>
+        <a href="{% url 'core:upload' %}"
+           class="mt-3 sm:mt-0 inline-block bg-white text-[#1A73E8] px-6 py-2.5 rounded-full font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 hover:bg-[#F8F9FA]">
+            + Upload New
+        </a>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- OFFLINE STATUS BAR -->
+<!-- ============================================================ -->
+<div class="container mx-auto px-4 py-3">
+    <div class="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#1A1A1A] rounded-xl shadow-sm p-4 border border-[#E9ECEF] dark:border-[#2A2A2A] transition-colors duration-300">
+        <div class="flex items-center gap-4 flex-wrap">
+            <div class="flex items-center gap-2">
+                <span id="storageStatus" class="text-[14px] text-[#495057] dark:text-[#ADB5BD] transition-colors duration-300">
+                    💾 <span id="docCount" class="font-medium text-[#121416] dark:text-[#F8F9FA]">0</span> document<span id="docCountPlural">s</span> stored locally
+                </span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="onlineStatus" class="text-[13px] px-3 py-1 rounded-full bg-[#0F9D58] text-white flex items-center gap-1.5 transition-colors duration-300">
+                    <span class="w-2 h-2 rounded-full bg-white inline-block" id="statusDot"></span>
+                    Online
+                </span>
+            </div>
+            <div id="offlineModeBadge" class="hidden text-[13px] px-3 py-1 rounded-full bg-[#F9AB00] text-white flex items-center gap-1.5 transition-colors duration-300">
+                ⚡ Offline Mode
+            </div>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+            <button onclick="syncAllDocuments()"
+                    id="syncBtn"
+                    class="text-[13px] px-4 py-1.5 rounded-full bg-[#1A73E8] hover:bg-[#1557B0] text-white transition-all duration-200 flex items-center gap-1.5 shadow-sm hover:shadow-md active:scale-95">
+                🔄 Sync
+            </button>
+            <button onclick="clearAllLocalData()"
+                    class="text-[13px] px-4 py-1.5 rounded-full bg-[#D93025] hover:bg-[#C62828] text-white transition-all duration-200 flex items-center gap-1.5 shadow-sm hover:shadow-md active:scale-95">
+                🗑️ Clear All
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MAIN CONTENT -->
+<!-- ============================================================ -->
+<div class="container mx-auto px-4 py-4 max-w-5xl">
+
+    <!-- ============================================================ -->
+    <!-- FILTERS -->
+    <!-- ============================================================ -->
+    <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-md p-6 mb-6 border border-[#E9ECEF] dark:border-[#2A2A2A] transition-colors duration-300">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Document Type -->
+            <div>
+                <label class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                    📁 Document Type
+                </label>
+                <select name="doc_type"
+                        class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]">
+                    <option value="all">All Types</option>
+                    {% for type in doc_types %}
+                    <option value="{{ type }}" {% if current_filters.doc_type == type %}selected{% endif %}>
+                        {{ type|title }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Status -->
+            <div>
+                <label class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                    🔄 Status
+                </label>
+                <select name="status"
+                        class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]">
+                    <option value="">All Statuses</option>
+                    <option value="processed" {% if current_filters.status == "processed" %}selected{% endif %}>
+                        ✅ Processed
+                    </option>
+                    <option value="pending" {% if current_filters.status == "pending" %}selected{% endif %}>
+                        ⏳ Pending
+                    </option>
+                    <option value="failed" {% if current_filters.status == "failed" %}selected{% endif %}>
+                        ❌ Failed
+                    </option>
+                </select>
+            </div>
+
+            <!-- Search -->
+            <div class="sm:col-span-2">
+                <label class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                    🔍 Search Documents
+                </label>
+                <div class="flex">
+                    <input type="text"
+                           name="search"
+                           value="{{ current_filters.search }}"
+                           placeholder="Search by name, content, or type..."
+                           class="flex-grow rounded-l-xl border border-r-0 border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                    <button type="submit"
+                            class="px-6 py-2.5 bg-[#1A73E8] hover:bg-[#1557B0] text-white font-semibold rounded-r-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Search
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- RESULTS COUNT & CLEAR FILTERS -->
+    <!-- ============================================================ -->
+    <div class="flex flex-wrap justify-between items-center mb-4 text-[14px] text-[#495057] dark:text-[#ADB5BD] transition-colors duration-300">
+        <span>
+            Showing <strong id="resultCount" class="text-[#121416] dark:text-[#F8F9FA]">{{ page_obj|length }}</strong> of <strong class="text-[#121416] dark:text-[#F8F9FA]">{{ total_docs }}</strong> documents
+        </span>
+        {% if current_filters.search or current_filters.doc_type != "all" or current_filters.status %}
+        <a href="{% url 'core:document_library' %}"
+           class="text-[#1A73E8] dark:text-[#1A73E8] hover:underline flex items-center gap-1 font-medium transition-colors duration-200">
+            ✕ Clear filters
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- DOCUMENT CARDS -->
+    <!-- ============================================================ -->
+    <div id="documentList">
+        <!-- ============================================================ -->
+        <!-- LOCAL (OFFLINE) DOCUMENTS — populated by JS from IndexedDB.   -->
+        <!-- These exist only on this device until synced to the server.  -->
+        <!-- ============================================================ -->
+        <div id="localDocumentList" class="space-y-4 mb-4"></div>
+
+        {% if page_obj %}
+        <div class="space-y-4">
+            {% for doc in page_obj %}
+            <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-md p-5 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-[#E9ECEF] dark:border-[#2A2A2A]"
+                 data-doc-id="{{ doc.id }}"
+                 data-doc-type="{{ doc.doc_type }}"
+                 data-doc-status="{% if doc.error_message %}failed{% elif doc.processed %}processed{% else %}pending{% endif %}">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="flex-grow min-w-0">
+                        <!-- Title -->
+                        <a href="{% url 'core:document_detail' doc.id %}"
+                           class="text-[18px] font-bold text-[#1A73E8] dark:text-[#1A73E8] hover:underline flex items-center gap-2.5 transition-colors duration-200">
+                            <span class="text-[22px]">
+                                {% if doc.doc_type == "pdf" %}📄
+                                {% elif doc.doc_type == "image" %}🖼️
+                                {% elif doc.doc_type == "text" %}📝
+                                {% else %}📎{% endif %}
+                            </span>
+                            <span class="truncate text-[#121416] dark:text-[#F8F9FA]">{{ doc.file.name|default:"Untitled Document" }}</span>
+                        </a>
+
+                        <!-- Tags -->
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            <span class="bg-[#E9ECEF] dark:bg-[#2A2A2A] text-[#212529] dark:text-[#E0E0E0] px-3 py-1 rounded-full text-[12px] font-medium transition-colors duration-300">
+                                📂 {{ doc.doc_type|title }}
+                            </span>
+                            <span class="bg-[#E9ECEF] dark:bg-[#2A2A2A] text-[#212529] dark:text-[#E0E0E0] px-3 py-1 rounded-full text-[12px] font-medium transition-colors duration-300">
+                                🕐 {{ doc.created_at|date:"M d, Y H:i" }}
+                            </span>
+                            {% if doc.file_size %}
+                            <span class="bg-[#E9ECEF] dark:bg-[#2A2A2A] text-[#212529] dark:text-[#E0E0E0] px-3 py-1 rounded-full text-[12px] font-medium transition-colors duration-300">
+                                💾 {{ doc.file_size|filesizeformat }}
+                            </span>
+                            {% endif %}
+                            {% if doc.is_edited %}
+                            <span class="bg-[#F9AB00] text-white px-3 py-1 rounded-full text-[12px] font-medium">
+                                ✏️ Edited
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Preview -->
+                        {% if doc.extracted_text %}
+                        <div class="mt-3 text-[14px] text-[#495057] dark:text-[#ADB5BD] bg-[#F8F9FA] dark:bg-[#121212] p-3 rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] max-h-20 overflow-hidden relative transition-colors duration-300">
+                            {{ doc.extracted_text|truncatechars:150 }}
+                            {% if doc.extracted_text|length > 150 %}
+                            <span class="absolute bottom-0 right-0 bg-gradient-to-l from-[#F8F9FA] dark:from-[#121212] pl-4 text-[#1A73E8] dark:text-[#1A73E8]">...</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Error Message -->
+                        {% if doc.error_message %}
+                        <div class="mt-2 text-[14px] text-[#D93025] bg-[#FEE2E2] dark:bg-[#D93025]/20 p-2.5 rounded-xl border border-[#D93025] dark:border-[#D93025]/30">
+                            <strong>❌ Error:</strong> {{ doc.error_message|truncatechars:100 }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Status Badge & Actions -->
+                    <div class="flex flex-col items-end gap-2 ml-3">
+                        <!-- Status -->
+                        <div>
+                            {% if doc.error_message %}
+                            <span class="inline-block px-3 py-1.5 rounded-full text-[12px] font-medium bg-[#D93025] text-white">
+                                ❌ Failed
+                            </span>
+                            {% elif doc.processed %}
+                            <span class="inline-block px-3 py-1.5 rounded-full text-[12px] font-medium bg-[#0F9D58] text-white">
+                                ✅ Processed
+                            </span>
+                            {% else %}
+                            <span class="inline-block px-3 py-1.5 rounded-full text-[12px] font-medium bg-[#F9AB00] text-white animate-pulse">
+                                ⏳ Processing...
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="flex items-center gap-1.5">
+                            <a href="{% url 'core:document_detail' doc.id %}"
+                               class="p-1.5 rounded-lg hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] text-[#495057] dark:text-[#ADB5BD] hover:text-[#1A73E8] dark:hover:text-[#1A73E8] transition-all duration-200"
+                               title="View Details">
+                                👁️
+                            </a>
+                            <a href="{% url 'core:edit_document' doc.id %}"
+                               class="p-1.5 rounded-lg hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] text-[#495057] dark:text-[#ADB5BD] hover:text-[#F9AB00] dark:hover:text-[#F9AB00] transition-all duration-200"
+                               title="Edit Document">
+                                ✏️
+                            </a>
+                            <button onclick="deleteDocument({{ doc.id }}, '{{ doc.file.name|default:"Untitled" }}')"
+                                    class="p-1.5 rounded-lg hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] text-[#495057] dark:text-[#ADB5BD] hover:text-[#D93025] dark:hover:text-[#D93025] transition-all duration-200"
+                                    title="Delete Document">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- PAGINATION -->
+        <!-- ============================================================ -->
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="flex flex-wrap justify-center items-center gap-3 mt-8">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}{% if current_filters.doc_type %}&doc_type={{ current_filters.doc_type }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}"
+               class="px-5 py-2.5 bg-white dark:bg-[#1A1A1A] rounded-full shadow-md hover:bg-[#F8F9FA] dark:hover:bg-[#121212] transition-all duration-200 text-[#1A73E8] dark:text-[#1A73E8] font-medium flex items-center gap-1.5 border border-[#E9ECEF] dark:border-[#2A2A2A] hover:shadow-lg active:scale-95">
+                ← Previous
+            </a>
+            {% endif %}
+
+            <span class="text-[14px] text-[#495057] dark:text-[#ADB5BD] font-medium transition-colors duration-300">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}{% if current_filters.doc_type %}&doc_type={{ current_filters.doc_type }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}"
+               class="px-5 py-2.5 bg-white dark:bg-[#1A1A1A] rounded-full shadow-md hover:bg-[#F8F9FA] dark:hover:bg-[#121212] transition-all duration-200 text-[#1A73E8] dark:text-[#1A73E8] font-medium flex items-center gap-1.5 border border-[#E9ECEF] dark:border-[#2A2A2A] hover:shadow-lg active:scale-95">
+                Next →
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <!-- ============================================================ -->
+        <!-- EMPTY STATE -->
+        <!-- ============================================================ -->
+        <div class="text-center py-16">
+            <div class="text-7xl mb-6">📄</div>
+            <h3 class="text-[20px] font-bold text-[#212529] dark:text-[#E0E0E0] transition-colors duration-300">No documents found</h3>
+            <p class="text-[15px] text-[#495057] dark:text-[#ADB5BD] mt-2 transition-colors duration-300">
+                {% if current_filters.search or current_filters.doc_type != "all" or current_filters.status %}
+                Try adjusting your filters
+                {% else %}
+                Upload your first document to get started
+                {% endif %}
+            </p>
+            <div class="mt-6 flex flex-wrap justify-center gap-3">
+                <a href="{% url 'core:upload' %}"
+                   class="px-6 py-3 bg-[#1A73E8] hover:bg-[#1557B0] text-white rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg active:scale-95">
+                    📤 Upload a Document
+                </a>
+                <button onclick="clearAllFilters()"
+                        class="px-6 py-3 bg-[#E9ECEF] dark:bg-[#2A2A2A] hover:bg-[#DEE2E6] dark:hover:bg-[#3A3A3A] text-[#212529] dark:text-[#E0E0E0] rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg active:scale-95">
+                    🔄 Reset Filters
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT -->
+<!-- ============================================================ -->
+<script>
+    // ============================================================
+    // ONLINE / OFFLINE STATUS
+    // ============================================================
+    function updateOnlineStatus() {
+        const status = document.getElementById('onlineStatus');
+        const dot = document.getElementById('statusDot');
+        const offlineBadge = document.getElementById('offlineModeBadge');
+        const isOnline = navigator.onLine;
+
+        if (isOnline) {
+            status.innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-white inline-block" id="statusDot"></span>
+                Online
+            `;
+            status.className = 'text-[13px] px-3 py-1 rounded-full bg-[#0F9D58] text-white flex items-center gap-1.5 transition-colors duration-300';
+            if (offlineBadge) offlineBadge.className = 'hidden';
+        } else {
+            status.innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-white inline-block" id="statusDot"></span>
+                Offline
+            `;
+            status.className = 'text-[13px] px-3 py-1 rounded-full bg-[#D93025] text-white flex items-center gap-1.5 transition-colors duration-300';
+            if (offlineBadge) offlineBadge.className = 'text-[13px] px-3 py-1 rounded-full bg-[#F9AB00] text-white flex items-center gap-1.5 transition-colors duration-300';
+        }
+
+        // Update sync button
+        const syncBtn = document.getElementById('syncBtn');
+        if (syncBtn) {
+            syncBtn.disabled = !isOnline;
+            syncBtn.style.opacity = isOnline ? '1' : '0.6';
+            syncBtn.style.cursor = isOnline ? 'pointer' : 'not-allowed';
+            syncBtn.title = isOnline ? 'Sync documents with server' : 'Cannot sync while offline';
+        }
+    }
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    // ============================================================
+    // LOAD OFFLINE DOCUMENT COUNT
+    // ============================================================
+    async function loadOfflineDocCount() {
+        try {
+            if (window.offlineStorage) {
+                const docs = await window.offlineStorage.getAllDocuments();
+                const count = docs.length;
+                document.getElementById('docCount').textContent = count;
+                document.getElementById('docCountBadge').textContent = count;
+                document.getElementById('docCountPlural').textContent = count !== 1 ? 's' : '';
+            }
+        } catch (error) {
+            console.error('Failed to load offline docs:', error);
+        }
+    }
+
+    // ============================================================
+    // RENDER LOCAL (OFFLINE) DOCUMENTS FROM INDEXEDDB
+    // These were processed fully offline via offline-processor.js
+    // (OCR + field extraction) and live only in this browser's
+    // IndexedDB until pwa.js syncs them to the server.
+    // ============================================================
+    const DOC_ICONS = {
+        aadhaar_card: '🪪', pan_card: '💳', voter_id_card: '🗳️', passport: '🛂',
+        driving_license: '🚗', vehicle_registration_certificate: '🚘',
+        domicile_certificate: '🏠', nationality_certificate: '🌍',
+        birth_certificate: '👶', marriage_certificate: '💑', death_certificate: '🕊️',
+        property_card: '🏘️', income_certificate: '💰', ration_card: '🛒',
+        school_leaving_certificate: '🏫', ssc_marksheet: '📊', hsc_marksheet: '📈',
+        degree_certificate: '🎓', board_passing_certificate: '📜',
+        caste_certificate: '📋', caste_validity_certificate: '✅',
+        non_creamy_layer_certificate: '📑', ews_certificate: '🤝',
+        gst_certificate: '📊', invoice: '🧾', other_document: '📄',
+    };
+
+    async function renderLocalDocuments() {
+        const container = document.getElementById('localDocumentList');
+        if (!container || !window.offlineStorage) return;
+
+        let docs = [];
+        try {
+            docs = await window.offlineStorage.getAllDocuments();
+        } catch (error) {
+            console.error('Failed to load local documents:', error);
+            return;
+        }
+
+        if (docs.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        const highlightId = new URLSearchParams(window.location.search).get('local');
+
+        container.innerHTML = docs.map((doc) => {
+            const icon = DOC_ICONS[doc.doc_type] || '📄';
+            const typeLabel = (doc.doc_type || 'other_document').replace(/_/g, ' ');
+            const created = doc.created_at ? new Date(doc.created_at).toLocaleString() : '';
+            const preview = (doc.extracted_text || '').slice(0, 150);
+            const isHighlighted = highlightId && String(doc.id) === String(highlightId);
+
+            return `
+                <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-md p-5 hover:shadow-xl transition-all duration-300 border-2 ${isHighlighted ? 'border-[#0F9D58]' : 'border-[#F9AB00]/60'} dark:border-[#2A2A2A]"
+                     data-local-doc-id="${doc.id}">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="flex-grow min-w-0">
+                            <div class="text-[18px] font-bold flex items-center gap-2.5 text-[#121416] dark:text-[#F8F9FA]">
+                                <span class="text-[22px]">${icon}</span>
+                                <span class="truncate">${escapeHtml(doc.file_name || 'Untitled Document')}</span>
+                            </div>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <span class="bg-[#E9ECEF] dark:bg-[#2A2A2A] text-[#212529] dark:text-[#E0E0E0] px-3 py-1 rounded-full text-[12px] font-medium">
+                                    📂 ${escapeHtml(typeLabel)}
+                                </span>
+                                <span class="bg-[#E9ECEF] dark:bg-[#2A2A2A] text-[#212529] dark:text-[#E0E0E0] px-3 py-1 rounded-full text-[12px] font-medium">
+                                    🕐 ${escapeHtml(created)}
+                                </span>
+                                <span class="bg-[#F9AB00] text-white px-3 py-1 rounded-full text-[12px] font-medium">
+                                    📶 On this device — ${doc.synced ? 'synced' : 'not yet synced'}
+                                </span>
+                            </div>
+                            ${preview ? `<div class="mt-3 text-[14px] text-[#495057] dark:text-[#ADB5BD] bg-[#F8F9FA] dark:bg-[#121212] p-3 rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] max-h-20 overflow-hidden">${escapeHtml(preview)}${(doc.extracted_text || '').length > 150 ? '...' : ''}</div>` : ''}
+                        </div>
+                        <div class="flex flex-col items-end gap-2 ml-3">
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="editLocalDocument(${doc.id})"
+                                        class="p-1.5 rounded-lg hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] text-[#495057] dark:text-[#ADB5BD] hover:text-[#F9AB00] transition-all duration-200"
+                                        title="Edit Document">✏️</button>
+                                <button onclick="deleteLocalDocument(${doc.id}, '${escapeHtml(doc.file_name || 'Untitled').replace(/'/g, "\\'")}')"
+                                        class="p-1.5 rounded-lg hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] text-[#495057] dark:text-[#ADB5BD] hover:text-[#D93025] transition-all duration-200"
+                                        title="Delete Document">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str == null ? '' : String(str);
+        return div.innerHTML;
+    }
+
+    async function deleteLocalDocument(id, name) {
+        if (!confirm(`🗑️ Delete "${name}" from this device?\n\nThis action cannot be undone.`)) return;
+        try {
+            await window.offlineStorage.deleteDocument(id);
+            showToast(`✅ "${name}" deleted from this device.`, 'success');
+            await renderLocalDocuments();
+            await loadOfflineDocCount();
+        } catch (error) {
+            showToast('❌ Failed to delete: ' + error.message, 'error');
+        }
+    }
+
+    // ============================================================
+    // INLINE EDITOR FOR LOCAL (OFFLINE) DOCUMENTS
+    // Local documents have no server pk, so they're edited in a
+    // lightweight modal here rather than navigating to the Django
+    // edit_document view — everything reads/writes IndexedDB directly
+    // via offlineProcessor.updateFields().
+    // ============================================================
+    async function editLocalDocument(id) {
+        if (!window.offlineStorage) return;
+        const doc = await window.offlineStorage.getDocument(id);
+        if (!doc) {
+            showToast('❌ Document not found on this device.', 'error');
+            return;
+        }
+
+        const fields = (doc.extracted_data && doc.extracted_data.page_1) || {};
+        const rowsHtml = Object.keys(fields).map((key) => `
+            <div class="local-field-row flex gap-3 items-center mb-3">
+                <input class="local-field-key flex-1 p-2.5 rounded-lg border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] text-[#212529] dark:text-[#E0E0E0]" value="${escapeHtml(key)}" placeholder="Field Name">
+                <input class="local-field-value flex-1 p-2.5 rounded-lg border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] text-[#212529] dark:text-[#E0E0E0]" value="${escapeHtml(fields[key])}" placeholder="Field Value">
+                <button type="button" onclick="this.parentElement.remove()" class="px-3 py-2 bg-[#D93025] text-white rounded-lg">🗑</button>
+            </div>
+        `).join('');
+
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto">
+                <h3 class="text-[18px] font-bold text-[#121416] dark:text-[#F8F9FA] mb-4">✏️ Edit "${escapeHtml(doc.file_name || 'Document')}"</h3>
+                <div id="localFieldsContainer">${rowsHtml}</div>
+                <button type="button" onclick="addLocalFieldRow()" class="w-full py-2.5 bg-[#0F9D58] text-white rounded-xl font-semibold mb-4">➕ Add Field</button>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="this.closest('.fixed').remove()" class="px-5 py-2.5 bg-[#6C757D] text-white rounded-xl">Cancel</button>
+                    <button type="button" onclick="saveLocalDocument(${id})" class="px-5 py-2.5 bg-[#1A73E8] text-white rounded-xl font-semibold">💾 Save</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    function addLocalFieldRow() {
+        const container = document.getElementById('localFieldsContainer');
+        const row = document.createElement('div');
+        row.className = 'local-field-row flex gap-3 items-center mb-3';
+        row.innerHTML = `
+            <input class="local-field-key flex-1 p-2.5 rounded-lg border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] text-[#212529] dark:text-[#E0E0E0]" placeholder="Field Name">
+            <input class="local-field-value flex-1 p-2.5 rounded-lg border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] text-[#212529] dark:text-[#E0E0E0]" placeholder="Field Value">
+            <button type="button" onclick="this.parentElement.remove()" class="px-3 py-2 bg-[#D93025] text-white rounded-lg">🗑</button>
+        `;
+        container.appendChild(row);
+    }
+
+    async function saveLocalDocument(id) {
+        const rows = document.querySelectorAll('.local-field-row');
+        const updated = {};
+        rows.forEach((row) => {
+            const key = row.querySelector('.local-field-key').value.trim();
+            const value = row.querySelector('.local-field-value').value;
+            if (key) updated[key] = value;
+        });
+
+        try {
+            if (window.offlineProcessor) {
+                await window.offlineProcessor.updateFields(id, updated);
+            } else {
+                // Fallback: write directly via offlineStorage if the full
+                // processor module isn't loaded on this page.
+                const doc = await window.offlineStorage.getDocument(id);
+                doc.extracted_data = Object.assign({}, doc.extracted_data, { page_1: updated });
+                doc.synced = false;
+                await window.offlineStorage.updateDocument(id, doc);
+                await window.offlineStorage.addPendingOperation('sync_document', { localId: id });
+            }
+            document.querySelector('.fixed.inset-0.bg-black\\/50')?.remove();
+            showToast('✅ Saved on this device.', 'success');
+            await renderLocalDocuments();
+        } catch (error) {
+            showToast('❌ Failed to save: ' + error.message, 'error');
+        }
+    }
+
+    // ============================================================
+    // CLEAR ALL LOCAL DATA
+    // ============================================================
+    async function clearAllLocalData() {
+        if (confirm('⚠️ Are you sure you want to delete ALL locally stored documents?\n\nThis action cannot be undone.')) {
+            try {
+                if (window.offlineStorage) {
+                    await window.offlineStorage.clearAllDocuments();
+                    loadOfflineDocCount();
+                    showToast('✅ All local documents cleared successfully.', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                }
+            } catch (error) {
+                showToast('❌ Failed to clear data: ' + error.message, 'error');
+            }
+        }
+    }
+
+    // ============================================================
+    // SYNC ALL DOCUMENTS
+    // ============================================================
+    async function syncAllDocuments() {
+        if (!navigator.onLine) {
+            showToast('⚠️ Cannot sync while offline. Please connect to the internet.', 'warning');
+            return;
+        }
+
+        const syncBtn = document.getElementById('syncBtn');
+        syncBtn.disabled = true;
+        syncBtn.innerHTML = '⏳ Syncing...';
+        syncBtn.style.opacity = '0.7';
+
+        try {
+            if (window.offlineStorage) {
+                const pending = await window.offlineStorage.getPendingOperations();
+                if (pending.length === 0) {
+                    showToast('✅ All documents are already in sync.', 'success');
+                } else {
+                    showToast(`🔄 Syncing ${pending.length} documents...`, 'info');
+                    if (window.pwa) {
+                        await window.pwa.syncPendingOperations();
+                    }
+                    showToast('✅ Sync completed successfully!', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                }
+            }
+        } catch (error) {
+            showToast('❌ Sync failed: ' + error.message, 'error');
+        } finally {
+            syncBtn.disabled = false;
+            syncBtn.innerHTML = '🔄 Sync';
+            syncBtn.style.opacity = '1';
+        }
+    }
+
+    // ============================================================
+    // DELETE DOCUMENT
+    // ============================================================
+    async function deleteDocument(docId, docName) {
+        if (confirm(`🗑️ Are you sure you want to delete "${docName}"?\n\nThis action cannot be undone.`)) {
+            try {
+                if (window.offlineStorage) {
+                    await window.offlineStorage.deleteDocument(docId);
+                    showToast(`✅ "${docName}" deleted successfully.`, 'success');
+                    const card = document.querySelector(`[data-doc-id="${docId}"]`);
+                    if (card) {
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.95)';
+                        setTimeout(() => {
+                            card.remove();
+                            loadOfflineDocCount();
+                            updateResultCount();
+                        }, 300);
+                    }
+                }
+            } catch (error) {
+                showToast('❌ Failed to delete: ' + error.message, 'error');
+            }
+        }
+    }
+
+    // ============================================================
+    // UPDATE RESULT COUNT
+    // ============================================================
+    function updateResultCount() {
+        const remaining = document.querySelectorAll('#documentList .bg-white, #documentList .dark\\:bg-\\[\\#1A1A1A\\]').length;
+        const countEl = document.getElementById('resultCount');
+        if (countEl) {
+            countEl.textContent = remaining;
+        }
+        if (remaining === 0) {
+            location.reload();
+        }
+    }
+
+    // ============================================================
+    // CLEAR ALL FILTERS
+    // ============================================================
+    function clearAllFilters() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('search');
+        url.searchParams.delete('doc_type');
+        url.searchParams.delete('status');
+        url.searchParams.delete('page');
+        window.location.href = url.toString();
+    }
+
+    // ============================================================
+    // TOAST NOTIFICATION
+    // ============================================================
+    function showToast(message, type = 'info') {
+        const colors = {
+            success: 'bg-[#0F9D58]',
+            error: 'bg-[#D93025]',
+            warning: 'bg-[#F9AB00]',
+            info: 'bg-[#1A73E8]'
+        };
+
+        const toast = document.createElement('div');
+        toast.className =
+            `fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-xl text-white font-medium shadow-lg ${colors[type] || colors.info} transition-all duration-300 opacity-0 translate-y-4 text-[14px]`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(4px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // ============================================================
+    // LOAD ON PAGE LOAD
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', () => {
+        loadOfflineDocCount();
+        renderLocalDocuments();
+        console.log('📚 Document Library initialized');
+        console.log('📡 Online status:', navigator.onLine ? 'Online' : 'Offline');
+    });
+
+    // Re-render local documents after a background sync completes so
+    // "not yet synced" badges flip to "synced" without a full reload.
+    window.addEventListener('online', () => {
+        setTimeout(() => {
+            renderLocalDocuments();
+            loadOfflineDocCount();
+        }, 2000);
+    });
+</script>
+
+{% endblock %}

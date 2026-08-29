@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<main class="max-w-lg mx-auto px-4 py-12">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8 border border-gray-200 dark:border-gray-700 text-center">
+        <div class="text-6xl mb-4">⚠️</div>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Confirm Deletion</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">
+            Are you sure you want to delete <strong class="text-gray-800 dark:text-white">{{ document.file.name|default:"this document" }}</strong>?
+            <br>This action cannot be undone.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit"
+                        class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl shadow-md transition transform hover:scale-105 active:scale-95 w-full sm:w-auto">
+                    🗑️ Yes, Delete
+                </button>
+            </form>
+            <a href="{% url 'core:document_detail' document.pk %}"
+               class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-xl shadow-md transition transform hover:scale-105 active:scale-95 text-center w-full sm:w-auto">
+                Cancel
+            </a>
+        </div>
+    </div>
+</main>
+{% endblock %}

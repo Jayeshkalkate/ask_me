@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<main class="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 py-8 bg-[#F8F9FA] dark:bg-[#121212] transition-colors duration-300">
+    <div class="w-full max-w-2xl">
+        <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-lg p-6 md:p-8 border border-[#E9ECEF] dark:border-[#2A2A2A] transition-colors duration-300">
+            
+            <!-- ============================================================ -->
+            <!-- HEADER -->
+            <!-- ============================================================ -->
+            <h2 class="text-[24px] md:text-[28px] font-bold text-center text-[#121416] dark:text-[#F8F9FA] mb-6 transition-colors duration-300">
+                👋 Welcome, <span class="text-[#1A73E8] dark:text-[#1A73E8]">{{ request.user.username }}</span>
+            </h2>
+
+            <!-- ============================================================ -->
+            <!-- PROFILE INFORMATION -->
+            <!-- ============================================================ -->
+            <div class="space-y-3">
+
+                <!-- Full Name -->
+                <div class="p-3 bg-[#F8F9FA] dark:bg-[#121212] rounded-xl border-l-4 border-[#1A73E8] hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] transition-all duration-200">
+                    <span class="font-semibold text-[15px] text-[#121416] dark:text-[#F8F9FA] inline-block w-32">Full Name:</span>
+                    <span class="text-[15px] text-[#212529] dark:text-[#E0E0E0]">{{ request.user.get_full_name|default:"Not provided" }}</span>
+                </div>
+
+                <!-- Username -->
+                <div class="p-3 bg-[#F8F9FA] dark:bg-[#121212] rounded-xl border-l-4 border-[#1A73E8] hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] transition-all duration-200">
+                    <span class="font-semibold text-[15px] text-[#121416] dark:text-[#F8F9FA] inline-block w-32">Username:</span>
+                    <span class="text-[15px] text-[#212529] dark:text-[#E0E0E0]">{{ request.user.username }}</span>
+                </div>
+
+                <!-- Email -->
+                <div class="p-3 bg-[#F8F9FA] dark:bg-[#121212] rounded-xl border-l-4 border-[#1A73E8] hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] transition-all duration-200">
+                    <span class="font-semibold text-[15px] text-[#121416] dark:text-[#F8F9FA] inline-block w-32">Email:</span>
+                    <span class="text-[15px] text-[#212529] dark:text-[#E0E0E0]">{{ request.user.email }}</span>
+                </div>
+
+                <!-- Profile Fields -->
+                {% if request.user.profile %}
+                <!-- Phone -->
+                <div class="p-3 bg-[#F8F9FA] dark:bg-[#121212] rounded-xl border-l-4 border-[#0F9D58] hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] transition-all duration-200">
+                    <span class="font-semibold text-[15px] text-[#121416] dark:text-[#F8F9FA] inline-block w-32">📱 Phone:</span>
+                    <span class="text-[15px] text-[#212529] dark:text-[#E0E0E0]">{{ request.user.profile.phone_number|default:"Not provided" }}</span>
+                </div>
+
+                <!-- Address -->
+                <div class="p-3 bg-[#F8F9FA] dark:bg-[#121212] rounded-xl border-l-4 border-[#0F9D58] hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] transition-all duration-200">
+                    <span class="font-semibold text-[15px] text-[#121416] dark:text-[#F8F9FA] inline-block w-32">📍 Address:</span>
+                    <span class="text-[15px] text-[#212529] dark:text-[#E0E0E0]">{{ request.user.profile.address|default:"Not provided" }}</span>
+                </div>
+
+                <!-- City -->
+                <div class="p-3 bg-[#F8F9FA] dark:bg-[#121212] rounded-xl border-l-4 border-[#0F9D58] hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] transition-all duration-200">
+                    <span class="font-semibold text-[15px] text-[#121416] dark:text-[#F8F9FA] inline-block w-32">🏙️ City:</span>
+                    <span class="text-[15px] text-[#212529] dark:text-[#E0E0E0]">{{ request.user.profile.city|default:"Not provided" }}</span>
+                </div>
+
+                {% else %}
+                <!-- No Profile Message -->
+                <div class="p-4 bg-[#F9AB00]/10 dark:bg-[#F9AB00]/20 rounded-xl border border-[#F9AB00] dark:border-[#F9AB00]/30 text-center">
+                    <p class="text-[15px] text-[#F9AB00]">
+                        ⚠️ No profile information available. Please update your profile.
+                    </p>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- ADMIN LINK (Superuser Only) -->
+            <!-- ============================================================ -->
+            {% if user.is_authenticated and user.is_superuser %}
+            <div class="text-center mt-6">
+                <a href="{% url 'account:admin_user_list' %}" 
+                   class="text-[15px] text-[#1A73E8] dark:text-[#1A73E8] font-semibold hover:underline transition-colors duration-200 inline-flex items-center gap-2">
+                    👥 View All Users
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- ============================================================ -->
+            <!-- LOGOUT BUTTON -->
+            <!-- ============================================================ -->
+            <form action="{% url 'account:logout' %}" method="post" class="mt-8 text-center">
+                {% csrf_token %}
+                <button type="submit" 
+                        class="px-8 py-3 bg-[#D93025] hover:bg-[#C62828] text-white font-semibold rounded-xl shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 text-[15px]">
+                    🚪 Logout
+                </button>
+            </form>
+
+            <!-- ============================================================ -->
+            <!-- ACCOUNT INFO FOOTER -->
+            <!-- ============================================================ -->
+            <div class="mt-6 pt-4 border-t border-[#E9ECEF] dark:border-[#2A2A2A] text-center transition-colors duration-300">
+                <p class="text-[13px] text-[#6C757D] dark:text-[#6C757D]">
+                    Member since {{ request.user.date_joined|date:"F Y" }}
+                </p>
+                <p class="text-[12px] text-[#6C757D] dark:text-[#6C757D] mt-1">
+                    Last login: {{ request.user.last_login|date:"M d, Y H:i"|default:"N/A" }}
+                </p>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT -->
+<!-- ============================================================ -->
+<script>
+    (function() {
+        "use strict";
+
+        console.log("👤 User profile page initialized");
+        console.log("👋 Welcome, {{ request.user.username }}");
+
+        // Add a subtle animation to profile items on load
+        document.addEventListener("DOMContentLoaded", function() {
+            const items = document.querySelectorAll('.border-l-4');
+            items.forEach((item, index) => {
+                item.style.opacity = '0';
+                item.style.transform = 'translateX(-10px)';
+                setTimeout(() => {
+                    item.style.transition = 'all 300ms ease-out';
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateX(0)';
+                }, 100 + (index * 50));
+            });
+        });
+
+        // Logout confirmation
+        document.querySelector('form[action*="logout"]')?.addEventListener('submit', function(e) {
+            if (!confirm('Are you sure you want to logout?')) {
+                e.preventDefault();
+            }
+        });
+
+    })();
+</script>
+
+{% endblock %}

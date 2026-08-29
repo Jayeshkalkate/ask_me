@@ -1,0 +1,21 @@
+{% extends "base.html" %} {% load static %} {% block content %}
+
+<main class="min-h-[60vh] flex items-center justify-center px-4">
+  <div class="text-center max-w-lg">
+    <div class="text-6xl mb-6">❌</div>
+    <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+      No fields detected in this document.
+    </h3>
+    <p class="text-gray-600 dark:text-gray-400 mb-8">
+      Please upload a clear and supported document.
+    </p>
+    <a
+      href="{% url 'core:upload' %}"
+      class="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition transform hover:scale-105"
+    >
+      Upload Another Document
+    </a>
+  </div>
+</main>
+
+{% endblock %}

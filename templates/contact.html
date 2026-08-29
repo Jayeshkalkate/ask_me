@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<!-- ============================================================ -->
+<!-- HERO SECTION -->
+<!-- ============================================================ -->
+<section class="py-20 bg-gradient-to-r from-[#1A73E8] via-[#1557B0] to-[#0D47A1] text-white">
+    <div class="container mx-auto px-4">
+        <div class="max-w-3xl">
+            <h1 class="text-[36px] md:text-[44px] font-bold mb-4 tracking-tight">
+                Contact Ask Me
+            </h1>
+            <p class="text-[18px] md:text-[22px] opacity-95 leading-relaxed">
+                Need help, have a question, or want to share feedback? Our support team
+                is here for you. Whether it's technical issues, guidance, or suggestions
+                — we're always happy to help. Send us a message and we'll respond as
+                soon as possible.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- CONTACT INFO CARDS -->
+<!-- ============================================================ -->
+<section class="py-12 bg-white dark:bg-[#121212] transition-colors duration-300">
+    <div class="container mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Location -->
+            <div class="bg-[#F8F9FA] dark:bg-[#1A1A1A] rounded-2xl p-6 text-center shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-[#E9ECEF] dark:border-[#2A2A2A]">
+                <div class="text-5xl mb-3">📍</div>
+                <h6 class="text-[12px] uppercase tracking-wider font-semibold text-[#6C757D] dark:text-[#6C757D] mb-1 transition-colors duration-300">
+                    Location
+                </h6>
+                <p class="text-[15px] text-[#212529] dark:text-[#E0E0E0] transition-colors duration-300">India</p>
+            </div>
+
+            <!-- Phone -->
+            <div class="bg-[#F8F9FA] dark:bg-[#1A1A1A] rounded-2xl p-6 text-center shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-[#E9ECEF] dark:border-[#2A2A2A]">
+                <div class="text-5xl mb-3">📞</div>
+                <h6 class="text-[12px] uppercase tracking-wider font-semibold text-[#6C757D] dark:text-[#6C757D] mb-1 transition-colors duration-300">
+                    Phone
+                </h6>
+                <p class="text-[15px] text-[#212529] dark:text-[#E0E0E0] transition-colors duration-300">+91 84829 98343</p>
+            </div>
+
+            <!-- Email -->
+            <div class="bg-[#F8F9FA] dark:bg-[#1A1A1A] rounded-2xl p-6 text-center shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-[#E9ECEF] dark:border-[#2A2A2A]">
+                <div class="text-5xl mb-3">📧</div>
+                <h6 class="text-[12px] uppercase tracking-wider font-semibold text-[#6C757D] dark:text-[#6C757D] mb-1 transition-colors duration-300">
+                    Email
+                </h6>
+                <p class="text-[15px] text-[#212529] dark:text-[#E0E0E0] transition-colors duration-300">
+                    jayeshkalkate432@gmail.com
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- CONTACT FORM -->
+<!-- ============================================================ -->
+<section class="py-16 bg-[#F8F9FA] dark:bg-[#1A1A1A] transition-colors duration-300">
+    <div class="container mx-auto px-4 max-w-2xl">
+        <div class="bg-white dark:bg-[#121212] rounded-2xl shadow-lg p-6 md:p-8 border border-[#E9ECEF] dark:border-[#2A2A2A] transition-colors duration-300">
+            <h2 class="text-[28px] font-bold text-center text-[#121416] dark:text-[#F8F9FA] mb-6 transition-colors duration-300">
+                Send Us a Message
+            </h2>
+
+            <!-- Django messages -->
+            {% if messages %}
+                {% for message in messages %}
+                <div class="mb-4 p-4 rounded-lg text-[14px] leading-[1.5] {% if message.tags == 'success' %}bg-[#0F9D58] text-white{% else %}bg-[#D93025] text-white{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                            First Name
+                        </label>
+                        <input type="text"
+                               name="first_name"
+                               required
+                               class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                    </div>
+                    <div>
+                        <label class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                            Last Name
+                        </label>
+                        <input type="text"
+                               name="last_name"
+                               required
+                               class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        Email Address
+                    </label>
+                    <input type="email"
+                           name="email"
+                           required
+                           class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                </div>
+
+                <div>
+                    <label class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        Message
+                    </label>
+                    <textarea name="message"
+                              rows="5"
+                              required
+                              class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px] resize-y"></textarea>
+                </div>
+
+                <div class="text-center pt-2">
+                    <button type="submit"
+                            class="px-8 py-3 bg-[#1A73E8] hover:bg-[#1557B0] text-white font-semibold rounded-full shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95 text-[15px]">
+                        Send Message
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

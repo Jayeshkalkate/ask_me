@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<main class="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 py-8 bg-[#F8F9FA] dark:bg-[#121212] transition-colors duration-300">
+    <div class="w-full max-w-lg">
+        <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-lg p-6 md:p-8 border border-[#E9ECEF] dark:border-[#2A2A2A] transition-colors duration-300">
+            
+            <h2 class="text-[24px] font-bold text-center text-[#121416] dark:text-[#F8F9FA] mb-6 transition-colors duration-300">
+                📝 Register for ASK_ME
+            </h2>
+
+            <!-- Django messages -->
+            {% if messages %}
+            <div class="mb-4 space-y-2">
+                {% for message in messages %}
+                <div class="p-3 rounded-xl text-[14px] leading-[1.5] 
+                    {% if message.tags == 'error' %}bg-[#D93025] text-white{% else %}bg-[#F9AB00] text-white{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Frontend validation error -->
+            <div id="frontend-error" class="mb-4 p-3 rounded-xl text-[14px] leading-[1.5] bg-[#D93025] text-white hidden"></div>
+
+            <form method="post" id="register-form" class="space-y-4">
+
+                {% csrf_token %}
+
+                <!-- Full Name -->
+                <div>
+                    <label for="full_name" class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        <i class="fas fa-user mr-2"></i>Full Name
+                    </label>
+                    <input type="text"
+                           id="full_name"
+                           name="full_name"
+                           required
+                           autofocus
+                           class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <label for="email" class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        <i class="fas fa-envelope mr-2"></i>Email
+                    </label>
+                    <input type="email"
+                           id="email"
+                           name="email"
+                           required
+                           class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                </div>
+
+                <!-- Phone -->
+                <div>
+                    <label for="phone_number" class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        <i class="fas fa-phone mr-2"></i>Phone (10 digits)
+                    </label>
+                    <input type="tel"
+                           id="phone_number"
+                           name="phone_number"
+                           required
+                           pattern="[0-9]{10}"
+                           class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                </div>
+
+                <!-- Address -->
+                <div>
+                    <label for="address" class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        <i class="fas fa-home mr-2"></i>Address
+                    </label>
+                    <textarea id="address"
+                              name="address"
+                              rows="2"
+                              required
+                              class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px] resize-y"></textarea>
+                </div>
+
+                <!-- City -->
+                <div>
+                    <label for="city" class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        <i class="fas fa-city mr-2"></i>City
+                    </label>
+                    <input type="text"
+                           id="city"
+                           name="city"
+                           required
+                           class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                </div>
+
+                <!-- Username -->
+                <div>
+                    <label for="username" class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        <i class="fas fa-user-circle mr-2"></i>Username
+                    </label>
+                    <input type="text"
+                           id="username"
+                           name="username"
+                           required
+                           class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                </div>
+
+                <!-- Password -->
+                <div>
+                    <label for="password" class="block text-[14px] font-medium text-[#212529] dark:text-[#E0E0E0] mb-1.5 transition-colors duration-300">
+                        <i class="fas fa-lock mr-2"></i>Password
+                    </label>
+                    <input type="password"
+                           id="password"
+                           name="password"
+                           required
+                           class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]" />
+                </div>
+
+                <!-- Show password toggle -->
+                <div class="flex items-center gap-2 text-[14px] text-[#495057] dark:text-[#ADB5BD] transition-colors duration-300">
+                    <input type="checkbox"
+                           id="toggle-password"
+                           class="rounded border-[#E9ECEF] dark:border-[#2A2A2A] accent-[#1A73E8] w-4 h-4" />
+                    <label for="toggle-password" class="cursor-pointer select-none">Show Password</label>
+                </div>
+
+                <!-- Submit button with spinner -->
+                <button type="submit"
+                        id="register-button"
+                        class="w-full py-3 bg-[#1A73E8] hover:bg-[#1557B0] text-white font-semibold rounded-xl shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-[15px]">
+                    <span>✅ Register</span>
+                    <span id="spinner" class="spinner hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                </button>
+
+            </form>
+
+            <!-- Login link -->
+            <div class="mt-6 text-center text-[14px] text-[#495057] dark:text-[#ADB5BD] transition-colors duration-300">
+                Already have an account?
+                <a href="{% url 'account:login' %}" class="text-[#1A73E8] dark:text-[#1A73E8] font-semibold hover:underline transition-colors duration-200">
+                    🚪 Login
+                </a>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT -->
+<!-- ============================================================ -->
+<script>
+    (function() {
+        "use strict";
+
+        const form = document.getElementById("register-form");
+        const button = document.getElementById("register-button");
+        const spinner = document.getElementById("spinner");
+        const password = document.getElementById("password");
+        const togglePassword = document.getElementById("toggle-password");
+        const errorDiv = document.getElementById("frontend-error");
+
+        // Toggle password visibility
+        togglePassword.addEventListener("change", function() {
+            password.type = this.checked ? "text" : "password";
+        });
+
+        // Form validation
+        form.addEventListener("submit", function(e) {
+            const requiredFields = [
+                "full_name",
+                "email",
+                "phone_number",
+                "address",
+                "city",
+                "username",
+                "password"
+            ];
+            let hasError = false;
+            let firstEmptyField = null;
+
+            errorDiv.classList.add("hidden");
+            errorDiv.textContent = "";
+
+            requiredFields.forEach((id) => {
+                const field = document.getElementById(id);
+                if (!field.value.trim()) {
+                    hasError = true;
+                    if (!firstEmptyField) firstEmptyField = field;
+                }
+            });
+
+            if (hasError) {
+                e.preventDefault();
+                errorDiv.textContent = "Please fill in all the required fields.";
+                errorDiv.classList.remove("hidden");
+                if (firstEmptyField) {
+                    firstEmptyField.focus();
+                    firstEmptyField.classList.add("border-[#D93025]");
+                    setTimeout(() => {
+                        firstEmptyField.classList.remove("border-[#D93025]");
+                    }, 2000);
+                }
+                return;
+            }
+
+            button.disabled = true;
+            spinner.classList.remove("hidden");
+            button.querySelector("span:first-child").textContent = "Registering...";
+        });
+
+        // Real-time validation feedback
+        document.querySelectorAll("#register-form input, #register-form textarea").forEach((field) => {
+            field.addEventListener("blur", function() {
+                if (this.hasAttribute("required") && !this.value.trim()) {
+                    this.classList.add("border-[#D93025]");
+                    this.classList.remove("border-[#E9ECEF]", "dark:border-[#2A2A2A]");
+                } else {
+                    this.classList.remove("border-[#D93025]");
+                    this.classList.add("border-[#E9ECEF]", "dark:border-[#2A2A2A]");
+                }
+            });
+
+            field.addEventListener("focus", function() {
+                this.classList.remove("border-[#D93025]");
+            });
+        });
+
+        // Reset button state on page load
+        window.addEventListener("pageshow", function() {
+            button.disabled = false;
+            spinner.classList.add("hidden");
+            button.querySelector("span:first-child").textContent = "✅ Register";
+        });
+
+        console.log("📝 Register page initialized");
+
+    })();
+</script>
+
+{% endblock %}

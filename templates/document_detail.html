@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<main class="w-full max-w-6xl mx-auto py-8 px-4">
+    <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-lg p-6 transition-colors duration-300">
+
+        <!-- ============================================================ -->
+        <!-- HEADER -->
+        <!-- ============================================================ -->
+        <div class="mb-6 text-center">
+            <h1 class="text-[20px] font-bold text-[#121416] dark:text-[#F8F9FA] mb-2 transition-colors duration-300">
+                📄 Document Details
+            </h1>
+
+            <div class="inline-block px-4 py-2 rounded-xl text-[14px] font-medium transition-colors duration-300 
+                {% if has_user_edits|default:False %} 
+                    bg-[#0F9D58] text-white
+                {% else %} 
+                    bg-[#1A73E8] text-white
+                {% endif %}">
+                {% if has_user_edits|default:False %} ✏️ Displaying Your Edited Data
+                {% else %} 📄 Displaying Originally Extracted Data {% endif %}
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- META INFO -->
+        <!-- ============================================================ -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-[#F8F9FA] dark:bg-[#121212] rounded-xl text-[14px] leading-[1.5] transition-colors duration-300">
+            <div>
+                <p class="text-[#212529] dark:text-[#E0E0E0]">
+                    <strong class="text-[#121416] dark:text-[#F8F9FA]">📁 Document Type:</strong> {{ document.get_doc_type_display }}
+                </p>
+                <p class="text-[#212529] dark:text-[#E0E0E0]">
+                    <strong class="text-[#121416] dark:text-[#F8F9FA]">👤 Uploaded By:</strong> {{ document.user.username }}
+                </p>
+                <p class="text-[#212529] dark:text-[#E0E0E0]">
+                    <strong class="text-[#121416] dark:text-[#F8F9FA]">📅 Uploaded:</strong> {{ document.created_at|date:"M d, Y H:i" }}
+                </p>
+            </div>
+            <div>
+                {% if document.quality_score %}
+                <p class="text-[#212529] dark:text-[#E0E0E0]">
+                    <strong class="text-[#121416] dark:text-[#F8F9FA]">⭐ Quality Score:</strong> {{ document.quality_score|floatformat:2 }}/1.0
+                </p>
+                {% endif %}
+                <p class="text-[#212529] dark:text-[#E0E0E0]">
+                    <strong class="text-[#121416] dark:text-[#F8F9FA]">🔄 Status:</strong>
+                    {% if has_user_edits|default:False %}
+                        <span class="text-[#0F9D58] font-medium">Edited by User</span>
+                    {% else %}
+                        <span class="text-[#1A73E8] font-medium">Original Extraction</span>
+                    {% endif %}
+                </p>
+                {% if document.processed %}
+                <p class="text-[#212529] dark:text-[#E0E0E0]">
+                    <strong class="text-[#121416] dark:text-[#F8F9FA]">✅ Processed:</strong> {{ document.processed_at|date:"M d, Y H:i"|default:"Yes" }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- DOCUMENT FIELDS -->
+        <!-- ============================================================ -->
+        {% if pages_data %}
+        <div class="mb-6">
+            <h3 class="text-[18px] font-bold mb-4 flex items-center gap-2 text-[#121416] dark:text-[#F8F9FA] transition-colors duration-300">
+                🗂️ Document Fields
+                {% if has_user_edits|default:False %}
+                <span class="text-[12px] bg-[#0F9D58] text-white px-2 py-1 rounded font-medium">User Edited</span>
+                {% endif %}
+            </h3>
+
+            {% for page in pages_data %}
+            <div class="mb-6 border border-[#E9ECEF] dark:border-[#2A2A2A] rounded-xl p-4 bg-white dark:bg-[#1A1A1A] transition-colors duration-300">
+                <h4 class="text-[18px] font-bold text-[#1A73E8] dark:text-[#1A73E8] mb-3">
+                    {{ page.page_key|title }}
+                </h4>
+
+                <!-- Warnings -->
+                {% if page.metadata.warnings %}
+                <div class="mb-3 p-3 rounded-lg bg-[#F9AB00] text-white text-[14px] leading-[1.5]">
+                    <strong>⚠️ Quality Warnings:</strong>
+                    <ul class="list-disc list-inside mt-1">
+                        {% for warning in page.metadata.warnings %}
+                        <li class="text-[13px]">{{ warning }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Fields -->
+                {% if page.fields %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {% for field in page.fields %}
+                    <div class="flex justify-between items-start p-3 rounded-lg bg-[#F8F9FA] dark:bg-[#121212] border border-[#E9ECEF] dark:border-[#2A2A2A] hover:shadow-sm transition-all duration-200">
+                        <span class="font-semibold text-[14px] text-[#212529] dark:text-[#E0E0E0]">{{ field.0|title }}:</span>
+                        <span class="text-[14px] text-[#121416] dark:text-[#F8F9FA] text-right font-medium break-all">{{ field.1 }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-[14px] text-[#6C757D] dark:text-[#6C757D] italic">
+                    No fields extracted for this page.
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Raw Text Toggle -->
+        {% if document.extracted_text %}
+        <div class="mt-4 border-t border-[#E9ECEF] dark:border-[#2A2A2A] pt-4 transition-colors duration-300">
+            <button onclick="toggleRawText()" 
+                    class="text-[14px] text-[#1A73E8] dark:text-[#1A73E8] hover:underline focus:outline-none font-medium">
+                📄 Show / Hide Raw Extracted Text
+            </button>
+            <div id="rawTextContainer" 
+                 class="hidden mt-2 p-4 bg-[#F8F9FA] dark:bg-[#121212] rounded-lg overflow-auto max-h-60 text-[12px] font-mono text-[#212529] dark:text-[#E0E0E0] whitespace-pre-wrap transition-colors duration-300">
+                {{ document.extracted_text|default:"No raw text available." }}
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <!-- No Data -->
+        <div class="text-center py-12">
+            <div class="text-5xl mb-4">📭</div>
+            <p class="text-[15px] text-[#6C757D] dark:text-[#6C757D]">No data extracted from this document.</p>
+            {% if document.error_message %}
+            <p class="text-[14px] text-[#D93025] mt-2">Error: {{ document.error_message }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ============================================================ -->
+        <!-- ACTION BUTTONS -->
+        <!-- ============================================================ -->
+        <div class="flex flex-col md:flex-row gap-4 justify-center mt-8 pt-6 border-t border-[#E9ECEF] dark:border-[#2A2A2A] transition-colors duration-300">
+            <a href="{% url 'core:edit_document' document.pk %}" 
+               class="flex-1 text-center px-6 py-3 bg-[#F9AB00] hover:bg-[#E09B00] text-white rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg active:scale-95">
+                ✏️ Edit Document Data
+            </a>
+
+            {% if can_reprocess|default:False and not has_user_edits|default:False %}
+            <a href="{% url 'core:reprocess_document' document.pk %}" 
+               class="flex-1 text-center px-6 py-3 bg-[#1A73E8] hover:bg-[#1557B0] text-white rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg active:scale-95">
+                🔄 Reprocess Document
+            </a>
+            {% endif %}
+
+            <form action="{% url 'core:delete_document' document.pk %}" method="post" class="flex-1">
+                {% csrf_token %}
+                <button type="submit" 
+                        onclick="return confirm('Are you sure you want to delete this document? This action cannot be undone.');"
+                        class="w-full px-6 py-3 bg-[#D93025] hover:bg-[#C62828] text-white rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg active:scale-95">
+                    🗑️ Delete Document
+                </button>
+            </form>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- BACK LINK -->
+        <!-- ============================================================ -->
+        <div class="text-center mt-6">
+            <a href="{% url 'core:document_library' %}" 
+               class="inline-flex items-center gap-2 px-5 py-2 bg-[#1A73E8] hover:bg-[#1557B0] text-white rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg active:scale-95">
+                ← Back to Document Library
+            </a>
+        </div>
+    </div>
+</main>
+
+<script>
+    function toggleRawText() {
+        const container = document.getElementById("rawTextContainer");
+        if (container) {
+            container.classList.toggle("hidden");
+        }
+    }
+</script>
+
+{% endblock %}
