@@ -29,16 +29,17 @@ def process_document_in_background(doc_id: int) -> None:
             doc.save(update_fields=["processed", "error_message", "extracted_data"])
             return
 
-        # Build raw OCR text from all pages
+        # Build raw OCR text from all pages – skip internal keys (starting with "_")
         ocr_parts = []
-        for page_data in ocr_result.values():
-            if isinstance(page_data, dict):
-                if "raw_text" in page_data:
-                    ocr_parts.append(page_data["raw_text"])
-                else:
-                    for field, value in page_data.items():
-                        if field not in INTERNAL_KEYS and value:
-                            ocr_parts.append(str(value))
+        for page_key, page_data in ocr_result.items():
+            if page_key.startswith("_") or not isinstance(page_data, dict):
+                continue
+            if "raw_text" in page_data:
+                ocr_parts.append(page_data["raw_text"])
+            else:
+                for field, value in page_data.items():
+                    if field not in INTERNAL_KEYS and value:
+                        ocr_parts.append(str(value))
         ocr_text = " ".join(ocr_parts).strip()
         doc.extracted_text = ocr_text
 

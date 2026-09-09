@@ -21,13 +21,12 @@ urlpatterns = [
     path(
         "documents/search/", views.search_document_field, name="search_document_field"
     ),
-    
+    path("documents/export/", views.export_documents, name="export_documents"),
+
     # Offline API endpoints
     path('api/offline/upload/', views_offline.offline_upload, name='offline_upload'),
     path('api/offline/documents/', views_offline.offline_documents_api, name='offline_documents_api'),
 
-    # ... existing patterns ...
-    path('api/chat/', views.chat_api, name='chat_api'),
     path('api/base64-upload/', views.handle_base64_upload, name='base64_upload'),
     path('api/document-quality/<int:pk>/', views.analyze_document_quality, name='document_quality'),
     path('system-status/', views.system_status, name='system_status'),

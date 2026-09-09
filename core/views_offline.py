@@ -17,8 +17,8 @@ from .ai_utils import extract_structured_data, detect_document_type, clean_ocr_t
 
 logger = logging.getLogger(__name__)
 
+# @csrf_exempt removed – CSRF protection is now enforced
 @login_required
-@csrf_exempt
 def offline_upload(request):
     """Handle document upload for offline mode"""
     if request.method != 'POST':
@@ -59,22 +59,25 @@ def offline_upload(request):
             
             if isinstance(ocr_result, dict):
                 for page_key, page_data in ocr_result.items():
-                    if isinstance(page_data, dict):
-                        # Get raw text
-                        if 'raw_text' in page_data:
-                            extracted_text += page_data['raw_text'] + " "
-                        
-                        # Clean data - remove internal keys
-                        cleaned_page = {}
-                        for key, value in page_data.items():
-                            if key not in ['_metadata', 'status', 'raw_text', 'structured_data'] and value:
-                                if isinstance(value, str):
-                                    cleaned_page[key] = value.strip()
-                                else:
-                                    cleaned_page[key] = value
-                        
-                        if cleaned_page:
-                            extracted_data[page_key] = cleaned_page
+                    # Skip internal keys (starting with "_") like "_summary"
+                    if page_key.startswith("_") or not isinstance(page_data, dict):
+                        continue
+                    
+                    # Get raw text
+                    if 'raw_text' in page_data:
+                        extracted_text += page_data['raw_text'] + " "
+                    
+                    # Clean data - remove internal keys
+                    cleaned_page = {}
+                    for key, value in page_data.items():
+                        if key not in ['_metadata', 'status', 'raw_text', 'structured_data'] and value:
+                            if isinstance(value, str):
+                                cleaned_page[key] = value.strip()
+                            else:
+                                cleaned_page[key] = value
+                    
+                    if cleaned_page:
+                        extracted_data[page_key] = cleaned_page
             
             # Clean extracted text
             extracted_text = clean_ocr_text(extracted_text)
@@ -121,8 +124,8 @@ def offline_upload(request):
         logger.error(f"Offline upload error: {e}")
         return JsonResponse({'error': str(e)}, status=500)
 
+# @csrf_exempt removed – CSRF protection now applies
 @login_required
-@csrf_exempt
 def offline_documents_api(request):
     """API endpoint for offline document management"""
     if request.method == 'GET':

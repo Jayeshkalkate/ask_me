@@ -4,9 +4,10 @@
 // that works with zero network connectivity, mirroring the shape of the
 // data the Django views (`views_offline.py`) already produce.
 //
-// Load order in your template:
+// IMPORTANT: Load order in your template:
 //   <script src="/static/js/vendor/tesseract.min.js"></script>
 //   <script src="/static/js/vendor/pdf.min.js"></script>   (optional, for PDFs)
+//   <script src="/static/js/csrf.js"></script>             <!-- Required for CSRF token -->
 //   <script src="/static/js/db.js"></script>
 //   <script src="/static/js/tesseract-ocr.js"></script>
 //   <script src="/static/js/extract-fields.js"></script>
@@ -16,6 +17,20 @@
     'use strict';
 
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB, matches offline_upload's server limit
+
+    /**
+     * Safely retrieve the CSRF token from:
+     * 1. The global `getCSRFToken()` function (provided by csrf.js)
+     * 2. The cookie directly (fallback)
+     */
+    function getCsrfToken() {
+        if (typeof global.getCSRFToken === 'function') {
+            return global.getCSRFToken();
+        }
+        // Fallback: read from cookie
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : '';
+    }
 
     class OfflineDocumentProcessor {
         constructor() {
@@ -42,6 +57,7 @@
          *
          * @param {File} file
          * @param {Object} options { docType, userId, onProgress }
+         * @returns {Promise<Object>} The saved document record.
          */
         async processFile(file, options) {
             options = options || {};
@@ -151,10 +167,22 @@
         /**
          * Push any pending offline documents to the server once back online.
          * Call this from pwa.js on the 'online' event.
+         *
+         * @param {string} uploadUrl - The endpoint URL (e.g., '/offline-upload/')
+         * @param {string} [csrfToken] - Optional; if not provided, it will be fetched
+         *                               via getCsrfToken() or from the cookie.
+         * @returns {Promise<Object>} { synced, failed }
          */
-        async syncPendingDocuments(uploadUrl) {
+        async syncPendingDocuments(uploadUrl, csrfToken) {
             await this._ensureReady();
             if (!navigator.onLine) return { synced: 0, failed: 0 };
+
+            // Ensure we have a CSRF token
+            const token = csrfToken || getCsrfToken();
+            const headers = {};
+            if (token) {
+                headers['X-CSRFToken'] = token;
+            }
 
             const ops = await this.storage.getPendingOperations();
             let synced = 0;
@@ -175,10 +203,10 @@
                     }
                     formData.append('doc_type', doc.doc_type);
 
-                    const csrfToken = global.getCsrfToken ? global.getCsrfToken() : '';
                     const response = await fetch(uploadUrl, {
                         method: 'POST',
-                        headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {},
+                        headers: headers,
+                        credentials: 'same-origin', // ensure cookies are sent
                         body: formData,
                     });
 
@@ -188,6 +216,7 @@
                         await this.storage.clearPendingOperation(op.id);
                         synced++;
                     } else {
+                        console.warn(`Sync failed for document ${doc.id} with status ${response.status}`);
                         failed++;
                     }
                 } catch (err) {
@@ -200,5 +229,6 @@
         }
     }
 
+    // Expose the processor instance globally
     global.offlineProcessor = new OfflineDocumentProcessor();
 })(window);

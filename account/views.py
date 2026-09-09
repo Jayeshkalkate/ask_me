@@ -18,14 +18,24 @@ def admin_user_list(request):
 
 @user_passes_test(lambda u: u.is_superuser)
 def delete_user(request, user_id):
+    """
+    Secure delete view – requires POST and prevents self‑deletion.
+    """
     user_to_delete = get_object_or_404(User, id=user_id)
+
     if user_to_delete == request.user:
         messages.error(request, 'You cannot delete your own account.')
         return redirect('account:admin_user_list')
-    logger.info(f'Deleting user: {user_to_delete.username} (ID: {user_to_delete.id})')
-    user_to_delete.delete()
-    messages.success(request, f'User {user_to_delete.username} deleted successfully.')
-    return redirect('account:admin_user_list')
+
+    if request.method == 'POST':
+        username = user_to_delete.username
+        user_to_delete.delete()
+        logger.info(f'User {username} (ID: {user_id}) deleted by superuser {request.user.username}.')
+        messages.success(request, f'User {username} deleted successfully.')
+        return redirect('account:admin_user_list')
+
+    # GET request – show confirmation page
+    return render(request, 'confirm_delete_user.html', {'user_to_delete': user_to_delete})
 
 
 def register(request):

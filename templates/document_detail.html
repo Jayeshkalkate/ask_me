@@ -76,9 +76,25 @@
 
             {% for page in pages_data %}
             <div class="mb-6 border border-[#E9ECEF] dark:border-[#2A2A2A] rounded-xl p-4 bg-white dark:bg-[#1A1A1A] transition-colors duration-300">
-                <h4 class="text-[18px] font-bold text-[#1A73E8] dark:text-[#1A73E8] mb-3">
-                    {{ page.page_key|title }}
+                <h4 class="text-[18px] font-bold text-[#1A73E8] dark:text-[#1A73E8] mb-3 flex items-center justify-between flex-wrap gap-2">
+                    <span>{{ page.page_key|title }}</span>
+                    {% if page.detection_confidence_pct %}
+                    <span class="text-[12px] font-medium px-3 py-1 rounded-full
+                        {% if page.detection_confidence_pct >= 75 %} bg-[#0F9D58] text-white
+                        {% elif page.detection_confidence_pct >= 40 %} bg-[#F9AB00] text-white
+                        {% else %} bg-[#D93025] text-white {% endif %}">
+                        {% if page.detection_confidence_pct >= 75 %}✅{% elif page.detection_confidence_pct >= 40 %}⚠️{% else %}❓{% endif %}
+                        {{ page.detection_confidence_pct }}% confident this is a {{ document.get_doc_type_display }}
+                    </span>
+                    {% endif %}
                 </h4>
+
+                {% if page.detection_confidence_pct and page.detection_confidence_pct < 75 %}
+                <div class="mb-3 p-3 rounded-lg bg-[#F8F9FA] dark:bg-[#121212] border border-[#E9ECEF] dark:border-[#2A2A2A] text-[13px] text-[#495057] dark:text-[#ADB5BD]">
+                    We're not fully sure this was classified correctly. If the document type looks wrong,
+                    <a href="{% url 'core:reprocess_document' document.pk %}" class="text-[#1A73E8] hover:underline font-medium">reprocess it with the correct type</a>.
+                </div>
+                {% endif %}
 
                 <!-- Warnings -->
                 {% if page.metadata.warnings %}

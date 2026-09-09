@@ -5,6 +5,8 @@ import threading
 import uuid
 import base64
 import os
+import zipfile
+import io
 from typing import Dict, List, Any, Optional
 
 # Celery is temporarily disabled - using threading fallback
@@ -19,6 +21,7 @@ from django.utils import timezone
 from django.db.models import Q, Count
 from django.core.paginator import Paginator
 from django.urls import reverse
+from django.http import HttpResponse
 
 from rapidfuzz import fuzz
 
@@ -28,6 +31,7 @@ from .utils import clean_extracted_data, get_structured_fields_from_text, INTERN
 from .models import Document, convert_numpy
 from .forms import DocumentEditForm
 from .ai_utils import detect_document_type, extract_structured_data, generic_extraction
+from . import ai_chat
 from .ocr_utils import (
     process_document_file_enhanced,
     batch_process_documents,
@@ -221,10 +225,13 @@ def document_detail(request, pk):
                 metadata = page_data.get("_metadata", {})
                 # Skip internal keys
                 fields = [(k, v) for k, v in page_data.items() if k not in INTERNAL_KEYS and not k.startswith("_")]
+                # Surface detection confidence as a 0-100 percentage for the template badge.
+                detection_confidence_pct = round(metadata.get("detection_confidence", 0) * 100)
                 pages_data.append({
                     "page_key": page_key,
                     "fields": fields,
                     "metadata": metadata,
+                    "detection_confidence_pct": detection_confidence_pct,
                 })
 
     has_user_edits = bool(document.user_edited_data)
@@ -305,16 +312,17 @@ def reprocess_document(request, pk):
             if "error" in ocr_result:
                 raise Exception(ocr_result["error"])
 
-            # Build OCR text
+            # Build OCR text – skip internal keys starting with "_"
             ocr_parts = []
-            for page_data in ocr_result.values():
-                if isinstance(page_data, dict):
-                    if "raw_text" in page_data:
-                        ocr_parts.append(page_data["raw_text"])
-                    else:
-                        for field, value in page_data.items():
-                            if field not in INTERNAL_KEYS and value:
-                                ocr_parts.append(str(value))
+            for page_key, page_data in ocr_result.items():
+                if page_key.startswith("_") or not isinstance(page_data, dict):
+                    continue
+                if "raw_text" in page_data:
+                    ocr_parts.append(page_data["raw_text"])
+                else:
+                    for field, value in page_data.items():
+                        if field not in INTERNAL_KEYS and value:
+                            ocr_parts.append(str(value))
             ocr_text = " ".join(ocr_parts).strip()
 
             # Extract structured fields
@@ -530,19 +538,33 @@ def _handle_chat_query(request, user_message, conversation_id):
         doc, score, _, is_user_edited = best
         snippet = _extract_relevant_snippet(user_message, search_text)
         source = "✏️ (from your edited data)" if is_user_edited else "📄 (from original extraction)"
-        response_text = f"{snippet} {source}"
+        fallback_response_text = f"{snippet} {source}"
         doc_id = doc.id
         doc_type = doc.get_doc_type_display()
         data_source = "user_edited" if is_user_edited else "extracted"
     else:
         doc, score, _, field_key, field_value, is_user_edited = best
         source = "✏️ From your edited data" if is_user_edited else "📄 From original extraction"
-        response_text = f"{source}:\n**{field_key}**: {field_value}"
+        fallback_response_text = f"{source}:\n**{field_key}**: {field_value}"
         doc_id = doc.id
         doc_type = doc.get_doc_type_display()
         data_source = "user_edited" if is_user_edited else "extracted"
 
     confidence = "high" if score >= 85 else "medium" if score >= 70 else "low"
+
+    # Try the free-tier Gemini AI layer first, grounded in the same matches
+    # rapidfuzz already found. If it's not configured or fails for any reason,
+    # fall back to the rule-based response above - the chat never breaks.
+    ai_generated = False
+    response_text = fallback_response_text
+    try:
+        context_docs = ai_chat.build_context_from_matches(best_matches)
+        ai_answer = ai_chat.generate_ai_answer(user_message, context_docs)
+        if ai_answer:
+            response_text = ai_answer
+            ai_generated = True
+    except Exception as e:
+        logger.warning(f"AI chat layer failed, using rule-based fallback: {e}")
 
     return JsonResponse({
         "response": response_text,
@@ -550,6 +572,7 @@ def _handle_chat_query(request, user_message, conversation_id):
         "document_id": doc_id,
         "document_type": doc_type,
         "data_source": data_source,
+        "ai_generated": ai_generated,
         "conversation_id": conversation_id,
     })
 
@@ -739,3 +762,67 @@ def system_status(request):
         "system_ready": all(ocr_status.values()),
     }
     return render(request, "system_status.html", context)
+
+
+# ============================================================
+#  BULK EXPORT (selected documents as a ZIP)
+# ============================================================
+@login_required
+def export_documents(request):
+    """Bundle the selected documents' files + a summary of extracted data into a ZIP."""
+    if request.method != "POST":
+        messages.error(request, "Invalid export request.")
+        return redirect("core:document_library")
+
+    doc_ids = request.POST.getlist("doc_ids")
+    if not doc_ids:
+        messages.error(request, "Please select at least one document to export.")
+        return redirect("core:document_library")
+
+    # Always scope to request.user so nobody can export another user's documents
+    # by tampering with the posted IDs.
+    documents = Document.objects.filter(user=request.user, id__in=doc_ids)
+    if not documents.exists():
+        messages.error(request, "No matching documents found to export.")
+        return redirect("core:document_library")
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for document in documents:
+            folder = f"document_{document.id}"
+
+            # Original uploaded file
+            if document.file and os.path.exists(document.file.path):
+                original_name = os.path.basename(document.file.name)
+                zip_file.write(document.file.path, arcname=f"{folder}/{original_name}")
+
+            # Human-readable summary of the extracted/edited data
+            summary_lines = [
+                f"Document type: {document.get_doc_type_display()}",
+                f"Uploaded: {document.created_at}",
+                f"Status: {'Edited by user' if document.is_edited else 'Original extraction'}",
+                "",
+                "Extracted fields:",
+            ]
+            display_data = document.display_data or {}
+            for page_key, page_data in display_data.items():
+                if not isinstance(page_data, dict):
+                    continue
+                summary_lines.append(f"\n[{page_key}]")
+                for field_key, field_value in page_data.items():
+                    if field_key.startswith("_") or field_key in INTERNAL_KEYS or not field_value:
+                        continue
+                    summary_lines.append(f"  {field_key}: {field_value}")
+
+            zip_file.writestr(f"{folder}/summary.txt", "\n".join(summary_lines))
+
+            # Raw structured data as JSON, for anyone who wants to re-import it
+            zip_file.writestr(
+                f"{folder}/data.json",
+                json.dumps(convert_numpy(display_data), indent=2, default=str),
+            )
+
+    zip_buffer.seek(0)
+    response = HttpResponse(zip_buffer.getvalue(), content_type="application/zip")
+    response["Content-Disposition"] = 'attachment; filename="ask_me_documents_export.zip"'
+    return response
