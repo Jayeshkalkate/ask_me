@@ -2,6 +2,7 @@
 import json
 import logging
 from typing import Dict, Any, Optional
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -52,3 +53,18 @@ def get_structured_fields_from_text(ocr_text: str) -> Dict:
         logger.warning(f"Fallback extraction failed: {e}")
 
     return {}
+
+
+def convert_numpy(obj):
+    """Recursively convert NumPy types to native Python types for JSON serialization."""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {k: convert_numpy(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_numpy(i) for i in obj]
+    return obj

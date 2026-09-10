@@ -1,8 +1,9 @@
+import re
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError
-
+from .models import Profile  # needed for save()
 
 class UserRegistrationForm(forms.ModelForm):
     password = forms.CharField(widget=forms.PasswordInput, label='Password')
@@ -28,6 +29,14 @@ class UserRegistrationForm(forms.ModelForm):
             raise ValidationError('Email already registered.')
         return email
 
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number')
+        if phone:
+            # Simple Indian phone number validation (10-15 digits, optional +, -, spaces, brackets)
+            if not re.match(r'^[0-9\+\-\(\)\s]{10,15}$', phone):
+                raise ValidationError('Enter a valid phone number (10-15 digits, may include + - ( ) and spaces).')
+        return phone
+
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get('password')
@@ -40,20 +49,19 @@ class UserRegistrationForm(forms.ModelForm):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data['password'])
 
-        # Split full name into first and last name
-        full_name = self.cleaned_data['full_name']
+        # Split full name
+        full_name = self.cleaned_data['full_name'].strip()
         parts = full_name.split(' ', 1)
         user.first_name = parts[0]
         user.last_name = parts[1] if len(parts) > 1 else ''
 
         if commit:
             user.save()
-            # Create the associated profile
             Profile.objects.create(
                 user=user,
                 phone_number=self.cleaned_data['phone_number'],
-                address=self.cleaned_data['address'],
-                city=self.cleaned_data['city']
+                address=self.cleaned_data['address'].strip(),
+                city=self.cleaned_data['city'].strip()
             )
         return user
 

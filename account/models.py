@@ -3,16 +3,11 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
 
-
 class Profile(models.Model):
-    """
-    Extended user profile (one-to-one with User).
-    Stores additional info: phone, address, city, and last activity.
-    """
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
-        related_name='profile'          # use user.profile instead of user.profile
+        related_name='profile'
     )
     phone_number = models.CharField(max_length=15)
     address = models.TextField()
@@ -26,5 +21,9 @@ class Profile(models.Model):
         return f"Profile of {self.user.username}"
 
     def is_online(self):
-        """Return True if last activity was within the last 5 minutes."""
         return timezone.now() - self.last_activity < timedelta(minutes=5)
+
+    def update_activity(self):
+        """Helper to update last_activity without fetching full object."""
+        self.last_activity = timezone.now()
+        self.save(update_fields=["last_activity"])

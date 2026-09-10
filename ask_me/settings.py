@@ -57,6 +57,19 @@ CSRF_TRUSTED_ORIGINS = [
     "https://ask-me-smart-document-assistant.onrender.com",
 ]
 
+# HTTPS/cookie hardening - only enforced in production (DEBUG=False).
+# Left off locally so `runserver` over plain http:// keeps working.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Start small (e.g. 3600 = 1 hour) on your first production deploy and
+    # only raise this once you're confident the whole site works over HTTPS -
+    # browsers will refuse to load the site over HTTP for this long once set.
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
 # --------------------
 # INSTALLED APPS
 # --------------------
@@ -255,5 +268,7 @@ OFFLINE_STORAGE_TYPE = 'indexeddb'
 # CELERY_TASK_TRACK_STARTED = True
 # CELERY_TASK_TIME_LIMIT = 30 * 60
 
+# --------------------
+# THIRD-PARTY / AI SERVICES
+# --------------------
 GEMINI_API_KEY = config("GEMINI_API_KEY", default="")
-

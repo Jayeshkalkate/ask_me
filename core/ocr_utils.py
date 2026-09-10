@@ -35,7 +35,7 @@ except ImportError:
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
-print("🔥 OCR_UTILS LOADED (Production Ready v3 - All Document Types)")
+logger.info("🔥 OCR_UTILS loaded (Production Ready v3 - All Document Types)")
 
 # ============================================================
 #  CONFIGURATION
@@ -752,14 +752,21 @@ def process_document_file_enhanced(
                     logger.warning(f"Cleanup failed for temp PDF images: {cleanup_error}")
 
     # Add overall document summary
+    if np is not None:
+        quality_score = np.mean([
+            p.get("_metadata", {}).get("quality_scores", {}).get("overall_score", 0)
+            for p in results.values() if isinstance(p, dict) and "error" not in p
+        ]) if results else 0
+    else:
+        quality_score = 0
+
     results["_summary"] = {
         "total_pages": len(image_paths),
         "successful_pages": sum(1 for p in results.values() if isinstance(p, dict) and "error" not in p),
         "failed_pages": sum(1 for p in results.values() if isinstance(p, dict) and "error" in p),
         "document_type": detected_doc_type,
         "detection_confidence": detection_confidence,
-        "quality_score": np.mean([p.get("_metadata", {}).get("quality_scores", {}).get("overall_score", 0) 
-                                  for p in results.values() if isinstance(p, dict)]) if np else 0,
+        "quality_score": float(quality_score),
     }
     
     return results
@@ -938,5 +945,5 @@ if openbharatocr:
         "vehicle_registration": openbharatocr.vehicle_registration,
     }
 
-print(f"✅ OCR_UTILS loaded with support for {len(DOCUMENT_TYPE_MAPPING)} document types")
-print(f"📋 Document types: {', '.join(get_supported_document_types())}")
+logger.info(f"✅ OCR_UTILS loaded with support for {len(DOCUMENT_TYPE_MAPPING)} document types")
+logger.info(f"📋 Document types: {', '.join(get_supported_document_types())}")

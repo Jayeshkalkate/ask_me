@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 import numpy as np
 import os
+import uuid
 import logging
 
 logger = logging.getLogger(__name__)
@@ -615,3 +616,36 @@ class Document(models.Model):
         if self.extracted_data:
             text_parts.append(str(self.extracted_data))
         return " ".join(text_parts)
+
+
+# -------------------------------------------------
+# 🔹 SHAREABLE, EXPIRING DOCUMENT LINKS
+# -------------------------------------------------
+class SharedLink(models.Model):
+    """
+    A revocable, expiring public link to a single document. Anyone with the
+    link (and no login) can view the document in read-only mode until it
+    expires or the owner revokes it.
+    """
+    document = models.ForeignKey(
+        Document, on_delete=models.CASCADE, related_name="share_links"
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    revoked = models.BooleanField(default=False)
+    view_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"SharedLink({self.document_id}, expires {self.expires_at})"
+
+    def is_valid(self):
+        """True if the link can still be used to view the document."""
+        return not self.revoked and timezone.now() < self.expires_at
+
+    def register_view(self):
+        self.view_count += 1
+        self.save(update_fields=["view_count"])

@@ -1,7 +1,6 @@
-# core/tasks.py - Updated to use utils instead of views
-# Celery is temporarily disabled - using threading fallback
-
+# core/tasks.py - Background OCR processing (thread fallback)
 import logging
+import os
 from django.utils import timezone
 from .models import Document, convert_numpy
 from .ai_utils import detect_document_type
@@ -10,15 +9,24 @@ from .utils import clean_extracted_data, get_structured_fields_from_text, INTERN
 
 logger = logging.getLogger(__name__)
 
-# Celery is temporarily disabled
+# Celery is temporarily disabled; using threading fallback
 # from celery import shared_task
-
 # @shared_task
+
+
 def process_document_in_background(doc_id: int) -> None:
     """Background worker for OCR processing."""
     try:
         doc = Document.objects.get(id=doc_id)
         if doc.processed and doc.error_message is None:
+            logger.info(f"Document {doc_id} already processed, skipping.")
+            return
+
+        # Check if file exists
+        if not doc.file or not doc.file.path or not os.path.exists(doc.file.path):
+            doc.processed = False
+            doc.error_message = "File not found on disk."
+            doc.save(update_fields=["processed", "error_message"])
             return
 
         ocr_result = process_document_file_enhanced(doc.file.path)
@@ -29,7 +37,7 @@ def process_document_in_background(doc_id: int) -> None:
             doc.save(update_fields=["processed", "error_message", "extracted_data"])
             return
 
-        # Build raw OCR text from all pages – skip internal keys (starting with "_")
+        # Build raw OCR text from all pages
         ocr_parts = []
         for page_key, page_data in ocr_result.items():
             if page_key.startswith("_") or not isinstance(page_data, dict):
@@ -43,11 +51,11 @@ def process_document_in_background(doc_id: int) -> None:
         ocr_text = " ".join(ocr_parts).strip()
         doc.extracted_text = ocr_text
 
-        # Auto‑detect doc type
+        # Auto-detect doc type
         if len(ocr_text) >= 20:
             doc.doc_type = detect_document_type(ocr_text) or "other_document"
 
-        # Extract structured fields (rule‑based)
+        # Extract structured fields (rule-based)
         structured_data = get_structured_fields_from_text(ocr_text)
 
         if structured_data:
@@ -80,6 +88,7 @@ def process_document_in_background(doc_id: int) -> None:
                 processed=False,
                 error_message=str(e)[:500],
                 extracted_data={},
+                processed_at=timezone.now(),
             )
         except Exception as update_error:
             logger.error(f"Failed to update document {doc_id} after error: {update_error}")

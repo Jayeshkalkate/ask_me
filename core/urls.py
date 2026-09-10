@@ -23,6 +23,11 @@ urlpatterns = [
     ),
     path("documents/export/", views.export_documents, name="export_documents"),
 
+    # Shareable, expiring document links
+    path("document/<int:pk>/share/", views.create_share_link, name="manage_share_links"),
+    path("document/<int:pk>/share/<int:link_id>/revoke/", views.revoke_share_link, name="revoke_share_link"),
+    path("share/<uuid:token>/", views.view_shared_document, name="view_shared_document"),
+
     # Offline API endpoints
     path('api/offline/upload/', views_offline.offline_upload, name='offline_upload'),
     path('api/offline/documents/', views_offline.offline_documents_api, name='offline_documents_api'),

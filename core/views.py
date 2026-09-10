@@ -7,6 +7,7 @@ import base64
 import os
 import zipfile
 import io
+from datetime import timedelta
 from typing import Dict, List, Any, Optional
 
 # Celery is temporarily disabled - using threading fallback
@@ -28,7 +29,7 @@ from rapidfuzz import fuzz
 # Import from utils
 from .utils import clean_extracted_data, get_structured_fields_from_text, INTERNAL_KEYS
 
-from .models import Document, convert_numpy
+from .models import Document, SharedLink, convert_numpy
 from .forms import DocumentEditForm
 from .ai_utils import detect_document_type, extract_structured_data, generic_extraction
 from . import ai_chat
@@ -213,10 +214,9 @@ def batch_upload_documents(request):
 #  DOCUMENT DETAIL
 # ============================================================
 @login_required
-def document_detail(request, pk):
-    """Show document details and extracted data."""
-    document = get_object_or_404(Document, pk=pk, user=request.user)
-
+def _build_pages_data(document):
+    """Shared helper: turn a Document's display_data into template-ready page dicts.
+    Used by both document_detail (owner view) and view_shared_document (public view)."""
     pages_data = []
     display_data = document.display_data
     if display_data:
@@ -233,6 +233,14 @@ def document_detail(request, pk):
                     "metadata": metadata,
                     "detection_confidence_pct": detection_confidence_pct,
                 })
+    return pages_data
+
+
+def document_detail(request, pk):
+    """Show document details and extracted data."""
+    document = get_object_or_404(Document, pk=pk, user=request.user)
+
+    pages_data = _build_pages_data(document)
 
     has_user_edits = bool(document.user_edited_data)
     can_reprocess = True
@@ -826,3 +834,74 @@ def export_documents(request):
     response = HttpResponse(zip_buffer.getvalue(), content_type="application/zip")
     response["Content-Disposition"] = 'attachment; filename="ask_me_documents_export.zip"'
     return response
+
+
+# ============================================================
+#  SHAREABLE, EXPIRING DOCUMENT LINKS
+# ============================================================
+SHARE_LINK_DURATION_CHOICES = {
+    "1h": timedelta(hours=1),
+    "24h": timedelta(hours=24),
+    "7d": timedelta(days=7),
+}
+DEFAULT_SHARE_DURATION = "24h"
+
+
+@login_required
+def create_share_link(request, pk):
+    """Owner-only: generate (or show existing) shareable links for a document."""
+    document = get_object_or_404(Document, pk=pk, user=request.user)
+
+    if request.method == "POST":
+        duration_key = request.POST.get("duration", DEFAULT_SHARE_DURATION)
+        duration = SHARE_LINK_DURATION_CHOICES.get(duration_key, SHARE_LINK_DURATION_CHOICES[DEFAULT_SHARE_DURATION])
+
+        share_link = SharedLink.objects.create(
+            document=document,
+            expires_at=timezone.now() + duration,
+        )
+        messages.success(request, "Share link created.")
+        return redirect("core:manage_share_links", pk=document.pk)
+
+    active_links = document.share_links.filter(revoked=False).order_by("-created_at")
+
+    return render(request, "manage_share_links.html", {
+        "document": document,
+        "active_links": active_links,
+        "duration_choices": SHARE_LINK_DURATION_CHOICES.keys(),
+    })
+
+
+@login_required
+def revoke_share_link(request, pk, link_id):
+    """Owner-only: revoke a share link immediately."""
+    document = get_object_or_404(Document, pk=pk, user=request.user)
+    link = get_object_or_404(SharedLink, id=link_id, document=document)
+
+    if request.method == "POST":
+        link.revoked = True
+        link.save(update_fields=["revoked"])
+        messages.success(request, "Link revoked.")
+
+    return redirect("core:manage_share_links", pk=document.pk)
+
+
+def view_shared_document(request, token):
+    """
+    Public, read-only view of a single document via its share token.
+    Deliberately has NO @login_required - this is the whole point of the feature.
+    """
+    share_link = get_object_or_404(SharedLink, token=token)
+
+    if not share_link.is_valid():
+        return render(request, "shared_link_expired.html", status=410)
+
+    share_link.register_view()
+    document = share_link.document
+    pages_data = _build_pages_data(document)
+
+    return render(request, "shared_document_view.html", {
+        "document": document,
+        "pages_data": pages_data,
+        "share_link": share_link,
+    })
