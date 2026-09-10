@@ -1,16 +1,14 @@
 services:
   - type: web
     name: ask-me-chatbot
-    env: python
+    env: docker
     plan: free
     region: oregon
+    dockerfilePath: ./Dockerfile
 
-    buildCommand: |
-      pip install -r requirements.txt
-      python manage.py collectstatic --noinput
-      python manage.py migrate
-
-    startCommand: gunicorn ask_me.wsgi:application
+    # Docker mode uses entrypoint.sh (collectstatic + migrate + gunicorn) -
+    # buildCommand/startCommand are for the native python env and are
+    # ignored/unnecessary here.
 
     envVars:
       - key: SECRET_KEY
@@ -31,3 +29,6 @@ services:
       # 👇 You must set these in the Render dashboard (not in the yaml)
       # - DATABASE_URL
       # - EMAIL_HOST_PASSWORD
+      # - GEMINI_API_KEY
+      # - EMAIL_HOST_USER
+      # - CSRF_TRUSTED_ORIGINS  (e.g. https://ask-me-smart-document-assistant.onrender.com)
