@@ -12,9 +12,10 @@ FROM python:3.13-slim
 #   poppler-utils   - provides pdftoppm/pdftocairo, required by pdf2image
 #   libgl1          - required by opencv-python at import time
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tesseract-ocr \
     poppler-utils \
     libgl1 \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
