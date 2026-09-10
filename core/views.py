@@ -213,7 +213,6 @@ def batch_upload_documents(request):
 # ============================================================
 #  DOCUMENT DETAIL
 # ============================================================
-@login_required
 def _build_pages_data(document):
     """Shared helper: turn a Document's display_data into template-ready page dicts.
     Used by both document_detail (owner view) and view_shared_document (public view)."""
@@ -236,6 +235,7 @@ def _build_pages_data(document):
     return pages_data
 
 
+@login_required
 def document_detail(request, pk):
     """Show document details and extracted data."""
     document = get_object_or_404(Document, pk=pk, user=request.user)

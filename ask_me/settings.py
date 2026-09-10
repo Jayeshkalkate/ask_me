@@ -30,13 +30,23 @@ SECRET_KEY = config("SECRET_KEY", default="placeholder-set-secret-key-in-env")
 DEBUG = config("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://ask-me-smart-document-assistant.onrender.com",
-]
+# Configurable via env so this isn't pinned to one specific Render app name -
+# set CSRF_TRUSTED_ORIGINS="https://your-app.onrender.com,https://yourdomain.com"
+# (comma-separated, each including the scheme) once you know the real deployed URL(s).
+_csrf_trusted = os.getenv("CSRF_TRUSTED_ORIGINS", "https://ask-me-smart-document-assistant.onrender.com")
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_trusted.split(",") if origin.strip()]
 
 # HTTPS/cookie hardening - only enforced in production (DEBUG=False).
 # Left off locally so `runserver` over plain http:// keeps working.
 if not DEBUG:
+    # Render (and most PaaS free tiers) terminate TLS at a reverse proxy and
+    # forward to the app over plain HTTP, setting X-Forwarded-Proto to tell
+    # you the original scheme. Without this, Django's request.is_secure()
+    # is always False behind that proxy, and SECURE_SSL_REDIRECT=True below
+    # causes an infinite redirect loop (https -> proxy -> http -> "not
+    # secure, redirect to https" -> ...). This line is required for
+    # SECURE_SSL_REDIRECT to work at all on Render.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
