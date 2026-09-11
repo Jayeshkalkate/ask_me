@@ -80,3 +80,9 @@ docs/_build/
 # --------------------
 build.sh
 apt.txt
+
+.env
+env_file.txt
+
+.env
+env_file.txt
