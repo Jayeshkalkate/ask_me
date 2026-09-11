@@ -817,13 +817,24 @@ def get_document_type_key(display_name: str) -> Optional[str]:
 
 
 def validate_ocr_environment() -> Dict[str, bool]:
-    """Validate the OCR environment."""
+    """
+    Validate the text-extraction environment.
+
+    Tesseract/pdf2image/openbharatocr are disabled for now — text
+    extraction goes through core/ai_extract.py (Google Gemini's free
+    tier) instead, so "ai_extraction_available" is the key readiness
+    signal here rather than the old Tesseract-based flags.
+    """
+    try:
+        from .ai_extract import ai_extraction_available
+        ai_available = ai_extraction_available()
+    except Exception:
+        ai_available = False
+
     return {
-        "tesseract_available": TESSERACT_AVAILABLE,
+        "ai_extraction_available": ai_available,
         "opencv_available": cv2 is not None,
         "numpy_available": np is not None,
-        "pdf2image_available": convert_from_path is not None,
-        "openbharatocr_available": openbharatocr is not None,
         "total_supported_docs": len(DOCUMENT_TYPE_MAPPING),
     }
 

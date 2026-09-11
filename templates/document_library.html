@@ -6,8 +6,6 @@
 {% if not offline_scripts_loaded_in_base %}
 <script src="{% static 'js/csrf.js' %}" defer></script>
 <script src="{% static 'js/db.js' %}" defer></script>
-<script src="{% static 'js/tesseract-ocr.js' %}" defer></script>
-<script src="{% static 'js/extract-fields.js' %}" defer></script>
 <script src="{% static 'js/offline-processor.js' %}" defer></script>
 <script src="{% static 'js/pwa.js' %}" defer></script>
 {% endif %}
@@ -394,9 +392,11 @@
 
     // ============================================================
     // RENDER LOCAL (OFFLINE) DOCUMENTS FROM INDEXEDDB
-    // These were processed fully offline via offline-processor.js
-    // (OCR + field extraction) and live only in this browser's
-    // IndexedDB until pwa.js syncs them to the server.
+    // Files saved while offline (via offline-processor.js) live only in
+    // this browser's IndexedDB, unprocessed (no on-device OCR anymore),
+    // until pwa.js syncs them to the server for real AI extraction.
+    // Documents already synced earlier remain here too, fully searchable,
+    // so search still works offline even without a network connection.
     // ============================================================
     const DOC_ICONS = {
         aadhaar_card: '🪪', pan_card: '💳', voter_id_card: '🗳️', passport: '🛂',

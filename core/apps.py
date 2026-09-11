@@ -5,6 +5,7 @@ class CoreConfig(AppConfig):
     name = "core"
 
     def ready(self):
-        # Tesseract is configured in settings.py and ocr_utils.py
-        # No need to duplicate here
+        # Text extraction uses Google Gemini's free API tier (see
+        # core/ai_extract.py) via GEMINI_API_KEY in settings.py.
+        # No startup configuration needed here.
         pass

@@ -33,8 +33,8 @@ from .models import Document, SharedLink, convert_numpy
 from .forms import DocumentEditForm
 from .ai_utils import detect_document_type, extract_structured_data, generic_extraction
 from . import ai_chat
+from .ai_extract import extract_document_ai
 from .ocr_utils import (
-    process_document_file_enhanced,
     batch_process_documents,
     validate_ocr_environment,
     get_supported_document_types,
@@ -312,7 +312,7 @@ def reprocess_document(request, pk):
         new_doc_type = request.POST.get("doc_type", document.doc_type)
 
         try:
-            ocr_result = process_document_file_enhanced(
+            ocr_result = extract_document_ai(
                 document.file.path,
                 doc_type=new_doc_type,
                 auto_detect=True,
@@ -647,7 +647,7 @@ def handle_base64_upload(request):
             tmp.write(decoded)
             tmp_file_path = tmp.name
 
-        ocr_result = process_document_file_enhanced(tmp_file_path, doc_type=None, auto_detect=True)
+        ocr_result = extract_document_ai(tmp_file_path, doc_type=None, auto_detect=True)
         response = _format_ocr_response(ocr_result)
         return JsonResponse(response)
 

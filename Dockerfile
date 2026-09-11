@@ -1,21 +1,21 @@
 # Dockerfile
 # Render's native Python runtime has no way to install system packages
 # (apt.txt is a Heroku/Binder convention, not a Render feature). Docker
-# gives us full control to install Tesseract (OCR), Poppler (PDF->image
-# for pdf2image), and libgl1 (needed by OpenCV) - all free on Render's
-# Docker runtime, same free-tier limits as the native Python runtime.
+# gives us full control to install libgl1 (needed by OpenCV) - free on
+# Render's Docker runtime, same free-tier limits as the native Python
+# runtime.
+#
+# Tesseract + Poppler were removed: text extraction now uses Google
+# Gemini's free API tier (see core/ai_extract.py) instead of on-server
+# Tesseract OCR, so those system binaries are no longer needed.
 
 FROM python:3.13-slim
 
 # System dependencies:
-#   tesseract-ocr   - OCR engine used by pytesseract
-#   poppler-utils   - provides pdftoppm/pdftocairo, required by pdf2image
-#   libgl1          - required by opencv-python at import time
+#   libgl1          - required by opencv-python at import time (image
+#                      quality/blur checks, unrelated to text extraction)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    poppler-utils \
     libgl1 \
-    tesseract-ocr \
-    tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

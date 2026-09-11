@@ -11,12 +11,8 @@
 <!-- this block to avoid double-loading them.                      -->
 <!-- ============================================================ -->
 {% if not offline_scripts_loaded_in_base %}
-<script src="{% static 'js/vendor/tesseract.min.js' %}" defer></script>
-<script src="{% static 'js/vendor/pdf.min.js' %}" defer></script>
 <script src="{% static 'js/csrf.js' %}" defer></script>
 <script src="{% static 'js/db.js' %}" defer></script>
-<script src="{% static 'js/tesseract-ocr.js' %}" defer></script>
-<script src="{% static 'js/extract-fields.js' %}" defer></script>
 <script src="{% static 'js/offline-processor.js' %}" defer></script>
 <script src="{% static 'js/pwa.js' %}" defer></script>
 {% endif %}
@@ -397,10 +393,11 @@
 
                 // ----------------------------------------------------------
                 // OFFLINE PATH: no network at all, so don't even attempt the
-                // Django POST — it would just hang/fail. Instead run OCR +
-                // field extraction entirely in-browser (tesseract-ocr.js +
-                // extract-fields.js via offline-processor.js) and save the
-                // result straight into IndexedDB.
+                // Django POST — it would just hang/fail. There's no on-device
+                // text extraction anymore (Tesseract OCR is disabled) — the
+                // file is just saved locally via offline-processor.js and
+                // queued. It'll be sent to the server for AI extraction
+                // automatically the next time you're online.
                 // ----------------------------------------------------------
                 if (!navigator.onLine) {
                     e.preventDefault();
@@ -409,8 +406,9 @@
                 }
 
                 // ----------------------------------------------------------
-                // ONLINE PATH: unchanged — submit to Django, which still
-                // gives higher-accuracy server-side OCR (pytesseract + cv2).
+                // ONLINE PATH: unchanged — submit to Django, which now runs
+                // free AI-based extraction (Google Gemini) instead of
+                // server-side Tesseract OCR.
                 // ----------------------------------------------------------
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = `
@@ -422,33 +420,25 @@
         }
 
         // ============================================================
-        // OFFLINE PROCESSING (OCR + extraction fully in-browser)
+        // OFFLINE SAVE (no extraction on-device — queued for AI processing)
         // ============================================================
         async function processFileOffline(file, docType) {
             submitBtn.disabled = true;
             submitBtn.innerHTML = `
                 <span class="inline-block animate-spin-slow w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
-                Processing offline...
+                Saving...
             `;
-            showStatus("⚡ You're offline — running OCR and field extraction on this device. This can take a bit longer than online processing...", "warning");
+            showStatus("⚡ You're offline — this file will be saved on this device and sent for AI processing automatically once you're back online.", "warning");
 
             try {
                 if (!window.pwa || !window.pwa.processFileOffline) {
-                    throw new Error("Offline processing isn't available yet — the offline scripts may still be loading. Please try again in a moment.");
+                    throw new Error("Offline saving isn't available yet — the offline scripts may still be loading. Please try again in a moment.");
                 }
 
-                const saved = await window.pwa.processFileOffline(file, {
-                    docType: docType,
-                    onProgress: (status, progress) => {
-                        if (status === "ocr_progress") {
-                            const pct = Math.round((progress || 0) * 100);
-                            showStatus(`🔎 Reading document text offline... ${pct}%`, "info");
-                        }
-                    },
-                });
+                const saved = await window.pwa.processFileOffline(file, { docType: docType });
 
                 const localId = saved && saved.id !== undefined ? saved.id : saved;
-                showStatus("✅ Document processed offline and saved to this device. It will sync automatically once you're back online.", "success");
+                showStatus("✅ Saved to this device. It'll be extracted with AI and synced as soon as you're back online.", "success");
 
                 submitBtn.innerHTML = `<span>✅ Saved locally</span>`;
 

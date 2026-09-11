@@ -4,7 +4,7 @@ import os
 from django.utils import timezone
 from .models import Document, convert_numpy
 from .ai_utils import detect_document_type
-from .ocr_utils import process_document_file_enhanced
+from .ai_extract import extract_document_ai
 from .utils import clean_extracted_data, get_structured_fields_from_text, INTERNAL_KEYS
 
 logger = logging.getLogger(__name__)
@@ -29,10 +29,10 @@ def process_document_in_background(doc_id: int) -> None:
             doc.save(update_fields=["processed", "error_message"])
             return
 
-        ocr_result = process_document_file_enhanced(doc.file.path)
+        ocr_result = extract_document_ai(doc.file.path)
         if not ocr_result or "error" in ocr_result:
             doc.processed = False
-            doc.error_message = ocr_result.get("error", "OCR failed – no text detected")
+            doc.error_message = ocr_result.get("error", "AI extraction failed – no text detected")
             doc.extracted_data = {}
             doc.save(update_fields=["processed", "error_message", "extracted_data"])
             return

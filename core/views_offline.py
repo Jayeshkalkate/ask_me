@@ -8,11 +8,10 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.contrib import messages
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.core.files.uploadedfile import UploadedFile
 
 from .models import Document, convert_numpy
-from .ocr_utils import process_document_file_enhanced
+from .ai_extract import extract_document_ai
 from .ai_utils import extract_structured_data, detect_document_type, clean_ocr_text
 
 logger = logging.getLogger(__name__)
@@ -21,8 +20,12 @@ logger = logging.getLogger(__name__)
 @login_required
 def offline_upload(request):
     """
-    Handle document upload for offline mode.
-    Processes the file immediately and returns structured data.
+    Endpoint the client syncs queued documents to once back online (see
+    static/js/offline-processor.js::syncPendingDocuments). Files uploaded
+    while offline are NOT processed on-device anymore - they're just saved
+    locally and pushed here as soon as connectivity returns, so AI
+    extraction (Gemini, same as the normal online upload) can run and
+    return real structured data.
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
@@ -47,8 +50,8 @@ def offline_upload(request):
                     tmp.write(chunk)
                 tmp_path = tmp.name
 
-            # Process document with OCR
-            ocr_result = process_document_file_enhanced(
+            # Extract text using the free Gemini AI tier (Tesseract disabled)
+            ocr_result = extract_document_ai(
                 tmp_path,
                 doc_type=doc_type,
                 auto_detect=True
@@ -59,6 +62,9 @@ def offline_upload(request):
                 os.unlink(tmp_path)
             except OSError:
                 pass
+
+            if isinstance(ocr_result, dict) and "error" in ocr_result and len(ocr_result) == 1:
+                return JsonResponse({'error': ocr_result["error"]}, status=502)
 
             # Extract structured data
             extracted_data = {}

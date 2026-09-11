@@ -23,9 +23,6 @@ services:
       - key: TIME_ZONE
         value: "Asia/Kolkata"
 
-      - key: PYTESSERACT_CMD
-        value: "/usr/bin/tesseract"
-
       # 👇 You must set these in the Render dashboard (not in the yaml)
       # - DATABASE_URL
       # - EMAIL_HOST_PASSWORD
