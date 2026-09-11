@@ -1,40 +1,53 @@
-# Virtual environment
-venv/
-env/
-.venv/
-ENV/
+# --------------------
+# Environment variables / secrets
+# --------------------
+.env
+.env.local
+.env.*.local
 
-# Python cache & bytecode
+# --------------------
+# Python
+# --------------------
 __pycache__/
 *.py[cod]
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
+dist/
+build/
+*.whl
 
-# Databases
+# --------------------
+# Virtual environments
+# --------------------
+venv/
+env/
+.venv/
+ENV/
+
+# --------------------
+# Django
+# --------------------
 *.sqlite3
 db.sqlite3
+media/
+documents/
+uploads/
+staticfiles/
+static_root/
+local_settings.py
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-
+# --------------------
 # Logs
+# --------------------
 *.log
 logs/
 log/
 
-# Media & uploaded files
-media/
-documents/
-uploads/
-
-# Static files (collected)
-staticfiles/
-static_root/
-
+# --------------------
 # IDE / OS
+# --------------------
 .vscode/
 .idea/
 *.swp
@@ -42,35 +55,28 @@ static_root/
 .DS_Store
 Thumbs.db
 
-# Python package / build
-*.egg-info/
-dist/
-build/
-*.whl
-
-# Local development settings (if any)
-local_settings.py
-
-# Any machine-specific files
-*.py.local
-*.yaml.local
-
-# Jupyter notebooks (if used)
-*.ipynb_checkpoints/
-
+# --------------------
 # Testing & coverage
+# --------------------
 .coverage
 htmlcov/
 .pytest_cache/
 .tox/
-
-# Celery / Redis / etc. (if used later)
-*.pid
-
-# Compiled documentation
-docs/_build/
-
-# MyPy
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# --------------------
+# Misc
+# --------------------
+*.pid
+*.py.local
+*.yaml.local
+.ipynb_checkpoints/
+docs/_build/
+
+# --------------------
+# Superseded deploy scripts (Dockerfile is used instead)
+# --------------------
+build.sh
+apt.txt
