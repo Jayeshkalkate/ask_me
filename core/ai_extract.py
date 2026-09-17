@@ -59,7 +59,11 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_MODEL = "gemini-flash-latest"  # Google's rolling alias for "whatever
+# the current Flash model is" - hot-swapped by Google on every new release,
+# so this keeps working across model retirements instead of pointing at a
+# dated model name (e.g. gemini-1.5-flash) that eventually gets shut down
+# and starts returning 404 on every request.
 GEMINI_URL = (
     f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 )

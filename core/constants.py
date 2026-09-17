@@ -11,7 +11,7 @@ MAX_TEXT_SNIPPET_CHARS = 500
 REQUEST_TIMEOUT = 12  # seconds
 
 # Gemini model
-GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_MODEL = "gemini-flash-latest"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
 # Internal keys to skip when building field dictionaries
