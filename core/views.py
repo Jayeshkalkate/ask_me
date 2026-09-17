@@ -27,13 +27,14 @@ from django.http import HttpResponse
 from rapidfuzz import fuzz
 
 # Import from utils
-from .utils import clean_extracted_data, get_structured_fields_from_text, INTERNAL_KEYS
+from .utils import build_document_text_and_fields, INTERNAL_KEYS
 
 from .models import Document, SharedLink, convert_numpy
 from .forms import DocumentEditForm
 from .ai_utils import detect_document_type, extract_structured_data, generic_extraction
 from . import ai_chat
 from .ai_extract import extract_document_ai
+from .field_lookup import get_exact_field_answer
 from .ocr_utils import (
     batch_process_documents,
     validate_ocr_environment,
@@ -134,9 +135,12 @@ def upload_document(request):
             messages.error(request, "No file uploaded.")
             return redirect("core:upload")
 
+        doc_type = request.POST.get("doc_type", "other_document")
+
         document = Document.objects.create(
             user=request.user,
             file=uploaded_file,
+            doc_type=doc_type,
             processed=False,
         )
 
@@ -320,35 +324,7 @@ def reprocess_document(request, pk):
             if "error" in ocr_result:
                 raise Exception(ocr_result["error"])
 
-            # Build OCR text – skip internal keys starting with "_"
-            ocr_parts = []
-            for page_key, page_data in ocr_result.items():
-                if page_key.startswith("_") or not isinstance(page_data, dict):
-                    continue
-                if "raw_text" in page_data:
-                    ocr_parts.append(page_data["raw_text"])
-                else:
-                    for field, value in page_data.items():
-                        if field not in INTERNAL_KEYS and value:
-                            ocr_parts.append(str(value))
-            ocr_text = " ".join(ocr_parts).strip()
-
-            # Extract structured fields
-            structured_data = get_structured_fields_from_text(ocr_text)
-            if structured_data:
-                final_data = {"page_1": structured_data}
-            else:
-                # Fallback: clean the whole result
-                cleaned = clean_extracted_data(ocr_result)
-                if cleaned and isinstance(cleaned, dict):
-                    first_page = next(iter(cleaned.values())) if cleaned else {}
-                    if first_page and isinstance(first_page, dict):
-                        final_data = {"page_1": first_page}
-                    else:
-                        final_data = {"page_1": {"Content": ocr_text[:500]}}
-                else:
-                    final_data = {"page_1": {"Content": ocr_text[:500]}}
-
+            ocr_text, final_data = build_document_text_and_fields(ocr_result)
             document.extracted_data = convert_numpy(final_data)
             document.extracted_text = ocr_text
             document.doc_type = new_doc_type or document.doc_type
@@ -504,6 +480,47 @@ def _handle_chat_query(request, user_message, conversation_id):
             "conversation_id": conversation_id,
         })
 
+    # ------------------------------------------------------------------
+    # STEP 1 — exact predefined-field lookup, tried before any fuzzy/AI
+    # matching. If the question maps unambiguously to a stored field (e.g.
+    # "what's my date of birth" -> the "Date of Birth" key), return that
+    # exact stored value verbatim. No paraphrasing, no rounding, no
+    # regeneration - see core/field_lookup.py for the matching rules.
+    # Most-recently-processed documents are checked first so a re-uploaded
+    # or newer document wins over an older one with the same field.
+    # ------------------------------------------------------------------
+    for doc in docs.order_by("-created_at"):
+        flat_fields = {}
+        for page_data in (doc.display_data or {}).values():
+            if not isinstance(page_data, dict):
+                continue
+            for field_key, field_value in page_data.items():
+                if field_key.startswith("_") or field_key in INTERNAL_KEYS or not field_value:
+                    continue
+                if field_key not in flat_fields:
+                    flat_fields[field_key] = field_value
+
+        match = get_exact_field_answer(user_message, flat_fields)
+        if match:
+            field_key, field_value = match
+            source = "✏️ From your edited data" if doc.user_edited_data else "📄 From your document"
+            return JsonResponse({
+                "response": f"{field_key}: {field_value}",
+                "confidence": "exact",
+                "document_id": doc.id,
+                "document_type": doc.get_doc_type_display(),
+                "data_source": "user_edited" if doc.user_edited_data else "extracted",
+                "matched_field": field_key,
+                "ai_generated": False,
+                "source_note": source,
+                "conversation_id": conversation_id,
+            })
+
+    # ------------------------------------------------------------------
+    # STEP 2 — no confident exact-field match. Fall back to the existing
+    # fuzzy content search (for free-text questions that don't map to a
+    # single predefined field), optionally phrased by the AI layer.
+    # ------------------------------------------------------------------
     best_matches = []
     threshold = 65
     user_message_lower = user_message.lower()

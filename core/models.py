@@ -8,6 +8,8 @@ import os
 import uuid
 import logging
 
+from .crypto_fields import EncryptedJSONField, EncryptedTextField
+
 logger = logging.getLogger(__name__)
 
 # -------------------------------------------------
@@ -376,13 +378,17 @@ class Document(models.Model):
         blank=True,
     )
 
-    # Raw OCR text (cached)
-    extracted_text = models.TextField(blank=True, null=True)
+    # Raw OCR text (cached). Encrypted at rest when DOCUMENT_ENCRYPTION_KEY
+    # is configured - see core/crypto_fields.py. Transparent to all existing
+    # code: reads back as a normal string either way.
+    extracted_text = EncryptedTextField(blank=True, null=True)
 
-    # Structured data (JSON)
-    extracted_data = models.JSONField(default=dict, blank=True)
-    user_edited_data = models.JSONField(default=dict, blank=True)
-    ai_extracted_json = models.JSONField(default=dict, blank=True)  # cache for AI extraction
+    # Structured data (JSON). Same transparent at-rest encryption as above -
+    # these fields hold the actual Aadhaar/PAN/DOB/etc. values, so they're
+    # the most sensitive data in this model.
+    extracted_data = EncryptedJSONField(default=dict, blank=True)
+    user_edited_data = EncryptedJSONField(default=dict, blank=True)
+    ai_extracted_json = EncryptedJSONField(default=dict, blank=True)  # cache for AI extraction
 
     # Processing status
     processed = models.BooleanField(default=False, db_index=True)

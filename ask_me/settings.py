@@ -264,3 +264,17 @@ OFFLINE_STORAGE_TYPE = 'indexeddb'
 # THIRD-PARTY / AI SERVICES
 # --------------------
 GEMINI_API_KEY = config("GEMINI_API_KEY", default="")
+
+# --------------------
+# AT-REST ENCRYPTION (core/crypto_fields.py)
+# --------------------
+# Encrypts Document.extracted_text / extracted_data / user_edited_data /
+# ai_extracted_json (Aadhaar/PAN/DOB/address/etc.) before they hit the
+# database. Generate one with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Leave blank in local dev if you don't need it yet - fields fall back to
+# storing plain JSON/text unencrypted, and existing plaintext rows are still
+# readable if you turn this on later. Losing this key makes previously
+# encrypted documents permanently unreadable - store it like a password
+# (e.g. your host's secret manager), never in source control.
+DOCUMENT_ENCRYPTION_KEY = config("DOCUMENT_ENCRYPTION_KEY", default="")

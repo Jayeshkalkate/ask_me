@@ -131,18 +131,21 @@
         <!-- CHAT INPUT AREA -->
         <!-- ============================================================ -->
         <div class="p-4 border-t border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#1A1A1A] transition-colors duration-300">
-            <form method="get" action="{% url 'core:search_document_field' %}" class="flex gap-2 items-center">
-                <input type="text" 
-                       name="q" 
-                       placeholder="🔎 Search for details in your documents..." 
+            <form id="chatForm" class="flex gap-2 items-center">
+                {% csrf_token %}
+                <input type="text"
+                       id="chatInput"
+                       name="q"
+                       placeholder="🔎 Ask about your documents, e.g. 'What is my date of birth?'"
                        class="flex-1 rounded-lg border border-[#E9ECEF] dark:border-[#2A2A2A] px-4 py-2.5 text-[14px] leading-[1.5] focus:outline-none focus:shadow-focus focus:border-[#1A73E8] bg-white dark:bg-[#121212] text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] transition-all duration-200"
+                       autocomplete="off"
                        required />
-                <button type="submit" 
+                <button type="submit"
                         class="px-5 py-2.5 rounded-lg bg-[#1A73E8] hover:bg-[#1557B0] text-white font-medium text-[14px] transition-all duration-200 hover:shadow-lg active:scale-95 flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    Search
+                    Ask
                 </button>
             </form>
             <div id="typingIndicator" class="mt-3 hidden text-[14px] text-[#6C757D] dark:text-[#6C757D] transition-colors duration-300">
@@ -157,7 +160,7 @@
             </div>
             <!-- Offline hint -->
             <div id="offlineHint" class="mt-2 text-[11px] text-[#F9AB00] dark:text-[#F9AB00] hidden transition-colors duration-300">
-                ⚡ You're offline. Documents will be processed locally and synced when back online.
+                ⚡ You're offline. Answering from documents already saved on this device — new uploads will be processed once you're back online.
             </div>
         </div>
     </div>
@@ -412,7 +415,9 @@
         }
 
         // ============================================================
-        // OFFLINE UPLOAD HANDLING
+        // UPLOAD HANDLING — online uses real AI extraction immediately;
+        // offline queues the file locally via offline-processor.js and
+        // syncs (extracting for real) once connectivity returns.
         // ============================================================
         const uploadForm = document.getElementById("uploadForm");
         const processBtn = document.getElementById("processBtn");
@@ -440,8 +445,37 @@
                     <span class="inline-block animate-spin-slow w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
                     Processing...
                 `;
-                showStatus("📄 Processing document...", "text-[#1A73E8]");
 
+                const docInfo = DOCUMENT_TYPES[docType] || DOCUMENT_TYPES['other_document'];
+
+                // -------- OFFLINE: queue locally, sync later --------
+                if (!navigator.onLine) {
+                    try {
+                        if (!window.offlineProcessor) {
+                            throw new Error("Offline storage isn't available in this browser.");
+                        }
+                        showStatus("⚡ You're offline — saving for processing later...", "text-[#F9AB00]");
+                        await window.offlineProcessor.processFile(file, {
+                            docType: docType,
+                            userId: {{ request.user.id }},
+                        });
+                        showStatus(`⚡ ${docInfo.icon} ${docInfo.label} saved. It will be processed automatically once you're back online.`, "text-[#F9AB00]");
+                        setTimeout(() => {
+                            closeModalFn();
+                            window.location.reload();
+                        }, 1800);
+                    } catch (error) {
+                        showStatus("❌ " + error.message, "text-[#D93025]");
+                        console.error("Offline queue error:", error);
+                    } finally {
+                        processBtn.disabled = false;
+                        processBtn.innerHTML = "Process Document";
+                    }
+                    return;
+                }
+
+                // -------- ONLINE: extract now via Gemini --------
+                showStatus("📄 Processing document...", "text-[#1A73E8]");
                 try {
                     const formData = new FormData();
                     formData.append("file", file);
@@ -459,7 +493,6 @@
 
                     if (result.success) {
                         if (window.offlineStorage) {
-                            const docInfo = DOCUMENT_TYPES[docType] || DOCUMENT_TYPES['other_document'];
                             await window.offlineStorage.saveDocument({
                                 ...result.document,
                                 user_id: {{ request.user.id }},
@@ -468,8 +501,7 @@
                             });
                         }
 
-                        const docInfo = DOCUMENT_TYPES[docType] || DOCUMENT_TYPES['other_document'];
-                        showStatus(`✅ ${docInfo.icon} ${docInfo.label} processed and saved offline!`, "text-[#0F9D58]");
+                        showStatus(`✅ ${docInfo.icon} ${docInfo.label} processed and saved!`, "text-[#0F9D58]");
 
                         setTimeout(() => {
                             closeModalFn();
@@ -586,6 +618,115 @@
                 }
             }
         });
+
+        // ============================================================
+        // CHAT — ask a question about processed documents.
+        // Online: POST to /api/chat/ (exact-field lookup first, server
+        // side - see core/field_lookup.py - falling back to fuzzy/AI
+        // search). Offline: answer locally from IndexedDB using the same
+        // exact-match rules mirrored in static/js/field-lookup.js, with no
+        // network call at all.
+        // ============================================================
+        const chatForm = document.getElementById("chatForm");
+        const chatInput = document.getElementById("chatInput");
+        const typingIndicator = document.getElementById("typingIndicator");
+        const welcomeEl = document.getElementById("welcome");
+
+        function getCsrf() {
+            if (typeof window.getCSRFToken === "function") return window.getCSRFToken();
+            const el = document.querySelector("[name=csrfmiddlewaretoken]");
+            if (el) return el.value;
+            const match = document.cookie.match(/csrftoken=([^;]+)/);
+            return match ? match[1] : "";
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement("div");
+            div.textContent = str == null ? "" : String(str);
+            return div.innerHTML;
+        }
+
+        function appendBubble(text, who) {
+            if (!chatHistory) return;
+            if (welcomeEl) welcomeEl.remove();
+            const bubble = document.createElement("div");
+            bubble.className = who === "user"
+                ? "message-bubble-user ml-auto max-w-[80%] rounded-2xl px-4 py-2.5 bg-[#1A73E8] text-white text-[14px] leading-[1.5]"
+                : "message-bubble-bot max-w-[80%] rounded-2xl px-4 py-2.5 bg-white dark:bg-[#1A1A1A] border border-[#E9ECEF] dark:border-[#2A2A2A] text-[#212529] dark:text-[#E0E0E0] text-[14px] leading-[1.5]";
+            bubble.innerHTML = escapeHtml(text).replace(/\n/g, "<br>");
+            chatHistory.appendChild(bubble);
+            chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" });
+        }
+
+        async function answerOffline(question) {
+            if (!window.offlineStorage || !window.fieldLookup) {
+                return "I can't search your documents right now — offline storage isn't available in this browser.";
+            }
+            const docs = await window.offlineStorage.getAllDocuments();
+            const match = window.fieldLookup.answerFromDocuments(question, docs);
+            if (!match) {
+                return `I couldn't find "${question}" in the documents saved on this device. ` +
+                       `You're offline, so only documents already synced here can be searched.`;
+            }
+            return `${match.field}: ${match.value}`;
+        }
+
+        async function answerOnline(question) {
+            const response = await fetch("/api/chat/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCsrf(),
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({ message: question }),
+            });
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+            return data.response || "I couldn't find an answer to that.";
+        }
+
+        if (chatForm) {
+            chatForm.addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const question = (chatInput.value || "").trim();
+                if (!question) return;
+
+                appendBubble(question, "user");
+                chatInput.value = "";
+                chatInput.disabled = true;
+                if (typingIndicator) typingIndicator.classList.remove("hidden");
+
+                try {
+                    const answer = navigator.onLine
+                        ? await answerOnline(question)
+                        : await answerOffline(question);
+                    appendBubble(answer, "bot");
+                } catch (error) {
+                    console.error("Chat error:", error);
+                    // Network failed even though navigator.onLine said we
+                    // were online (flaky connection) - fall back to the
+                    // local answer instead of just failing.
+                    if (navigator.onLine) {
+                        try {
+                            const fallback = await answerOffline(question);
+                            appendBubble(fallback, "bot");
+                        } catch (_) {
+                            appendBubble("❌ Something went wrong answering that. Please try again.", "bot");
+                        }
+                    } else {
+                        appendBubble("❌ Something went wrong answering that. Please try again.", "bot");
+                    }
+                } finally {
+                    chatInput.disabled = false;
+                    chatInput.focus();
+                    if (typingIndicator) typingIndicator.classList.add("hidden");
+                }
+            });
+        }
 
         console.log("🚀 ASK_ME chat initialized with 26 document types");
         console.log("📡 Online status:", navigator.onLine ? "Online" : "Offline");

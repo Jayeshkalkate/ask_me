@@ -12,7 +12,8 @@ from django.core.files.uploadedfile import UploadedFile
 
 from .models import Document, convert_numpy
 from .ai_extract import extract_document_ai
-from .ai_utils import extract_structured_data, detect_document_type, clean_ocr_text
+from .ai_utils import detect_document_type, clean_ocr_text
+from .utils import build_document_text_and_fields
 
 logger = logging.getLogger(__name__)
 
@@ -66,48 +67,20 @@ def offline_upload(request):
             if isinstance(ocr_result, dict) and "error" in ocr_result and len(ocr_result) == 1:
                 return JsonResponse({'error': ocr_result["error"]}, status=502)
 
-            # Extract structured data
-            extracted_data = {}
-            extracted_text = ""
-
-            if isinstance(ocr_result, dict):
-                for page_key, page_data in ocr_result.items():
-                    # Skip internal keys (starting with "_") like "_summary"
-                    if page_key.startswith("_") or not isinstance(page_data, dict):
-                        continue
-
-                    # Get raw text
-                    if 'raw_text' in page_data:
-                        extracted_text += page_data['raw_text'] + " "
-
-                    # Clean data - remove internal keys
-                    cleaned_page = {}
-                    for key, value in page_data.items():
-                        if key not in ['_metadata', 'status', 'raw_text', 'structured_data'] and value:
-                            if isinstance(value, str):
-                                cleaned_page[key] = value.strip()
-                            else:
-                                cleaned_page[key] = value
-
-                    if cleaned_page:
-                        extracted_data[page_key] = cleaned_page
-
-            # Clean extracted text
+            # Prefer the AI's own structured fields (extracted directly
+            # against doc_type's predefined schema in ai_extract.py) over
+            # the legacy regex-based fallback - see core/utils.py.
+            extracted_text, extracted_data = build_document_text_and_fields(ocr_result)
             extracted_text = clean_ocr_text(extracted_text)
 
-            # Auto-detect document type if not provided
+            # Auto-detect document type only if the user didn't pick one
+            # (a known doc_type already drove structured extraction above).
             if not doc_type or doc_type == 'other_document':
                 detected = detect_document_type(extracted_text)
                 if detected and detected != 'Other_Document':
                     doc_type = detected.lower().replace(' ', '_')
                 else:
                     doc_type = 'other_document'
-
-            # If no data was extracted, try fallback extraction
-            if not extracted_data and extracted_text:
-                structured = extract_structured_data(extracted_text)
-                if structured:
-                    extracted_data = {'page_1': structured}
 
             # Create response with document data
             document_data = {

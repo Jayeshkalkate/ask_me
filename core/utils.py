@@ -29,6 +29,49 @@ def clean_extracted_data(data: Dict) -> Dict:
     return cleaned
 
 
+def build_document_text_and_fields(ocr_result: Dict) -> "tuple[str, Dict]":
+    """
+    Turn the dict returned by ai_extract.extract_document_ai() into
+    (ocr_text, final_data) ready to save on Document.extracted_text /
+    Document.extracted_data.
+
+    Prefers the AI's own structured `fields` (extracted directly against the
+    document type's predefined schema - see ai_extract.py's structured
+    mode) over the legacy regex-based extractor in ai_utils.py, which now
+    only runs as a fallback when no schema-based fields came back (unknown
+    doc type, or the model couldn't find anything on the page).
+    """
+    ocr_parts = []
+    merged_fields: Dict[str, Any] = {}
+
+    for page_key, page_data in (ocr_result or {}).items():
+        if page_key.startswith("_") or not isinstance(page_data, dict):
+            continue
+        raw_text = page_data.get("raw_text")
+        if raw_text:
+            ocr_parts.append(raw_text)
+        page_fields = page_data.get("fields") or {}
+        if isinstance(page_fields, dict):
+            for key, value in page_fields.items():
+                if value and key not in merged_fields:
+                    merged_fields[key] = value
+
+    ocr_text = " ".join(ocr_parts).strip()
+
+    if merged_fields:
+        final_data = {"page_1": merged_fields}
+    elif ocr_text:
+        structured_data = get_structured_fields_from_text(ocr_text)
+        if structured_data:
+            final_data = {"page_1": structured_data}
+        else:
+            final_data = {"page_1": {"Content": ocr_text[:500]}}
+    else:
+        final_data = {"page_1": {}}
+
+    return ocr_text, final_data
+
+
 def get_structured_fields_from_text(ocr_text: str) -> Dict:
     """
     Use rule‑based extraction to get structured fields.
