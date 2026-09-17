@@ -26,7 +26,11 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 # crash when env vars aren't injected yet. Render will supply the real one.
 SECRET_KEY = config("SECRET_KEY", default="placeholder-set-secret-key-in-env")
 DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "ask-me-smart-document-assistant.onrender.com",
+]
 
 # Configurable via env so this isn't pinned to one specific Render app name -
 # set CSRF_TRUSTED_ORIGINS="https://your-app.onrender.com,https://yourdomain.com"
