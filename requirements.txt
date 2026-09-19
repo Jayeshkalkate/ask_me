@@ -1,13 +1,24 @@
 Django==5.1.7
-opencv-python>=4.11.0.86
+# Headless build - the regular opencv-python package needs libGL.so.1
+# (and other X11/GTK libs) that a Docker/server image doesn't have, which
+# makes `import cv2` fail at container startup. Headless has no GUI code
+# and needs no such libs; this app only ever reads pixel data.
+opencv-python-headless>=4.11.0.86
 numpy>=2.1.0
-rapidfuzz==3.9.7
-python-decouple==3.8
+# >= instead of == on the three below: each was pinned to an exact old
+# version that predates prebuilt wheels for newer Python releases (e.g.
+# rapidfuzz==3.9.7 and Pillow==10.4.0 have no Python 3.14 wheel, and
+# psycopg2-binary==2.9.10 has no Python 3.14 wheel either - support was
+# added in 2.9.11). An exact old pin forces pip to compile from C source
+# on any newer interpreter, which fails without a full build toolchain
+# (and, for psycopg2, without PostgreSQL's pg_config on PATH). A floor
+# instead of a pin lets pip pick the newest compatible wheel automatically.
+rapidfuzz>=3.9.7
 python-dotenv==1.0.1
-Pillow==10.4.0
+Pillow>=10.4.0
 gunicorn==23.0.0
 whitenoise==6.7.0
-psycopg2-binary==2.9.10
+psycopg2-binary>=2.9.11
 django-cors-headers==4.4.0
 requests==2.32.3
 python-dateutil==2.9.0.post0

@@ -82,9 +82,9 @@
                 <select name="doc_type"
                         class="w-full rounded-xl border border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#121212] px-4 py-2.5 text-[#212529] dark:text-[#E0E0E0] focus:ring-2 focus:ring-[#1A73E8] focus:border-transparent outline-none transition-all duration-200 text-[14px]">
                     <option value="all">All Types</option>
-                    {% for type in doc_types %}
-                    <option value="{{ type }}" {% if current_filters.doc_type == type %}selected{% endif %}>
-                        {{ type|title }}
+                    {% for key, label in doc_types %}
+                    <option value="{{ key }}" {% if current_filters.doc_type == key %}selected{% endif %}>
+                        {{ label }}
                     </option>
                     {% endfor %}
                 </select>

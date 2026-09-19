@@ -58,11 +58,9 @@ def send_email_to_client(first_name, last_name, email, message):
         ["jayeshkalkate432@gmail.com"]
     )
 
+@login_required
 def userprofile(request):
     return render(request, "userprofile.html")
-
-def admin_user_list(request):
-    return render(request, "admin_user_list.html")
 
 def aboutus(request):
     return render(request, "aboutus.html")

@@ -447,17 +447,24 @@ class Document(models.Model):
         """Return file size in bytes, or None if no file (or the file is
         missing/unreadable on disk — e.g. moved, deleted, or a media-root
         mismatch between environments). A single row's missing file should
-        never take down the whole document list page."""
-        if self.file and hasattr(self.file, "size"):
-            try:
-                return self.file.size
-            except (FileNotFoundError, OSError):
-                logger.warning(
-                    "Document %s: file record exists but is missing on disk (%s)",
-                    self.pk, getattr(self.file, "name", "?")
-                )
-                return None
-        return None
+        never take down the whole document list page.
+
+        Note: `size` is a *property* on FieldFile that does a filesystem
+        lookup, so `hasattr(self.file, "size")` would itself trigger that
+        lookup and raise FileNotFoundError - hasattr() in Python 3 only
+        swallows AttributeError, so that error used to escape here
+        undetected. Go straight to the guarded call instead.
+        """
+        if not self.file:
+            return None
+        try:
+            return self.file.size
+        except (FileNotFoundError, OSError):
+            logger.warning(
+                "Document %s: file record exists but is missing on disk (%s)",
+                self.pk, getattr(self.file, "name", "?")
+            )
+            return None
 
     @property
     def file_extension(self):

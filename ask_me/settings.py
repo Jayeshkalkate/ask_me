@@ -7,11 +7,34 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse, parse_qsl
 
-from decouple import config
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
+
+
+# --------------------
+# ENV VAR HELPERS
+# --------------------
+# python-decouple's config(..., cast=bool) raises ValueError on a blank
+# string (not just a missing key) - and a .env file with a documented-but-
+# empty key like `DEBUG=` is exactly that case, so every management command
+# (including collectstatic/migrate at deploy time) crashed before Django
+# even started. These helpers treat "unset" and "set to an empty string"
+# the same way, always falling back to `default` instead of raising.
+def env_str(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip()
+
+
+def env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
 
 # --------------------
 # FILE UPLOAD LIMITS
@@ -24,18 +47,21 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 # --------------------
 # Default is provided so build-time commands (collectstatic, etc.) don't
 # crash when env vars aren't injected yet. Render will supply the real one.
-SECRET_KEY = config("SECRET_KEY", default="placeholder-set-secret-key-in-env")
-DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "ask-me-smart-document-assistant.onrender.com",
-]
+SECRET_KEY = env_str("SECRET_KEY", "placeholder-set-secret-key-in-env")
+DEBUG = env_bool("DEBUG", False)
+
+# Comma-separated via env (render.yaml sets ALLOWED_HOSTS=".onrender.com" -
+# a leading dot matches the whole subdomain, per Django's docs), with safe
+# defaults for local dev and the original Render app name always included
+# so existing deployments keep working even if the env var isn't set yet.
+_default_hosts = ["127.0.0.1", "localhost", "ask-me-smart-document-assistant.onrender.com"]
+_env_hosts = [h.strip() for h in env_str("ALLOWED_HOSTS", "").split(",") if h.strip()]
+ALLOWED_HOSTS = list(dict.fromkeys(_env_hosts + _default_hosts))
 
 # Configurable via env so this isn't pinned to one specific Render app name -
 # set CSRF_TRUSTED_ORIGINS="https://your-app.onrender.com,https://yourdomain.com"
 # (comma-separated, each including the scheme) once you know the real deployed URL(s).
-_csrf_trusted = os.getenv("CSRF_TRUSTED_ORIGINS", "https://ask-me-smart-document-assistant.onrender.com")
+_csrf_trusted = env_str("CSRF_TRUSTED_ORIGINS", "https://ask-me-smart-document-assistant.onrender.com")
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_trusted.split(",") if origin.strip()]
 
 # HTTPS/cookie hardening - only enforced in production (DEBUG=False).
@@ -93,8 +119,8 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+EMAIL_HOST_USER = env_str("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env_str("EMAIL_HOST_PASSWORD", "")
 
 # --------------------
 # INSTALLED APPS
@@ -123,6 +149,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Must come after AuthenticationMiddleware (needs request.user) - keeps
+    # Profile.last_activity fresh so Profile.is_online() reflects reality.
+    "account.middleware.active_user_middleware.ActiveUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -164,7 +193,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # GLOBAL SETTINGS
 # --------------------
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = config("TIME_ZONE", default="Asia/Kolkata")
+TIME_ZONE = env_str("TIME_ZONE", "Asia/Kolkata")
 USE_I18N = True
 USE_TZ = True
 
@@ -267,7 +296,7 @@ OFFLINE_STORAGE_TYPE = 'indexeddb'
 # --------------------
 # THIRD-PARTY / AI SERVICES
 # --------------------
-GEMINI_API_KEY = config("GEMINI_API_KEY", default="")
+GEMINI_API_KEY = env_str("GEMINI_API_KEY", "")
 
 # --------------------
 # AT-REST ENCRYPTION (core/crypto_fields.py)
@@ -281,4 +310,4 @@ GEMINI_API_KEY = config("GEMINI_API_KEY", default="")
 # readable if you turn this on later. Losing this key makes previously
 # encrypted documents permanently unreadable - store it like a password
 # (e.g. your host's secret manager), never in source control.
-DOCUMENT_ENCRYPTION_KEY = config("DOCUMENT_ENCRYPTION_KEY", default="")
+DOCUMENT_ENCRYPTION_KEY = env_str("DOCUMENT_ENCRYPTION_KEY", "")

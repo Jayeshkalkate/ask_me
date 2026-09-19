@@ -15,7 +15,7 @@ def create_icon(size, filename):
     try:
         from PIL import ImageFont
         font = ImageFont.truetype("arial.ttf", size//3)
-    except:
+    except Exception:
         font = ImageFont.load_default()
     
     # Center text

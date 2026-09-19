@@ -15,6 +15,7 @@ from typing import Dict, List, Any, Optional
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse, HttpResponseRedirect, Http404
 from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_cookie
 from django.contrib import messages
@@ -29,7 +30,13 @@ from rapidfuzz import fuzz
 # Import from utils
 from .utils import build_document_text_and_fields, INTERNAL_KEYS
 
-from .models import Document, SharedLink, convert_numpy
+from .models import (
+    Document,
+    SharedLink,
+    convert_numpy,
+    validate_file_size,
+    validate_file_extension,
+)
 from .forms import DocumentEditForm
 from .ai_utils import detect_document_type, extract_structured_data, generic_extraction
 from . import ai_chat
@@ -94,11 +101,11 @@ def document_library(request):
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    # Get supported doc types from ocr_utils
-    try:
-        doc_types = get_supported_document_types()
-    except:
-        doc_types = []
+    # (key, label) pairs matching Document.doc_type's stored values exactly,
+    # so the filter dropdown's selected value actually matches documents
+    # (get_supported_document_types() returns display names, which never
+    # equal the stored keys - that bug meant this filter matched nothing).
+    doc_types = Document.DOC_TYPES
 
     context = {
         "page_obj": page_obj,
@@ -135,6 +142,19 @@ def upload_document(request):
             messages.error(request, "No file uploaded.")
             return redirect("core:upload")
 
+        # Document.objects.create() does NOT call full_clean(), so the
+        # model's file validators (size/extension) never actually ran here -
+        # a request bypassing any client-side checks could upload an
+        # oversized or unsupported file straight to disk/DB. Validate
+        # explicitly before creating the row.
+        try:
+            validate_file_size(uploaded_file)
+            validate_file_extension(uploaded_file)
+        except ValidationError as e:
+            for msg in e.messages:
+                messages.error(request, msg)
+            return redirect("core:upload")
+
         doc_type = request.POST.get("doc_type", "other_document")
 
         document = Document.objects.create(
@@ -143,10 +163,6 @@ def upload_document(request):
             doc_type=doc_type,
             processed=False,
         )
-
-        if document.extracted_data or document.extracted_text:
-            messages.info(request, "Document already processed.")
-            return redirect("core:edit_document", pk=document.id)
 
         # Use threading instead of Celery (Celery is temporarily disabled)
         thread = threading.Thread(target=_process_document_thread, args=(document.id,))
@@ -161,57 +177,6 @@ def upload_document(request):
         return redirect("core:document_library")
 
     return render(request, "upload_document.html")
-
-
-# ============================================================
-#  BATCH UPLOAD DOCUMENT
-# ============================================================
-@login_required
-def batch_upload_documents(request):
-    """Upload multiple documents at once (max 10)."""
-    if request.method == "POST":
-        files = request.FILES.getlist("files")
-        if not files:
-            messages.error(request, "No files selected.")
-            return redirect("core:batch_upload")
-
-        if len(files) > 10:
-            messages.error(request, "❌ Maximum 10 files allowed per batch upload.")
-            return redirect("core:batch_upload")
-
-        doc_type = request.POST.get("doc_type", "other_document")
-        created_docs = []
-        for file in files:
-            doc = Document.objects.create(
-                user=request.user,
-                file=file,
-                doc_type=doc_type,
-                processed=False,
-            )
-            created_docs.append(doc)
-
-        # Use threading for all documents
-        for doc in created_docs:
-            thread = threading.Thread(target=_process_document_thread, args=(doc.id,))
-            thread.daemon = True
-            thread.start()
-
-        messages.success(
-            request,
-            f"✅ {len(created_docs)} files uploaded. They will be processed in the background."
-        )
-        return redirect("core:document_library")
-
-    try:
-        doc_types = get_supported_document_types()
-    except:
-        doc_types = []
-        
-    return render(
-        request,
-        "batch_index.html",
-        {"supported_doc_types": doc_types},
-    )
 
 
 # ============================================================
@@ -340,17 +305,14 @@ def reprocess_document(request, pk):
 
         return redirect("core:document_detail", pk=document.pk)
 
-    try:
-        doc_types = get_supported_document_types()
-    except:
-        doc_types = []
-        
     return render(
         request,
         "reprocess_document.html",
         {
             "document": document,
-            "supported_doc_types": doc_types,
+            # (key, label) pairs - see document_library() above for why this
+            # must match Document.DOC_TYPES rather than the OCR display names.
+            "supported_doc_types": Document.DOC_TYPES,
         },
     )
 
@@ -773,7 +735,7 @@ def system_status(request):
 
     try:
         doc_types = get_supported_document_types()
-    except:
+    except Exception:
         doc_types = []
 
     context = {

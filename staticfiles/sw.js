@@ -1,7 +1,16 @@
 // static/sw.js - Service Worker for offline support
-const CACHE_NAME = 'ask-me-v3'; // bumped: dropped Tesseract-OCR offline assets (AI extraction is server-side now)
+const CACHE_NAME = 'ask-me-v4'; // bumped: v3 accidentally precached a redirected
+// response for "/" (login-gated route -> 302 -> login page), which Chrome
+// refuses to replay for navigation requests (net::ERR_FAILED for everyone).
+// Bumping the cache name forces activate() below to delete that poisoned
+// v3 cache for anyone who already has it registered.
 const STATIC_ASSETS = [
-  '/',
+  // NOTE: '/' is intentionally NOT precached. It's a @login_required route
+  // that 302-redirects to /account/login/ when logged out, and a fetch()
+  // that follows that redirect produces a Response with `redirected: true`
+  // — which a service worker is not allowed to hand back for a navigation
+  // request. Precaching any auth-gated or otherwise-redirecting route will
+  // reproduce this bug. Only precache things that always return a plain 200.
   '/offline.html',
   '/static/img/ASK_ME_Logo.png',
 
@@ -9,6 +18,7 @@ const STATIC_ASSETS = [
   '/static/js/csrf.js',
   '/static/js/db.js',
   '/static/js/pwa.js',
+  '/static/js/field-lookup.js',
 
   // Offline queueing (no on-device OCR anymore — see offline-processor.js
   // header comment. Real text extraction happens server-side via Gemini
@@ -28,11 +38,17 @@ self.addEventListener('install', event => {
         console.log('Caching static assets...');
         // Cache assets individually so one missing/renamed file (e.g. if
         // vendor files haven't been added yet) doesn't fail the whole install.
+        // redirect: 'manual' means we store an opaqueredirect (unusable but
+        // harmless) instead of silently following a redirect and caching
+        // someone else's page under this URL - belt-and-braces alongside
+        // simply not listing redirect-prone routes above.
         return Promise.all(
           STATIC_ASSETS.map(url =>
-            cache.add(url).catch(err => {
-              console.warn('Skipping uncacheable asset:', url, err);
-            })
+            fetch(url, { redirect: 'manual' })
+              .then(response => cache.put(url, response))
+              .catch(err => {
+                console.warn('Skipping uncacheable asset:', url, err);
+              })
           )
         );
       })
@@ -53,7 +69,7 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event
 self.addEventListener('fetch', event => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
@@ -78,17 +94,31 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // For static assets (including OCR/vendor/lang files) - cache first
+  // Full-page navigations (typing the URL, following a link, opening the
+  // PWA): ALWAYS go to the network first. These routes are login-gated and
+  // change per-user/per-session, so they must never be answered from a
+  // stale cache - and a service worker must never respond to a navigation
+  // with a redirected Response (see CACHE_NAME comment above). Only fall
+  // back to the offline page when the network genuinely fails.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/offline.html'))
+    );
+    return;
+  }
+
+  // For static assets - cache first, but never serve a redirected response
+  // (defensive check in case a redirect-prone URL ever ends up cached).
   event.respondWith(
     caches.match(event.request)
       .then(cachedResponse => {
-        if (cachedResponse) {
+        if (cachedResponse && !cachedResponse.redirected) {
           return cachedResponse;
         }
         return fetch(event.request)
           .then(response => {
-            // Cache successful responses
-            if (response && response.status === 200) {
+            // Cache successful, non-redirected responses only.
+            if (response && response.status === 200 && !response.redirected) {
               const clone = response.clone();
               caches.open(CACHE_NAME).then(cache => {
                 cache.put(event.request, clone);
