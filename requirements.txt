@@ -23,3 +23,9 @@ django-cors-headers==4.4.0
 requests==2.32.3
 python-dateutil==2.9.0.post0
 cryptography>=42.0.0
+# Media storage on Cloudinary's free tier - Render's free plan has no
+# persistent disk, so anything saved to local disk is wiped on every
+# restart/redeploy. Cloudinary's free tier (25 GB storage/bandwidth credits)
+# gives Document.file somewhere that actually survives across deploys.
+django-cloudinary-storage==0.3.0
+cloudinary>=1.36.0

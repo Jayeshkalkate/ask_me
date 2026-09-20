@@ -326,7 +326,7 @@ def extract_structured_data(text: str) -> Dict[str, Any]:
     
     doc_type = detect_document_type(cleaned)
     if not doc_type:
-        return _generic_extraction(cleaned)
+        return generic_extraction(cleaned)
     
     # Get the appropriate extractor function
     extractor_name = DOC_TYPE_TO_EXTRACTOR.get(doc_type)
@@ -335,7 +335,7 @@ def extract_structured_data(text: str) -> Dict[str, Any]:
         if extractor:
             return extractor(cleaned)
     
-    return _generic_extraction(cleaned)
+    return generic_extraction(cleaned)
 
 
 # ============================================================

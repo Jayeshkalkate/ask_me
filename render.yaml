@@ -1,14 +1,18 @@
 services:
   - type: web
     name: ask-me-chatbot
-    env: docker
+    env: python
     plan: free
     region: oregon
-    dockerfilePath: ./Dockerfile
+    runtime: python-3.13.2
 
-    # Docker mode uses entrypoint.sh (collectstatic + migrate + gunicorn) -
-    # buildCommand/startCommand are for the native python env and are
-    # ignored/unnecessary here. 
+    # Native Python build - no Dockerfile needed. Render installs
+    # requirements.txt and collects static files at build time; migrations
+    # run at the start of every deploy/restart via startCommand (Render's
+    # free plan has no separate "release phase" step, so this is the
+    # equivalent - it's fast and safe to run on every boot).
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    startCommand: "python manage.py migrate --noinput && gunicorn ask_me.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120"
 
     envVars:
       - key: SECRET_KEY
@@ -23,9 +27,14 @@ services:
       - key: TIME_ZONE
         value: "Asia/Kolkata"
 
-      # 👇 You must set these in the Render dashboard (not in the yaml)
-      # - DATABASE_URL
-      # - EMAIL_HOST_PASSWORD
-      # - GEMINI_API_KEY
+      # 👇 You must set these in the Render dashboard (not in this file)
+      # - DATABASE_URL             (free Neon Postgres)
+      # - EMAIL_HOST_PASSWORD      (Gmail App Password)
       # - EMAIL_HOST_USER
-      # - CSRF_TRUSTED_ORIGINS  (e.g. https://ask-me-smart-document-assistant.onrender.com)
+      # - GEMINI_API_KEY           (free Google AI Studio key)
+      # - DOCUMENT_ENCRYPTION_KEY
+      # - CSRF_TRUSTED_ORIGINS     (e.g. https://ask-me-smart-document-assistant.onrender.com)
+      # - CLOUDINARY_URL           (free Cloudinary account - Dashboard > API
+      #                             Environment variable; keeps uploaded
+      #                             files alive across restarts, since
+      #                             Render's free plan has no persistent disk)
