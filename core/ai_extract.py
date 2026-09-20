@@ -52,6 +52,7 @@ import json as json_lib
 import logging
 import mimetypes
 import os
+import time
 from typing import Dict, Optional
 
 import requests
@@ -114,23 +115,58 @@ def _read_file_b64(file_path: str):
 
 
 def _call_gemini(api_key: str, parts: list, generation_config: dict) -> Dict:
-    """Low-level Gemini call. Returns {'candidates': ...} or {'error': ...}."""
+    """Low-level Gemini call. Returns {'candidates': ...} or {'error': ...}.
+
+    Retries on 503 (Service Unavailable) and 429 (rate limited) - both are
+    meant to be transient per Google's own guidance, and in practice they
+    often clear up within a couple of seconds. Retrying here means a
+    momentary blip on Google's side doesn't force every such request
+    straight down to the generic-OCR fallback.
+    """
     payload = {
         "contents": [{"parts": parts}],
         "generationConfig": generation_config,
     }
-    try:
-        response = requests.post(
-            GEMINI_URL, params={"key": api_key}, json=payload, timeout=REQUEST_TIMEOUT
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"AI extraction request failed: {e}")
-        return {"error": f"AI extraction service unavailable right now: {e}"}
-    except ValueError:
-        logger.error("AI extraction returned invalid JSON")
-        return {"error": "AI extraction service returned an invalid response."}
+    # Keep this conservative: each attempt can take up to REQUEST_TIMEOUT
+    # (45s) on its own, and gunicorn's own worker timeout on Render is
+    # 120s - 3 full attempts at 45s each could exceed that and get the
+    # whole request killed, which would be worse than just failing over
+    # to the OCR fallback. One retry keeps the worst case well under that.
+    max_attempts = 2
+    backoff_seconds = 2
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = requests.post(
+                GEMINI_URL, params={"key": api_key}, json=payload, timeout=REQUEST_TIMEOUT
+            )
+            if response.status_code in (503, 429) and attempt < max_attempts:
+                logger.warning(
+                    "AI extraction got %s from Gemini (attempt %d/%d) - retrying in %ds",
+                    response.status_code, attempt, max_attempts, backoff_seconds,
+                )
+                time.sleep(backoff_seconds)
+                backoff_seconds *= 2
+                continue
+            response.raise_for_status()
+            try:
+                return response.json()
+            except ValueError:
+                logger.error("AI extraction returned invalid JSON")
+                return {"error": "AI extraction service returned an invalid response."}
+        except requests.exceptions.RequestException as e:
+            if attempt < max_attempts:
+                logger.warning(
+                    "AI extraction request error (attempt %d/%d): %s - retrying in %ds",
+                    attempt, max_attempts, e, backoff_seconds,
+                )
+                time.sleep(backoff_seconds)
+                backoff_seconds *= 2
+                continue
+            logger.error(f"AI extraction request failed: {e}")
+            return {"error": f"AI extraction service unavailable right now: {e}"}
+
+    return {"error": "AI extraction service unavailable right now: exhausted retries"}
 
 
 def _extract_text_from_response(data: Dict):
