@@ -2,20 +2,111 @@
 {% load static %}
 
 {% block content %}
+<style>
+    /* ============================================================
+       ASK_ME chat UI - index page only.
+       Colours come from the theme variables defined in base.html, so
+       light/dark mode keeps working through the existing toggle.
+       ============================================================ */
+    @keyframes askme-msg-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes askme-dot-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-6px); opacity: 1; } }
+    @keyframes askme-pop { 0% { transform: scale(.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+    /* Bubbles: shrink-wrap to their text, 15px / 1.4 for easy scanning */
+    #chatHistory .message-bubble-bot,
+    #chatHistory .message-bubble-user {
+        width: fit-content;
+        max-width: min(85%, 640px);
+        font-size: 15px;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+        animation: askme-msg-in 180ms ease-out both;
+    }
+    #chatHistory .message-bubble-user { margin-left: auto; }
+
+    /* Typing indicator (a bot bubble with three bouncing dots) */
+    #chatHistory .typing-bubble { display: flex; align-items: center; gap: 5px; padding: 15px 16px; }
+    .typing-bubble span {
+        width: 8px; height: 8px; border-radius: 9999px; background: var(--text-muted);
+        animation: askme-dot-bounce 1.2s ease-in-out infinite;
+    }
+    .typing-bubble span:nth-child(2) { animation-delay: .15s; }
+    .typing-bubble span:nth-child(3) { animation-delay: .3s; }
+
+    /* Quick-reply chips: one horizontally scrolling row above the input */
+    .quick-replies {
+        display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 12px; margin: 0 -2px;
+        scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
+    }
+    .quick-replies::-webkit-scrollbar { display: none; }
+    .quick-replies .quick-reply {
+        flex: 0 0 auto; scroll-snap-align: start; display: inline-flex; align-items: center; gap: 6px;
+        text-decoration: none; min-height: 40px;
+    }
+    .quick-replies .quick-reply:active { transform: scale(.96); }
+    .quick-replies .quick-reply:disabled { opacity: .5; cursor: not-allowed; }
+    .quick-replies .quick-reply:disabled:hover {
+        background: var(--bg-card); color: var(--text-primary); border-color: var(--border-soft);
+        transform: none; box-shadow: none;
+    }
+
+    /* Send button: grey while the box is empty, brand blue (with a small pop) once there is text */
+    .send-btn {
+        width: 44px; height: 44px; flex: 0 0 auto; border: 0; border-radius: 9999px; cursor: not-allowed;
+        display: grid; place-items: center; background: var(--bg-scrollbar); color: var(--text-muted);
+        transition: background-color 200ms ease, color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+    }
+    .send-btn svg { transition: transform 200ms ease; }
+    .send-btn.is-ready { background: var(--accent-blue); color: #FFFFFF; cursor: pointer; box-shadow: 0 4px 14px rgba(26,115,232,.35); animation: askme-pop 220ms ease-out; }
+    .send-btn.is-ready:hover { background: #1557B0; }
+    .send-btn.is-ready:hover svg { transform: translateY(-2px); }
+    .send-btn.is-ready:active { transform: scale(.92); }
+
+    /* "New message" pill, shown only when the reader has scrolled up */
+    .jump-latest {
+        position: absolute; left: 50%; bottom: 12px; transform: translate(-50%, 8px);
+        display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: 9999px;
+        background: var(--accent-blue); color: #FFFFFF; font: 600 14px/1 'Inter', sans-serif; cursor: pointer;
+        box-shadow: 0 6px 18px rgba(26,115,232,.4); opacity: 0; pointer-events: none; visibility: hidden;
+        transition: opacity 180ms ease, transform 180ms ease, visibility 0s linear 180ms;
+    }
+    .jump-latest.is-visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; visibility: visible; transition-delay: 0s; }
+
+    /* Chat window <-> launcher (FAB) morph */
+    .chat-window {
+        transform-origin: bottom right;
+        transition: transform 280ms cubic-bezier(.2,.8,.2,1), opacity 200ms ease, background-color 300ms ease;
+    }
+    .chat-window.is-minimized {
+        transform: scale(.06); opacity: 0; visibility: hidden; pointer-events: none;
+        transition: transform 240ms cubic-bezier(.4,0,1,1), opacity 200ms ease, visibility 0s linear 240ms;
+    }
+    .chat-launcher {
+        position: fixed; right: 20px; bottom: calc(20px + var(--banner-h, 0px)); z-index: 9997; width: 60px; height: 60px; border: 0; border-radius: 9999px;
+        display: grid; place-items: center; background: var(--accent-blue); color: #FFFFFF; cursor: pointer;
+        box-shadow: 0 8px 24px rgba(26,115,232,.45);
+        opacity: 0; visibility: hidden; pointer-events: none; transform: scale(.4) rotate(-90deg);
+        transition: transform 300ms cubic-bezier(.34,1.56,.64,1), opacity 200ms ease, bottom 250ms ease, visibility 0s linear 300ms;
+    }
+    .chat-launcher.is-visible { opacity: 1; visibility: visible; pointer-events: auto; transform: scale(1) rotate(0); transition-delay: 0s; }
+    .chat-launcher.is-visible:hover { transform: scale(1.06) rotate(-8deg); }
+    .chat-launcher.is-visible:active { transform: scale(.94); }
+    @media (max-width: 480px) { .chat-launcher { right: 16px; bottom: calc(16px + var(--banner-h, 0px)); } }
+</style>
 <main class="w-full max-w-4xl mx-auto px-4 py-6">
-    <div class="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-lg overflow-hidden grid grid-rows-[auto_1fr_auto] h-[90vh] md:h-[85vh] transition-colors duration-300">
+    <div id="chatWindow" class="chat-window bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-lg overflow-hidden flex flex-col h-[90vh] md:h-[85vh]" role="region" aria-label="ASK_ME chat">
 
         <!-- ============================================================ -->
         <!-- CHAT HEADER -->
         <!-- ============================================================ -->
-        <header class="flex items-center justify-between gap-3 p-4 border-b border-gray-200 dark:border-[#2A2A2A] bg-[#F1F3F5] dark:bg-[#1E1E1E] transition-colors duration-300">
-            <div class="flex items-center gap-3">
+        <header class="shrink-0 sticky top-0 z-10 flex items-center justify-between gap-3 p-4 border-b border-gray-200 dark:border-[#2A2A2A] bg-[#F1F3F5] dark:bg-[#1E1E1E] transition-colors duration-300">
+            <div class="flex items-center gap-3 min-w-0">
                 <div class="w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 bg-white dark:bg-[#1A1A1A]">
                     <img src="{% static 'img/ASK_ME_Logo.png' %}" alt="ASK_ME Logo" class="w-full h-full object-cover" />
                 </div>
                 <div>
                     <div class="text-[15px] font-semibold text-[#121416] dark:text-[#F8F9FA] transition-colors duration-300">
-                        ASK_ME - Secure & Smart Document Assistant
+                        ASK_ME<span class="hidden sm:inline"> - Secure & Smart Document Assistant</span>
                     </div>
                     <div class="text-[12px] text-[#6C757D] dark:text-[#ADB5BD] flex items-center gap-2 transition-colors duration-300">
                         <span id="onlineStatusDot" class="w-2 h-2 rounded-full bg-[#0F9D58] inline-block"></span>
@@ -43,26 +134,33 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 8l3-3m-3 3L9 9" />
                     </svg>
                 </button>
+                <button id="minimizeChat" type="button" title="Minimize chat" aria-label="Minimize chat"
+                        class="p-2 rounded-md hover:bg-[#E9ECEF] dark:hover:bg-[#2A2A2A] transition-colors duration-200 text-[#495057] dark:text-[#ADB5BD] hover:text-[#1A73E8] dark:hover:text-[#1A73E8]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
             </div>
         </header>
 
         <!-- ============================================================ -->
         <!-- MESSAGES -->
         <!-- ============================================================ -->
-        <div class="p-4 bg-[#F8F9FA] dark:bg-[#121212] transition-colors duration-300">
-            {% if messages %}
+        {% if messages %}
+        <div class="shrink-0 p-4 pb-0 bg-[#F4F5F7] dark:bg-[#121212] transition-colors duration-300">
                 {% for message in messages %}
                     <div class="mb-2 p-3 rounded-lg text-[14px] leading-[1.5] animate-fade-in-up {% if message.tags == 'success' %}bg-[#0F9D58] text-white{% elif message.tags == 'error' %}bg-[#D93025] text-white{% else %}bg-[#1A73E8] text-white{% endif %}">
                         {{ message }}
                     </div>
                 {% endfor %}
-            {% endif %}
         </div>
+        {% endif %}
 
         <!-- ============================================================ -->
         <!-- CHAT HISTORY -->
         <!-- ============================================================ -->
-        <section id="chatHistory" class="flex-1 p-4 overflow-y-auto bg-[#F8F9FA] dark:bg-[#121212] space-y-4 scroll-smooth transition-colors duration-300 chat-scrollbar">
+        <div class="relative flex-1 min-h-0 flex flex-col bg-[#F4F5F7] dark:bg-[#121212] transition-colors duration-300">
+        <section id="chatHistory" role="log" aria-live="polite" aria-relevant="additions" class="flex-1 min-h-0 p-4 overflow-y-auto space-y-4 chat-scrollbar">
 
             <!-- Search Results -->
             {% if field %}
@@ -127,37 +225,48 @@
 
         </section>
 
+        <!-- "New message" pill (only visible when the reader scrolled up) -->
+        <button id="jumpLatest" type="button" class="jump-latest" aria-label="Jump to latest message">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+            New message
+        </button>
+        </div>
+
         <!-- ============================================================ -->
-        <!-- CHAT INPUT AREA -->
+        <!-- INPUT BAR (always visible) -->
         <!-- ============================================================ -->
-        <div class="p-4 border-t border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#1A1A1A] transition-colors duration-300">
-            <form id="chatForm" class="flex gap-2 items-center">
+        <div class="shrink-0 border-t border-[#E9ECEF] dark:border-[#2A2A2A] bg-white dark:bg-[#1A1A1A] p-3 sm:p-4 transition-colors duration-300">
+
+            <!-- Quick replies: swipe / scroll sideways. data-question = sent as a chat message,
+                 data-upload = opens the upload dialog (optionally pre-selecting data-doc-type). -->
+            <div id="quickReplies" class="quick-replies" role="group" aria-label="Suggested questions">
+                <button type="button" class="quick-reply" data-question="What is my date of birth?">🎂 Date of birth</button>
+                <button type="button" class="quick-reply" data-question="What is my Aadhaar number?">🪪 Aadhaar</button>
+                <button type="button" class="quick-reply" data-question="What is my PAN number?">💳 PAN</button>
+                <button type="button" class="quick-reply" data-question="What is my passport number?">🛂 Passport</button>
+                <button type="button" class="quick-reply" data-upload>📤 Upload document</button>
+                <a href="{% url 'contactus' %}" class="quick-reply">🙋 Speak to a human</a>
+            </div>
+
+            <form id="chatForm" class="flex gap-2 items-center" autocomplete="off">
                 {% csrf_token %}
                 <input type="text"
                        id="chatInput"
                        name="q"
-                       placeholder="🔎 Ask about your documents, e.g. 'What is my date of birth?'"
-                       class="flex-1 rounded-lg border border-[#E9ECEF] dark:border-[#2A2A2A] px-4 py-2.5 text-[14px] leading-[1.5] focus:outline-none focus:shadow-focus focus:border-[#1A73E8] bg-white dark:bg-[#121212] text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] transition-all duration-200"
-                       autocomplete="off"
-                       required />
-                <button type="submit"
-                        class="px-5 py-2.5 rounded-lg bg-[#1A73E8] hover:bg-[#1557B0] text-white font-medium text-[14px] transition-all duration-200 hover:shadow-lg active:scale-95 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                       placeholder="Ask about your documents…"
+                       aria-label="Type your question"
+                       enterkeyhint="send"
+                       class="input-shadow flex-1 min-w-0 rounded-full border border-[#E9ECEF] dark:border-[#2A2A2A] px-4 py-3 text-[16px] sm:text-[15px] leading-[1.4] focus:border-[#1A73E8] bg-white dark:bg-[#121212] text-[#212529] dark:text-[#E0E0E0] placeholder-[#ADB5BD] dark:placeholder-[#6C757D] transition-all duration-200"
+                       autocomplete="off" />
+                <button type="submit" id="sendBtn" class="send-btn" aria-label="Send message" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5m0 0l-6 6m6-6l6 6" />
                     </svg>
-                    Ask
                 </button>
             </form>
-            <div id="typingIndicator" class="mt-3 hidden text-[14px] text-[#6C757D] dark:text-[#6C757D] transition-colors duration-300">
-                <span class="inline-flex items-center gap-2">
-                    <strong>Bot is typing</strong>
-                    <span class="inline-flex items-end gap-1">
-                        <span class="w-2 h-2 rounded-full bg-[#ADB5BD] dark:bg-[#6C757D] inline-block animate-typing-bounce"></span>
-                        <span class="w-2 h-2 rounded-full bg-[#ADB5BD] dark:bg-[#6C757D] inline-block animate-typing-bounce" style="animation-delay: 0.2s"></span>
-                        <span class="w-2 h-2 rounded-full bg-[#ADB5BD] dark:bg-[#6C757D] inline-block animate-typing-bounce" style="animation-delay: 0.4s"></span>
-                    </span>
-                </span>
-            </div>
+
             <!-- Offline hint -->
             <div id="offlineHint" class="mt-2 text-[11px] text-[#F9AB00] dark:text-[#F9AB00] hidden transition-colors duration-300">
                 ⚡ You're offline. Answering from documents already saved on this device — new uploads will be processed once you're back online.
@@ -165,6 +274,15 @@
         </div>
     </div>
 </main>
+
+<!-- ============================================================ -->
+<!-- LAUNCHER (FAB): appears when the chat is minimized -->
+<!-- ============================================================ -->
+<button id="chatLauncher" type="button" class="chat-launcher" aria-label="Open chat" aria-expanded="true" title="Open chat">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.83L3 20l1.3-3.9C3.48 14.8 3 13.45 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+</button>
 
 <!-- ============================================================ -->
 <!-- UPLOAD MODAL -->
@@ -555,20 +673,140 @@
         updateOnlineStatus();
 
         // ============================================================
-        // AUTO-SCROLL CHAT
+        // SCROLL MANAGEMENT
+        // Follow new messages only while the reader is at (or near) the
+        // bottom. If they have scrolled up to re-read something, leave the
+        // viewport alone and offer a "New message" pill instead.
         // ============================================================
         const chatHistory = document.getElementById("chatHistory");
-        if (chatHistory) {
-            chatHistory.scrollTo({
-                top: chatHistory.scrollHeight,
-                behavior: "smooth"
-            });
+        const jumpBtn = document.getElementById("jumpLatest");
+        const NEAR_BOTTOM_PX = 80;
+        const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        let stickToBottom = true;
+        let autoScrolling = false;   // true while WE are scrolling, so those scroll events don't count as the user scrolling up
+        let autoScrollTimer = null;
+
+        function distanceFromBottom() {
+            return chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight;
         }
+
+        function setJumpVisible(visible) {
+            if (jumpBtn) jumpBtn.classList.toggle("is-visible", visible);
+        }
+
+        function scrollToBottom(smooth) {
+            if (!chatHistory) return;
+            // Animate short hops only; long jumps (e.g. after scrolling far up) are instant so the
+            // animation can never outlast the guard timer below.
+            const animate = smooth && !prefersReducedMotion && distanceFromBottom() <= chatHistory.clientHeight;
+            stickToBottom = true;
+            autoScrolling = true;
+            setJumpVisible(false);
+            clearTimeout(autoScrollTimer);
+            chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: animate ? "smooth" : "instant" });
+            autoScrollTimer = setTimeout(() => {
+                autoScrolling = false;
+                stickToBottom = distanceFromBottom() < NEAR_BOTTOM_PX;
+            }, animate ? 500 : 50);
+        }
+
+        if (chatHistory) {
+            chatHistory.addEventListener("scroll", () => {
+                if (autoScrolling) return;
+                stickToBottom = distanceFromBottom() < NEAR_BOTTOM_PX;
+                if (stickToBottom) setJumpVisible(false);
+            }, { passive: true });
+            scrollToBottom(true);
+        }
+        if (jumpBtn) jumpBtn.addEventListener("click", () => scrollToBottom(true));
+
+        // ============================================================
+        // FIT TO VIEWPORT
+        // A fixed 90vh ignores the site header above the chat, which pushed the
+        // input bar off-screen on phones and short laptops. Measure where the
+        // window actually starts and give it the remaining height instead.
+        // (The vh classes on #chatWindow remain as the no-JS fallback.)
+        // ============================================================
+        const chatWindow = document.getElementById("chatWindow");
+
+        // The PWA "Install ASK_ME" banner (install_prompt.html) slides up over the bottom of the
+        // screen. Leave room for it so it never covers the input bar or the launcher.
+        function installBannerHeight() {
+            const banner = document.getElementById("installBanner");
+            if (!banner || getComputedStyle(banner).display === "none") return 0;
+            return Math.max(0, Math.round(window.innerHeight - banner.getBoundingClientRect().top));
+        }
+        function syncInstallBanner() {
+            document.documentElement.style.setProperty("--banner-h", installBannerHeight() + "px");
+            fitChatHeight();
+        }
+        function watchInstallBanner() {
+            const banner = document.getElementById("installBanner");
+            if (banner) {
+                // The banner slides in/out by changing its inline style (and hides itself with display:none
+                // at the same instant its transition would end, so "transitionend" is not reliable).
+                // Watch the style change instead and re-measure once the slide has finished.
+                let timer = null;
+                new MutationObserver(() => {
+                    clearTimeout(timer);
+                    timer = setTimeout(syncInstallBanner, 380);
+                }).observe(banner, { attributes: true, attributeFilter: ["style", "class"] });
+            }
+            syncInstallBanner();
+        }
+
+        function fitChatHeight() {
+            if (!chatWindow || !chatWindow.parentElement) return;
+            const host = chatWindow.parentElement;   // <main>; unaffected by the window's own minimize transform
+            const top = host.getBoundingClientRect().top + window.scrollY + parseFloat(getComputedStyle(host).paddingTop);
+            const available = window.innerHeight - top - 16 - installBannerHeight();
+            chatWindow.style.height = Math.round(Math.min(Math.max(available, 380), 900)) + "px";
+            if (stickToBottom && chatHistory) scrollToBottom(false);
+        }
+        window.addEventListener("resize", syncInstallBanner);
+        window.addEventListener("orientationchange", syncInstallBanner);
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", watchInstallBanner);
+        } else {
+            watchInstallBanner();
+        }
+
+        // ============================================================
+        // MINIMIZE <-> LAUNCHER (FAB)
+        // The window shrinks toward the launcher, the launcher rotates in;
+        // clicking it reverses the motion.
+        // ============================================================
+        const launcher = document.getElementById("chatLauncher");
+        const minimizeBtn = document.getElementById("minimizeChat");
+
+        function setMinimized(minimized) {
+            if (!chatWindow || !launcher) return;
+            // Aim the shrink/grow animation at the launcher's centre.
+            const w = chatWindow.getBoundingClientRect();
+            const l = launcher.getBoundingClientRect();
+            chatWindow.style.transformOrigin = `${l.left + l.width / 2 - w.left}px ${l.top + l.height / 2 - w.top}px`;
+
+            chatWindow.classList.toggle("is-minimized", minimized);
+            launcher.classList.toggle("is-visible", minimized);
+            launcher.setAttribute("aria-expanded", String(!minimized));
+
+            if (minimized) {
+                launcher.focus({ preventScroll: true });
+            } else {
+                scrollToBottom(false);
+                // Only auto-focus the input on devices with a real pointer, so phones don't pop the keyboard.
+                if (window.matchMedia("(pointer: fine)").matches) {
+                    setTimeout(() => { const i = document.getElementById("chatInput"); if (i) i.focus({ preventScroll: true }); }, 280);
+                }
+            }
+        }
+        if (minimizeBtn) minimizeBtn.addEventListener("click", () => setMinimized(true));
+        if (launcher) launcher.addEventListener("click", () => setMinimized(false));
 
         // ============================================================
         // QUICK REPLY BUTTONS
         // ============================================================
-        document.querySelectorAll(".quick-reply").forEach((btn) => {
+        document.querySelectorAll(".quick-reply[data-upload]").forEach((btn) => {
             btn.addEventListener("click", () => {
                 const docType = btn.dataset.docType;
                 if (docType && docTypeSelect) {
@@ -629,7 +867,9 @@
         // ============================================================
         const chatForm = document.getElementById("chatForm");
         const chatInput = document.getElementById("chatInput");
-        const typingIndicator = document.getElementById("typingIndicator");
+        const sendBtn = document.getElementById("sendBtn");
+        const quickQuestionBtns = document.querySelectorAll(".quick-reply[data-question]");
+        const MIN_TYPING_MS = 350;   // keep the dots up long enough to be seen, even for instant offline answers
         const welcomeEl = document.getElementById("welcome");
 
         function getCsrf() {
@@ -649,13 +889,32 @@
         function appendBubble(text, who) {
             if (!chatHistory) return;
             if (welcomeEl) welcomeEl.remove();
+            // Always follow your own message; follow the bot only if the reader is at the bottom.
+            const follow = who === "user" || stickToBottom;
             const bubble = document.createElement("div");
-            bubble.className = who === "user"
-                ? "message-bubble-user ml-auto max-w-[80%] rounded-2xl px-4 py-2.5 bg-[#1A73E8] text-white text-[14px] leading-[1.5]"
-                : "message-bubble-bot max-w-[80%] rounded-2xl px-4 py-2.5 bg-white dark:bg-[#1A1A1A] border border-[#E9ECEF] dark:border-[#2A2A2A] text-[#212529] dark:text-[#E0E0E0] text-[14px] leading-[1.5]";
+            bubble.className = who === "user" ? "message-bubble-user" : "message-bubble-bot";
             bubble.innerHTML = escapeHtml(text).replace(/\n/g, "<br>");
             chatHistory.appendChild(bubble);
-            chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" });
+            if (follow) {
+                scrollToBottom(true);
+            } else {
+                setJumpVisible(true);
+            }
+        }
+
+        let typingEl = null;
+        function showTyping() {
+            if (typingEl || !chatHistory) return;
+            typingEl = document.createElement("div");
+            typingEl.className = "message-bubble-bot typing-bubble";
+            typingEl.setAttribute("role", "status");
+            typingEl.setAttribute("aria-label", "ASK_ME is typing");
+            typingEl.innerHTML = "<span></span><span></span><span></span>";
+            chatHistory.appendChild(typingEl);
+            if (stickToBottom) scrollToBottom(true);
+        }
+        function hideTyping() {
+            if (typingEl) { typingEl.remove(); typingEl = null; }
         }
 
         async function answerOffline(question) {
@@ -689,44 +948,68 @@
             return data.response || "I couldn't find an answer to that.";
         }
 
-        if (chatForm) {
-            chatForm.addEventListener("submit", async function (e) {
-                e.preventDefault();
-                const question = (chatInput.value || "").trim();
-                if (!question) return;
+        // Send button: grey while empty, brand blue once there is something to send.
+        let busy = false;
+        function syncSendState() {
+            const ready = !busy && !!(chatInput && chatInput.value.trim());
+            if (!sendBtn) return;
+            sendBtn.disabled = !ready;
+            sendBtn.classList.toggle("is-ready", ready);
+        }
 
-                appendBubble(question, "user");
-                chatInput.value = "";
-                chatInput.disabled = true;
-                if (typingIndicator) typingIndicator.classList.remove("hidden");
+        function setBusy(value) {
+            busy = value;
+            if (chatForm) chatForm.setAttribute("aria-busy", String(value));
+            quickQuestionBtns.forEach((btn) => { btn.disabled = value; });
+            syncSendState();
+        }
 
-                try {
-                    const answer = navigator.onLine
-                        ? await answerOnline(question)
-                        : await answerOffline(question);
-                    appendBubble(answer, "bot");
-                } catch (error) {
-                    console.error("Chat error:", error);
-                    // Network failed even though navigator.onLine said we
-                    // were online (flaky connection) - fall back to the
-                    // local answer instead of just failing.
-                    if (navigator.onLine) {
-                        try {
-                            const fallback = await answerOffline(question);
-                            appendBubble(fallback, "bot");
-                        } catch (_) {
-                            appendBubble("❌ Something went wrong answering that. Please try again.", "bot");
-                        }
-                    } else {
-                        appendBubble("❌ Something went wrong answering that. Please try again.", "bot");
-                    }
-                } finally {
-                    chatInput.disabled = false;
-                    chatInput.focus();
-                    if (typingIndicator) typingIndicator.classList.add("hidden");
+        async function askQuestion(rawQuestion) {
+            const question = (rawQuestion || "").trim();
+            if (!question || busy) return;
+
+            appendBubble(question, "user");
+            if (chatInput) chatInput.value = "";
+            setBusy(true);
+            showTyping();
+            const startedAt = Date.now();
+
+            let answer;
+            try {
+                answer = navigator.onLine
+                    ? await answerOnline(question)
+                    : await answerOffline(question);
+            } catch (error) {
+                console.error("Chat error:", error);
+                answer = "❌ Something went wrong answering that. Please try again.";
+                // Network failed even though navigator.onLine said we
+                // were online (flaky connection) - fall back to the
+                // local answer instead of just failing.
+                if (navigator.onLine) {
+                    try { answer = await answerOffline(question); } catch (_) { /* keep the generic error */ }
                 }
+            }
+
+            const remaining = MIN_TYPING_MS - (Date.now() - startedAt);
+            if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+
+            hideTyping();
+            appendBubble(answer, "bot");
+            setBusy(false);
+            if (chatInput && window.matchMedia("(pointer: fine)").matches) chatInput.focus();
+        }
+
+        if (chatInput) chatInput.addEventListener("input", syncSendState);
+        if (chatForm) {
+            chatForm.addEventListener("submit", function (e) {
+                e.preventDefault();
+                askQuestion(chatInput.value);
             });
         }
+        quickQuestionBtns.forEach((btn) => {
+            btn.addEventListener("click", () => askQuestion(btn.dataset.question));
+        });
+        syncSendState();
 
         console.log("🚀 ASK_ME chat initialized with 26 document types");
         console.log("📡 Online status:", navigator.onLine ? "Online" : "Offline");
