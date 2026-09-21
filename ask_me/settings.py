@@ -143,9 +143,9 @@ INSTALLED_APPS = [
 # so local dev without a CLOUDINARY_URL keeps writing to the local
 # filesystem (media/) exactly as before - nothing extra to install/configure
 # just to run `manage.py runserver` on your machine.
-CLOUDINARY_URL = env_str("CLOUDINARY_URL", "")
-if CLOUDINARY_URL:
-    INSTALLED_APPS += ["cloudinary_storage", "cloudinary"]
+# CLOUDINARY_URL = env_str("CLOUDINARY_URL", "")
+# if CLOUDINARY_URL:
+#     INSTALLED_APPS += ["cloudinary_storage", "cloudinary"]
 
 # --------------------
 # MIDDLEWARE
@@ -221,10 +221,10 @@ STORAGES = {
     },
 }
 
-if CLOUDINARY_URL:
-    STORAGES["default"] = {
-        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-    }
+# if CLOUDINARY_URL:
+#     STORAGES["default"] = {
+#         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+#     }
 
 # --------------------
 # MEDIA FILES
