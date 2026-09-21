@@ -29,7 +29,7 @@ def clean_extracted_data(data: Dict) -> Dict:
     return cleaned
 
 
-def build_document_text_and_fields(ocr_result: Dict) -> "tuple[str, Dict]":
+def build_document_text_and_fields(ocr_result: Dict, doc_type: Optional[str] = None) -> "tuple[str, Dict]":
     """
     Turn the dict returned by ai_extract.extract_document_ai() into
     (ocr_text, final_data) ready to save on Document.extracted_text /
@@ -37,9 +37,22 @@ def build_document_text_and_fields(ocr_result: Dict) -> "tuple[str, Dict]":
 
     Prefers the AI's own structured `fields` (extracted directly against the
     document type's predefined schema - see ai_extract.py's structured
-    mode) over the legacy regex-based extractor in ai_utils.py, which now
-    only runs as a fallback when no schema-based fields came back (unknown
-    doc type, or the model couldn't find anything on the page).
+    mode) over the legacy regex-based extractor in ai_utils.py.
+
+    IMPORTANT: the regex-based fallback below is a blind, keyword-driven
+    guesser (e.g. "grab the next capitalized line as the Name") that was
+    only ever meant for genuinely unknown/"other_document" uploads where
+    there's no predefined schema to ask Gemini for in the first place. When
+    `doc_type` DOES have a predefined schema (aadhaar_card, pan_card, ...)
+    but no `fields` came back, that means the structured Gemini call itself
+    failed (e.g. a transient 503) and extraction fell through to the
+    generic OCR-only prompt - it is NOT a signal that this is an
+    unstructured document. Running the blind guesser on that raw text
+    produces confidently-wrong, authoritative-looking labels (seen in
+    production as "Name: Government of India" - a Marathi Aadhaar card's
+    header text, misread as the Name field). For a schema'd doc_type we
+    deliberately leave `fields` empty instead of guessing, so the caller can
+    flag the document for reprocessing rather than silently save wrong data.
     """
     ocr_parts = []
     merged_fields: Dict[str, Any] = {}
@@ -58,15 +71,24 @@ def build_document_text_and_fields(ocr_result: Dict) -> "tuple[str, Dict]":
 
     ocr_text = " ".join(ocr_parts).strip()
 
+    has_known_schema = False
+    if doc_type:
+        from .models import DOCUMENT_FIELD_TEMPLATES
+        has_known_schema = doc_type in DOCUMENT_FIELD_TEMPLATES
+
     if merged_fields:
         final_data = {"page_1": merged_fields}
-    elif ocr_text:
+    elif ocr_text and not has_known_schema:
+        # Only run the blind regex guesser for genuinely unstructured
+        # documents - never as a stand-in for a failed schema-based call.
         structured_data = get_structured_fields_from_text(ocr_text)
         if structured_data:
             final_data = {"page_1": structured_data}
         else:
             final_data = {"page_1": {"Content": ocr_text[:500]}}
     else:
+        # Either no text at all, or a known doc type whose structured
+        # extraction didn't come back - leave fields empty rather than guess.
         final_data = {"page_1": {}}
 
     return ocr_text, final_data

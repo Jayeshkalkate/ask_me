@@ -70,6 +70,34 @@ NAME_PATTERN = re.compile(
 )
 NAME_FALLBACK = re.compile(r"\n([A-Z][A-Za-z ]{3,})\n")
 
+# Standalone capitalized lines that are printed header/boilerplate text on
+# almost every Indian ID document, not a person's name - e.g. "Government
+# of India" is the very first capitalized line on an Aadhaar card, right
+# above the actual name. NAME_FALLBACK is a blind "grab the next
+# capitalized line" heuristic, so without this filter it regularly picks
+# boilerplate like this over the real name (seen in production as
+# "Full Name: Government of India"). Only used for the last-resort fallback
+# below, never touches the primary NAME_PATTERN match.
+_NAME_FALLBACK_BLOCKLIST = {
+    "government of india", "govt of india", "bharat sarkar",
+    "unique identification authority of india", "uidai",
+    "income tax department", "election commission of india",
+    "ministry of road transport and highways", "republic of india",
+    "permanent account number", "form no", "government of maharashtra",
+}
+
+
+def _first_non_boilerplate_name(text: str):
+    """Like NAME_FALLBACK.search(text), but skips known document
+    boilerplate lines and returns the first plausible candidate instead."""
+    if not text:
+        return None
+    for match in NAME_FALLBACK.finditer(text):
+        candidate = match.group(1).strip().lower()
+        if candidate not in _NAME_FALLBACK_BLOCKLIST:
+            return match
+    return None
+
 # Gender
 GENDER_PATTERN = re.compile(r"\b(MALE|FEMALE|Male|Female|M|F)\b")
 
@@ -360,7 +388,7 @@ def _extract_aadhaar(text: str) -> Dict[str, Any]:
     if name:
         data["Full Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Full Name"] = fallback.group(1).strip()
     
@@ -400,7 +428,7 @@ def _extract_pan(text: str) -> Dict[str, Any]:
     if name:
         data["Full Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Full Name"] = fallback.group(1).strip()
     
@@ -436,7 +464,7 @@ def _extract_voter_id(text: str) -> Dict[str, Any]:
     if name:
         data["Full Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Full Name"] = fallback.group(1).strip()
     
@@ -482,7 +510,7 @@ def _extract_passport(text: str) -> Dict[str, Any]:
     if name:
         data["Full Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Full Name"] = fallback.group(1).strip()
     
@@ -533,7 +561,7 @@ def _extract_driving_license(text: str) -> Dict[str, Any]:
     if name:
         data["Full Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Full Name"] = fallback.group(1).strip()
     
@@ -584,7 +612,7 @@ def _extract_vehicle_registration(text: str) -> Dict[str, Any]:
     if name:
         data["Owner Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Owner Name"] = fallback.group(1).strip()
     
@@ -643,7 +671,7 @@ def _extract_domicile(text: str) -> Dict[str, Any]:
     if name:
         data["Applicant Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Applicant Name"] = fallback.group(1).strip()
     
@@ -674,7 +702,7 @@ def _extract_nationality(text: str) -> Dict[str, Any]:
     if name:
         data["Applicant Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Applicant Name"] = fallback.group(1).strip()
     
@@ -705,7 +733,7 @@ def _extract_birth(text: str) -> Dict[str, Any]:
     if name:
         data["Full Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Full Name"] = fallback.group(1).strip()
     
@@ -775,7 +803,7 @@ def _extract_death(text: str) -> Dict[str, Any]:
     if name:
         data["Deceased Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Deceased Name"] = fallback.group(1).strip()
     
@@ -822,7 +850,7 @@ def _extract_property(text: str) -> Dict[str, Any]:
     if name:
         data["Owner Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Owner Name"] = fallback.group(1).strip()
     
@@ -849,7 +877,7 @@ def _extract_income(text: str) -> Dict[str, Any]:
     if name:
         data["Applicant Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Applicant Name"] = fallback.group(1).strip()
     
@@ -888,7 +916,7 @@ def _extract_ration(text: str) -> Dict[str, Any]:
     if name:
         data["Household Head Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Household Head Name"] = fallback.group(1).strip()
     
@@ -919,7 +947,7 @@ def _extract_school_leaving(text: str) -> Dict[str, Any]:
     if name:
         data["Student Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Student Name"] = fallback.group(1).strip()
     
@@ -958,7 +986,7 @@ def _extract_ssc(text: str) -> Dict[str, Any]:
     if name:
         data["Student Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Student Name"] = fallback.group(1).strip()
     
@@ -989,7 +1017,7 @@ def _extract_hsc(text: str) -> Dict[str, Any]:
     if name:
         data["Student Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Student Name"] = fallback.group(1).strip()
     
@@ -1020,7 +1048,7 @@ def _extract_degree(text: str) -> Dict[str, Any]:
     if name:
         data["Student Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Student Name"] = fallback.group(1).strip()
     
@@ -1055,7 +1083,7 @@ def _extract_board_passing(text: str) -> Dict[str, Any]:
     if name:
         data["Student Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Student Name"] = fallback.group(1).strip()
     
@@ -1090,7 +1118,7 @@ def _extract_caste(text: str) -> Dict[str, Any]:
     if name:
         data["Applicant Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Applicant Name"] = fallback.group(1).strip()
     
@@ -1121,7 +1149,7 @@ def _extract_caste_validity(text: str) -> Dict[str, Any]:
     if name:
         data["Applicant Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Applicant Name"] = fallback.group(1).strip()
     
@@ -1152,7 +1180,7 @@ def _extract_ncl(text: str) -> Dict[str, Any]:
     if name:
         data["Applicant Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Applicant Name"] = fallback.group(1).strip()
     
@@ -1183,7 +1211,7 @@ def _extract_ews(text: str) -> Dict[str, Any]:
     if name:
         data["Applicant Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Applicant Name"] = fallback.group(1).strip()
     
@@ -1222,7 +1250,7 @@ def _extract_gst(text: str) -> Dict[str, Any]:
     if name:
         data["Business Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Business Name"] = fallback.group(1).strip()
     
@@ -1304,7 +1332,7 @@ def generic_extraction(text: str) -> Dict[str, Any]:
     if name:
         data["Name"] = name.group(1).strip()
     else:
-        fallback = NAME_FALLBACK.search(text)
+        fallback = _first_non_boilerplate_name(text)
         if fallback:
             data["Name"] = fallback.group(1).strip()
     

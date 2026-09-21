@@ -143,9 +143,18 @@ INSTALLED_APPS = [
 # so local dev without a CLOUDINARY_URL keeps writing to the local
 # filesystem (media/) exactly as before - nothing extra to install/configure
 # just to run `manage.py runserver` on your machine.
-# CLOUDINARY_URL = env_str("CLOUDINARY_URL", "")
-# if CLOUDINARY_URL:
-#     INSTALLED_APPS += ["cloudinary_storage", "cloudinary"]
+#
+# BUG FIX: this was left commented out even though django-cloudinary-storage
+# and cloudinary are already in requirements.txt. With it disabled, every
+# uploaded file was written to Render's local disk, which has no persistence
+# on the free plan — the very next deploy/restart wipes it, while the
+# Document row survives in Postgres/SQLite pointing at a file that's gone.
+# That's exactly the "file record exists but is missing on disk" errors seen
+# in production logs. Uncommenting this actually turns on the Cloudinary
+# storage backend that was already paid for in requirements.txt.
+CLOUDINARY_URL = env_str("CLOUDINARY_URL", "")
+if CLOUDINARY_URL:
+    INSTALLED_APPS += ["cloudinary_storage", "cloudinary"]
 
 # --------------------
 # MIDDLEWARE
@@ -221,10 +230,10 @@ STORAGES = {
     },
 }
 
-# if CLOUDINARY_URL:
-#     STORAGES["default"] = {
-#         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-#     }
+if CLOUDINARY_URL:
+    STORAGES["default"] = {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    }
 
 # --------------------
 # MEDIA FILES

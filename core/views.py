@@ -289,16 +289,26 @@ def reprocess_document(request, pk):
             if "error" in ocr_result:
                 raise Exception(ocr_result["error"])
 
-            ocr_text, final_data = build_document_text_and_fields(ocr_result)
+            ocr_text, final_data = build_document_text_and_fields(ocr_result, doc_type=new_doc_type)
             document.extracted_data = convert_numpy(final_data)
             document.extracted_text = ocr_text
             document.doc_type = new_doc_type or document.doc_type
-            document.error_message = None
             document.processed = True
             document.processed_at = timezone.now()
-            document.save()
 
-            messages.success(request, "✅ Document reprocessed successfully!")
+            page_1_fields = (final_data or {}).get("page_1") or {}
+            from .models import DOCUMENT_FIELD_TEMPLATES
+            if document.doc_type in DOCUMENT_FIELD_TEMPLATES and not page_1_fields:
+                document.error_message = (
+                    "AI extraction service didn't return structured fields this time "
+                    "(likely a temporary outage) - try Reprocess again shortly."
+                )
+                document.save()
+                messages.warning(request, f"⚠️ {document.error_message}")
+            else:
+                document.error_message = None
+                document.save()
+                messages.success(request, "✅ Document reprocessed successfully!")
         except Exception as e:
             logger.error(f"Reprocessing failed for document {document.id}: {e}")
             messages.error(request, f"❌ Reprocessing failed: {str(e)[:200]}")

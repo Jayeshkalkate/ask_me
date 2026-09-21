@@ -64,10 +64,30 @@ class OfflineStorage {
                 }
                 
                 // Version 2: Add sync status index
+                //
+                // BUG FIX: `db.objectStore(...)` is not a real IDBDatabase
+                // method (only IDBTransaction has it), so this used to throw
+                // a TypeError on every single init — including the very
+                // first time a user ever opened the app, since
+                // event.oldVersion (0) < 2 is always true. That exception
+                // inside onupgradeneeded aborts the versionchange
+                // transaction, which is exactly the
+                // "Version change transaction was aborted in upgradeneeded
+                // event handler" error users were seeing in the upload
+                // dialog. Because init() never completed, EVERY offline
+                // feature was silently broken: queued offline uploads,
+                // offline chat answers, and local caching all failed.
+                //
+                // Fix: an object store can only be reached through a
+                // transaction, never through the IDBDatabase directly. By
+                // this point 'documents' definitely exists (either it was
+                // just created above, or it already existed from version
+                // 1), so grab it via the versionchange transaction that's
+                // already open for this upgrade.
                 if (event.oldVersion < 2) {
-                    const docStore = db.objectStore('documents');
-                    if (!docStore.indexNames.contains('synced')) {
-                        docStore.createIndex('synced', 'synced', { unique: false });
+                    const store = event.target.transaction.objectStore('documents');
+                    if (!store.indexNames.contains('synced')) {
+                        store.createIndex('synced', 'synced', { unique: false });
                     }
                 }
             };

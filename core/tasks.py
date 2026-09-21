@@ -2,7 +2,7 @@
 import logging
 import os
 from django.utils import timezone
-from .models import Document, convert_numpy
+from .models import Document, convert_numpy, DOCUMENT_FIELD_TEMPLATES
 from .ai_utils import detect_document_type
 from .ai_extract import extract_document_ai
 from .utils import build_document_text_and_fields
@@ -37,7 +37,7 @@ def process_document_in_background(doc_id: int) -> None:
             doc.save(update_fields=["processed", "error_message", "extracted_data"])
             return
 
-        ocr_text, final_data = build_document_text_and_fields(ocr_result)
+        ocr_text, final_data = build_document_text_and_fields(ocr_result, doc_type=doc.doc_type)
         doc.extracted_text = ocr_text
 
         # Auto-detect doc type only if the user left it as the default and
@@ -48,7 +48,22 @@ def process_document_in_background(doc_id: int) -> None:
 
         doc.extracted_data = convert_numpy(final_data)
         doc.processed = True
-        doc.error_message = None
+
+        # If this is a known document type (aadhaar_card, pan_card, ...) but
+        # the structured Gemini call didn't return any fields - almost
+        # always a transient API outage, not a bad document - surface that
+        # plainly instead of marking the document "done" with no data or
+        # guessed data. The raw text (if any) is still saved and searchable.
+        page_1_fields = (final_data or {}).get("page_1") or {}
+        if doc.doc_type in DOCUMENT_FIELD_TEMPLATES and not page_1_fields:
+            doc.error_message = (
+                "AI extraction service didn't return structured fields for this "
+                "document (likely a temporary outage). The document was saved - "
+                "use \"Reprocess\" to try again."
+            )
+        else:
+            doc.error_message = None
+
         doc.processed_at = timezone.now()
         doc.save()
 

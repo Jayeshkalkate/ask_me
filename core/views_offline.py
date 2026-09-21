@@ -70,8 +70,18 @@ def offline_upload(request):
             # Prefer the AI's own structured fields (extracted directly
             # against doc_type's predefined schema in ai_extract.py) over
             # the legacy regex-based fallback - see core/utils.py.
-            extracted_text, extracted_data = build_document_text_and_fields(ocr_result)
+            extracted_text, extracted_data = build_document_text_and_fields(ocr_result, doc_type=doc_type)
             extracted_text = clean_ocr_text(extracted_text)
+
+            # Known doc type but no structured fields came back (Gemini's
+            # structured call failed, e.g. a transient 503) - tell the
+            # client plainly instead of quietly syncing an empty/guessed
+            # result, so it can show a "needs reprocessing" state.
+            from .models import DOCUMENT_FIELD_TEMPLATES
+            page_1_fields = (extracted_data or {}).get("page_1") or {}
+            extraction_incomplete = bool(
+                doc_type in DOCUMENT_FIELD_TEMPLATES and not page_1_fields
+            )
 
             # Auto-detect document type only if the user didn't pick one
             # (a known doc_type already drove structured extraction above).
@@ -93,14 +103,22 @@ def offline_upload(request):
                 'extracted_text': extracted_text[:5000] if extracted_text else '',
                 'extracted_data': extracted_data,
                 'processed': True,
+                'extraction_incomplete': extraction_incomplete,
                 'processed_at': timezone.now().isoformat(),
                 'created_at': timezone.now().isoformat()
             }
 
+            message = (
+                "AI extraction service didn't return structured fields for this "
+                "document (likely a temporary outage) - reprocess it once you're "
+                "back online and the service has recovered."
+                if extraction_incomplete else
+                'Document processed successfully offline'
+            )
             return JsonResponse({
                 'success': True,
                 'document': document_data,
-                'message': 'Document processed successfully offline'
+                'message': message,
             })
 
         except Exception as e:
