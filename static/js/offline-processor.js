@@ -198,7 +198,25 @@
 
                         doc.pending_ai_extraction = false;
                         doc.synced = true;
-                        await this.storage.updateDocument(doc.id, doc);
+                        delete doc.file_blob; // no need to keep the raw file around once synced
+
+                        if (serverDoc && serverDoc.id !== undefined && serverDoc.id !== doc.id) {
+                            // The local record was keyed by an IndexedDB
+                            // auto-increment id (assigned before this
+                            // document existed on the server). Now that we
+                            // know the real server id, re-key the record to
+                            // match it - otherwise the next full pull-sync
+                            // (pwa.js::pullServerDocuments, keyed by server
+                            // id) would create a second, duplicate entry for
+                            // the very same document instead of updating
+                            // this one.
+                            const oldLocalId = doc.id;
+                            doc.id = serverDoc.id;
+                            await this.storage.upsertDocument(doc);
+                            await this.storage.deleteDocument(oldLocalId);
+                        } else {
+                            await this.storage.updateDocument(doc.id, doc);
+                        }
                         await this.storage.clearPendingOperation(op.id);
                         synced++;
                     } else {

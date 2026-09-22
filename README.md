@@ -234,6 +234,28 @@ upload flow. To bring it back you'd need to:
    `core/tasks.py` / `core/views_offline.py` when `extract_document_ai()`
    returns an error.
 
+## Email on Render's free tier (Brevo, not SMTP)
+
+Render's free web services block outbound traffic to SMTP ports
+(25/465/587) — see [Render's changelog](https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports).
+That's what used to cause `OSError: [Errno 101] Network is unreachable`
+whenever the contact form (or password reset) tried to connect to
+`smtp.gmail.com:587`. `EMAIL_BACKEND` now points at
+`core.email_backends.BrevoEmailBackend`, which sends over Brevo's HTTPS
+API (port 443, never blocked) instead of SMTP — see that file's
+docstring for the 2-minute free setup. Set `BREVO_API_KEY` and
+`DEFAULT_FROM_EMAIL` (see `.env.example`); until those are set, emails
+are simply skipped with a logged warning rather than crashing the page, Currently both of them are comment out from the project.
+
+## Regenerating PWA icons
+
+`create_icons.py` builds every icon size the manifest needs
+(`static/img/icons/icon-*.png`) by resizing `static/img/ASK_ME_Logo.png`.
+Run `python create_icons.py` after replacing the logo file to refresh
+every size in both `static/` and `staticfiles/`. (An earlier version of
+this script drew a plain "AM" placeholder instead of using the real
+logo — that's why the home-screen icon used to show "AM".)
+
 ## Security notes
 
 - `.gitignore` already excludes `.env` and `db.sqlite3`, but both were

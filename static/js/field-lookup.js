@@ -99,9 +99,20 @@
      * Flatten a document's stored extracted_data/user_edited_data (which is
      * shaped like {page_1: {field: value, ...}, ...}) into one {field: value}
      * map, skipping internal keys - mirrors utils.INTERNAL_KEYS filtering.
+     *
+     * Prefers user_edited_data over extracted_data whenever the user has
+     * edited a document, exactly like the server does (see
+     * DocumentManager.get_display_data / Document.display_data in
+     * core/models.py). Previously this only ever looked at extracted_data,
+     * so a field the user added/corrected/removed on the Edit Document
+     * page would still show its old, pre-edit value (or a deleted field
+     * would still show up) when answered by the offline chatbot.
      */
     function flattenDocumentFields(doc) {
-        const data = (doc && (doc.extracted_data || {})) || {};
+        const hasUserEdits = doc && doc.user_edited_data &&
+            typeof doc.user_edited_data === 'object' &&
+            Object.keys(doc.user_edited_data).length > 0;
+        const data = (doc && (hasUserEdits ? doc.user_edited_data : doc.extracted_data)) || {};
         const fields = {};
         for (const pageKey in data) {
             const pageData = data[pageKey];

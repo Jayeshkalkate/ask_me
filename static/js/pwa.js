@@ -41,9 +41,10 @@ class PWAHandler {
     this.setupBackgroundSync();
 
     // If we're online at startup, opportunistically sync anything left
-    // over from a previous offline session.
+    // over from a previous offline session, then refresh the full local
+    // document cache from the server.
     if (this.isOnline) {
-      this.syncPendingOperations();
+      this.syncPendingOperations().then(() => this.pullServerDocuments());
     }
 
     console.log('[PWA] Initialized successfully');
@@ -71,7 +72,7 @@ class PWAHandler {
     window.addEventListener('online', () => {
       this.isOnline = true;
       console.log('[PWA] Back online');
-      this.syncPendingOperations();
+      this.syncPendingOperations().then(() => this.pullServerDocuments());
       this.showNotification('Back online', 'Your documents will sync automatically');
     });
 
@@ -181,6 +182,39 @@ class PWAHandler {
         console.error('[PWA] Sync failed for operation:', op.id, error);
         await window.offlineStorage.incrementPendingOperationRetry(op.id);
       }
+    }
+  }
+
+  /**
+   * Pull every one of the current user's documents (with their latest
+   * extracted_data / user_edited_data) down from the server and cache
+   * them in IndexedDB, keyed by their real server id (see
+   * db.js::upsertDocuments). Without this, the offline chatbot could only
+   * ever answer questions about documents that happened to already be
+   * cached locally - anything uploaded through the regular "Upload
+   * Document" page, or edited on another device/browser, was invisible
+   * to it. Runs after syncPendingOperations() so any local edits/uploads
+   * reach the server first and come back merged into this pull.
+   */
+  async pullServerDocuments() {
+    if (!this.isOnline || !window.offlineStorage) return;
+
+    try {
+      const response = await fetch('/api/offline/documents/', {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+      });
+      if (!response.ok) {
+        console.warn('[PWA] Document pull-sync failed with status', response.status);
+        return;
+      }
+      const payload = await response.json();
+      const documents = Array.isArray(payload.documents) ? payload.documents : [];
+      const count = await window.offlineStorage.upsertDocuments(documents);
+      console.log(`[PWA] Pulled ${count} document(s) from server for offline use`);
+    } catch (error) {
+      console.error('[PWA] Document pull-sync failed:', error);
     }
   }
 

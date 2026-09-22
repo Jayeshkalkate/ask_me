@@ -333,6 +333,55 @@ class OfflineStorage {
             getRequest.onerror = () => reject(getRequest.error);
         });
     }
+
+    // Upserts one document keyed by its real server id (not an
+    // auto-incremented local one), so pulling the same document down
+    // twice updates the existing record instead of duplicating it. Since
+    // the 'documents' store's keyPath is 'id' with autoIncrement only
+    // filling in an id when one is absent, passing an explicit `id` here
+    // makes store.put() behave as a true upsert-by-server-id.
+    async upsertDocument(docData) {
+        const db = await this.init();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['documents'], 'readwrite');
+            const store = transaction.objectStore('documents');
+            const doc = {
+                ...docData,
+                created_at: docData.created_at || new Date().toISOString(),
+                processed: docData.processed || false,
+                synced: true,
+            };
+            const request = store.put(doc);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Bulk version of upsertDocument - used by the full pull-sync from
+    // the server (see static/js/pwa.js::pullServerDocuments) so every one
+    // of the user's documents, and their latest field edits, are
+    // available to the offline chatbot without needing a network
+    // connection at question-answering time.
+    async upsertDocuments(docsArray) {
+        const db = await this.init();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['documents'], 'readwrite');
+            const store = transaction.objectStore('documents');
+            let count = 0;
+            transaction.oncomplete = () => resolve(count);
+            transaction.onerror = () => reject(transaction.error);
+            for (const docData of (docsArray || [])) {
+                if (!docData || docData.id === undefined || docData.id === null) continue;
+                store.put({
+                    ...docData,
+                    created_at: docData.created_at || new Date().toISOString(),
+                    processed: docData.processed || false,
+                    synced: true,
+                });
+                count += 1;
+            }
+        });
+    }
 }
 
 // Create singleton instance

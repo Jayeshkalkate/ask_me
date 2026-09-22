@@ -65,9 +65,18 @@ GEMINI_MODEL = "gemini-flash-latest"  # Google's rolling alias for "whatever
 # so this keeps working across model retirements instead of pointing at a
 # dated model name (e.g. gemini-1.5-flash) that eventually gets shut down
 # and starts returning 404 on every request.
-GEMINI_URL = (
-    f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-)
+# The free tier of gemini-flash-latest occasionally returns 503 "model
+# overloaded" during peak traffic. If retrying that exact model doesn't
+# clear up, fall back to a second free-tier-eligible model before giving
+# up entirely, rather than surfacing the 503 straight to the user.
+GEMINI_MODEL_FALLBACKS = ["gemini-flash-latest", "gemini-2.0-flash"]
+
+
+def _gemini_url(model: str) -> str:
+    return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+
+GEMINI_URL = _gemini_url(GEMINI_MODEL)
 REQUEST_TIMEOUT = 45  # extraction takes longer than the short chat replies in ai_chat.py
 MAX_FILE_SIZE = 15 * 1024 * 1024  # stay comfortably inside Gemini's inline-data limit
 
@@ -119,9 +128,11 @@ def _call_gemini(api_key: str, parts: list, generation_config: dict) -> Dict:
 
     Retries on 503 (Service Unavailable) and 429 (rate limited) - both are
     meant to be transient per Google's own guidance, and in practice they
-    often clear up within a couple of seconds. Retrying here means a
-    momentary blip on Google's side doesn't force every such request
-    straight down to the generic-OCR fallback.
+    often clear up within a couple of seconds. If the primary model is
+    still unavailable after retrying, we additionally try each model in
+    GEMINI_MODEL_FALLBACKS in turn - the free tier's "gemini-flash-latest"
+    occasionally gets overloaded on its own even when other free-tier
+    models are fine, so this meaningfully reduces user-visible failures.
     """
     payload = {
         "contents": [{"parts": parts}],
@@ -129,44 +140,63 @@ def _call_gemini(api_key: str, parts: list, generation_config: dict) -> Dict:
     }
     # Keep this conservative: each attempt can take up to REQUEST_TIMEOUT
     # (45s) on its own, and gunicorn's own worker timeout on Render is
-    # 120s - 3 full attempts at 45s each could exceed that and get the
-    # whole request killed, which would be worse than just failing over
-    # to the OCR fallback. One retry keeps the worst case well under that.
-    max_attempts = 2
-    backoff_seconds = 2
+    # 120s. Two attempts per model across two models is 4 attempts max;
+    # a 503/429 response comes back fast (it's not doing any generation
+    # work), so in practice this stays well under the worker timeout even
+    # though a slow *successful* attempt could use the full 45s.
+    max_attempts_per_model = 2
+    last_error = None
 
-    for attempt in range(1, max_attempts + 1):
-        try:
-            response = requests.post(
-                GEMINI_URL, params={"key": api_key}, json=payload, timeout=REQUEST_TIMEOUT
-            )
-            if response.status_code in (503, 429) and attempt < max_attempts:
-                logger.warning(
-                    "AI extraction got %s from Gemini (attempt %d/%d) - retrying in %ds",
-                    response.status_code, attempt, max_attempts, backoff_seconds,
-                )
-                time.sleep(backoff_seconds)
-                backoff_seconds *= 2
-                continue
-            response.raise_for_status()
+    for model in GEMINI_MODEL_FALLBACKS:
+        url = _gemini_url(model)
+        backoff_seconds = 2
+        for attempt in range(1, max_attempts_per_model + 1):
             try:
-                return response.json()
-            except ValueError:
-                logger.error("AI extraction returned invalid JSON")
-                return {"error": "AI extraction service returned an invalid response."}
-        except requests.exceptions.RequestException as e:
-            if attempt < max_attempts:
-                logger.warning(
-                    "AI extraction request error (attempt %d/%d): %s - retrying in %ds",
-                    attempt, max_attempts, e, backoff_seconds,
+                response = requests.post(
+                    url, params={"key": api_key}, json=payload, timeout=REQUEST_TIMEOUT
                 )
-                time.sleep(backoff_seconds)
-                backoff_seconds *= 2
-                continue
-            logger.error(f"AI extraction request failed: {e}")
-            return {"error": f"AI extraction service unavailable right now: {e}"}
+                if response.status_code in (503, 429):
+                    last_error = f"HTTP {response.status_code} from {model}"
+                    if attempt < max_attempts_per_model:
+                        logger.warning(
+                            "AI extraction got %s from Gemini model %s (attempt %d/%d) - "
+                            "retrying in %ds",
+                            response.status_code, model, attempt, max_attempts_per_model,
+                            backoff_seconds,
+                        )
+                        time.sleep(backoff_seconds)
+                        backoff_seconds *= 2
+                        continue
+                    logger.warning(
+                        "AI extraction: model %s still unavailable after retries, "
+                        "trying next fallback model if any", model,
+                    )
+                    break  # move on to the next model in GEMINI_MODEL_FALLBACKS
+                response.raise_for_status()
+                try:
+                    return response.json()
+                except ValueError:
+                    logger.error("AI extraction returned invalid JSON")
+                    return {"error": "AI extraction service returned an invalid response."}
+            except requests.exceptions.RequestException as e:
+                last_error = str(e)
+                if attempt < max_attempts_per_model:
+                    logger.warning(
+                        "AI extraction request error on model %s (attempt %d/%d): %s - "
+                        "retrying in %ds",
+                        model, attempt, max_attempts_per_model, e, backoff_seconds,
+                    )
+                    time.sleep(backoff_seconds)
+                    backoff_seconds *= 2
+                    continue
+                logger.warning(
+                    "AI extraction: model %s failed after retries (%s), "
+                    "trying next fallback model if any", model, e,
+                )
+                break
 
-    return {"error": "AI extraction service unavailable right now: exhausted retries"}
+    logger.error(f"AI extraction failed on every model/attempt: {last_error}")
+    return {"error": f"AI extraction service unavailable right now: {last_error}"}
 
 
 def _extract_text_from_response(data: Dict):

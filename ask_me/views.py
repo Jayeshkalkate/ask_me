@@ -4,6 +4,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib import messages
 from django.http import HttpResponse, HttpResponseNotFound
+import logging
 import os
 
 
@@ -49,14 +50,28 @@ def homepage(request):
     return render(request, "index.html")
 
 def send_email_to_client(first_name, last_name, email, message):
+    """
+    Sends the contact-form message via EMAIL_BACKEND (Brevo's HTTPS API -
+    see core/email_backends.py). Any failure here is caught rather than
+    left to bubble up as a 500: a broken/unconfigured email provider
+    should never crash the page for someone filling out the contact form.
+    Returns True if the message was actually sent.
+    """
     subject = "New Message from Client"
     full_message = f"Name: {first_name} {last_name}\nEmail: {email}\n\nMessage:\n{message}"
-    send_mail(
-        subject,
-        full_message,
-        settings.EMAIL_HOST_USER,
-        ["jayeshkalkate432@gmail.com"]
-    )
+    from_address = settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER
+    try:
+        sent_count = send_mail(
+            subject,
+            full_message,
+            from_address,
+            ["jayeshkalkate432@gmail.com"],
+            fail_silently=False,
+        )
+        return bool(sent_count)
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to send contact-form email")
+        return False
 
 @login_required
 def userprofile(request):
@@ -73,8 +88,13 @@ def contact(request):
         message = request.POST.get("message")
 
         if first_name and last_name and email and message:
-            send_email_to_client(first_name, last_name, email, message)
-            messages.success(request, "Email sent successfully!")
+            if send_email_to_client(first_name, last_name, email, message):
+                messages.success(request, "Email sent successfully!")
+            else:
+                messages.error(
+                    request,
+                    "Sorry, we couldn't send your message right now. Please try again later.",
+                )
         else:
             messages.error(request, "Please fill in all fields.")
 

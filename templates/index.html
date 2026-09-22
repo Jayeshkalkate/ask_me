@@ -611,7 +611,12 @@
 
                     if (result.success) {
                         if (window.offlineStorage) {
-                            await window.offlineStorage.saveDocument({
+                            // upsertDocument (not saveDocument) because the
+                            // server now returns a real document id - using
+                            // put-by-id keeps this in sync with the bulk
+                            // pull-sync in pwa.js instead of risking a
+                            // duplicate/conflicting local-only record.
+                            await window.offlineStorage.upsertDocument({
                                 ...result.document,
                                 user_id: {{ request.user.id }},
                                 doc_type_display: docInfo.label,

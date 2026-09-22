@@ -121,7 +121,12 @@ class Command(BaseCommand):
             return
 
         try:
-            send_mail(subject, message, settings.EMAIL_HOST_USER, [user.email])
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER,
+                [user.email],
+            )
             self.stdout.write(f"Notified {user.email} about '{field_key}' on document {document.id}.")
         except Exception as e:
             logger.error(f"Failed to send expiry email to {user.email}: {e}")

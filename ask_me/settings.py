@@ -115,7 +115,17 @@ else:
 # --------------------
 # EMAIL
 # --------------------
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# Render's free web services block outbound traffic to SMTP ports
+# (25/465/587) - see core/email_backends.py for the full explanation and
+# the "OSError: [Errno 101] Network is unreachable" this used to cause.
+# BrevoEmailBackend sends over plain HTTPS instead, which isn't blocked.
+# Old SMTP settings are kept below (unused by default) in case you ever
+# move off Render's free tier and want to switch back to SMTP.
+# EMAIL_BACKEND = "core.email_backends.BrevoEmailBackend"
+# BREVO_API_KEY = env_str("BREVO_API_KEY", "")
+# DEFAULT_FROM_EMAIL = env_str("DEFAULT_FROM_EMAIL", "")
+
+# Legacy SMTP settings - not used while EMAIL_BACKEND is BrevoEmailBackend above.
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True

@@ -15,6 +15,7 @@ Get a free key (no credit card needed) at: https://aistudio.google.com/apikey
 """
 import json
 import logging
+import time
 from typing import Dict, List, Optional
 
 import requests
@@ -23,10 +24,17 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 GEMINI_MODEL = "gemini-flash-latest"  # rolling alias - see core/ai_extract.py comment
-GEMINI_URL = (
-    f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-)
-REQUEST_TIMEOUT = 12  # seconds - keep short so chat_api doesn't hang if Gemini is slow/down
+# Same free-tier 503 "model overloaded" issue as core/ai_extract.py - try
+# a fallback model before giving up and falling back to rule-based chat.
+GEMINI_MODEL_FALLBACKS = ["gemini-flash-latest", "gemini-2.0-flash"]
+
+
+def _gemini_url(model: str) -> str:
+    return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+
+GEMINI_URL = _gemini_url(GEMINI_MODEL)
+REQUEST_TIMEOUT = 12  # seconds per attempt - keep short so chat_api doesn't hang if Gemini is slow/down
 MAX_CONTEXT_DOCS = 3
 MAX_TEXT_SNIPPET_CHARS = 500
 
@@ -82,20 +90,34 @@ def generate_ai_answer(user_message: str, context_docs: List[Dict]) -> Optional[
         },
     }
 
-    try:
-        response = requests.post(
-            GEMINI_URL,
-            params={"key": api_key},
-            json=payload,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        data = response.json()
-    except requests.exceptions.RequestException as e:
-        logger.warning(f"Gemini API request failed, falling back to rule-based chat: {e}")
-        return None
-    except json.JSONDecodeError as e:
-        logger.warning(f"Gemini API returned invalid JSON: {e}")
+    data = None
+    for model in GEMINI_MODEL_FALLBACKS:
+        url = _gemini_url(model)
+        try:
+            response = requests.post(
+                url,
+                params={"key": api_key},
+                json=payload,
+                timeout=REQUEST_TIMEOUT,
+            )
+            if response.status_code in (503, 429):
+                logger.warning(
+                    "Gemini chat got %s from model %s, trying next fallback model if any",
+                    response.status_code, model,
+                )
+                continue
+            response.raise_for_status()
+            data = response.json()
+            break
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Gemini API request failed on model {model}: {e}")
+            continue
+        except json.JSONDecodeError as e:
+            logger.warning(f"Gemini API returned invalid JSON from model {model}: {e}")
+            continue
+
+    if data is None:
+        logger.warning("Gemini API unavailable on all fallback models, falling back to rule-based chat")
         return None
 
     try:
