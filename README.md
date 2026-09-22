@@ -245,7 +245,7 @@ whenever the contact form (or password reset) tried to connect to
 API (port 443, never blocked) instead of SMTP — see that file's
 docstring for the 2-minute free setup. Set `BREVO_API_KEY` and
 `DEFAULT_FROM_EMAIL` (see `.env.example`); until those are set, emails
-are simply skipped with a logged warning rather than crashing the page, Currently both of them are comment out from the project.
+are simply skipped with a logged warning rather than crashing the page.
 
 ## Regenerating PWA icons
 

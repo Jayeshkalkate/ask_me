@@ -69,7 +69,18 @@ GEMINI_MODEL = "gemini-flash-latest"  # Google's rolling alias for "whatever
 # overloaded" during peak traffic. If retrying that exact model doesn't
 # clear up, fall back to a second free-tier-eligible model before giving
 # up entirely, rather than surfacing the 503 straight to the user.
-GEMINI_MODEL_FALLBACKS = ["gemini-flash-latest", "gemini-2.0-flash"]
+# The free tier of gemini-flash-latest occasionally returns 503 "model
+# overloaded" during peak traffic. If retrying that exact model doesn't
+# clear up, fall back to a second free-tier-eligible model before giving
+# up entirely, rather than surfacing the 503 straight to the user.
+# NOTE: this used to list "gemini-2.0-flash" - Google retired that model
+# on 2026-06-01, so every fallback attempt was hitting a guaranteed 404
+# instead of actually providing redundancy. "gemini-flash-lite-latest" is
+# a separate rolling alias (like gemini-flash-latest, auto-updated by
+# Google to whatever the current Flash-Lite model is) with its own
+# capacity pool, so it gives real redundancy against gemini-flash-latest
+# being overloaded, and won't go stale the way a dated model name does.
+GEMINI_MODEL_FALLBACKS = ["gemini-flash-latest", "gemini-flash-lite-latest"]
 
 
 def _gemini_url(model: str) -> str:

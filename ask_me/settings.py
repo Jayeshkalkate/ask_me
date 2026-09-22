@@ -121,9 +121,9 @@ else:
 # BrevoEmailBackend sends over plain HTTPS instead, which isn't blocked.
 # Old SMTP settings are kept below (unused by default) in case you ever
 # move off Render's free tier and want to switch back to SMTP.
-# EMAIL_BACKEND = "core.email_backends.BrevoEmailBackend"
-# BREVO_API_KEY = env_str("BREVO_API_KEY", "")
-# DEFAULT_FROM_EMAIL = env_str("DEFAULT_FROM_EMAIL", "")
+EMAIL_BACKEND = "core.email_backends.BrevoEmailBackend"
+BREVO_API_KEY = env_str("BREVO_API_KEY", "")
+DEFAULT_FROM_EMAIL = env_str("DEFAULT_FROM_EMAIL", "")
 
 # Legacy SMTP settings - not used while EMAIL_BACKEND is BrevoEmailBackend above.
 EMAIL_HOST = "smtp.gmail.com"

@@ -26,7 +26,12 @@ logger = logging.getLogger(__name__)
 GEMINI_MODEL = "gemini-flash-latest"  # rolling alias - see core/ai_extract.py comment
 # Same free-tier 503 "model overloaded" issue as core/ai_extract.py - try
 # a fallback model before giving up and falling back to rule-based chat.
-GEMINI_MODEL_FALLBACKS = ["gemini-flash-latest", "gemini-2.0-flash"]
+# Same free-tier 503 "model overloaded" issue as core/ai_extract.py - try
+# a fallback model before giving up and falling back to rule-based chat.
+# gemini-flash-lite-latest is a separate rolling alias with its own
+# capacity pool - see the longer note in core/ai_extract.py for why this
+# is NOT a dated model name like the old (now-retired, 404ing) fallback.
+GEMINI_MODEL_FALLBACKS = ["gemini-flash-latest", "gemini-flash-lite-latest"]
 
 
 def _gemini_url(model: str) -> str:
