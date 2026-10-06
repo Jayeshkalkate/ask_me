@@ -3,8 +3,16 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views
+from django.views.generic import TemplateView
 
 urlpatterns = [
+    path(
+        "googleb2111897b41dceb9.html",
+        TemplateView.as_view(
+            template_name="googleb2111897b41dceb9.html",
+            content_type="text/html",
+        ),
+    ),
     path("admin/", admin.site.urls),
     path("sw.js", views.service_worker, name="service_worker"),
     path("offline.html", views.offline_page, name="offline_page"),
