@@ -56,13 +56,16 @@ DEBUG = env_bool("DEBUG", False)
 # so existing deployments keep working even if the env var isn't set yet.
 _default_hosts = ["127.0.0.1", "localhost", "ask-me-smart-document-assistant.onrender.com"]
 _env_hosts = [h.strip() for h in env_str("ALLOWED_HOSTS", "").split(",") if h.strip()]
-ALLOWED_HOSTS = list(dict.fromkeys(_env_hosts + _default_hosts))
+_render_host = env_str("RENDER_EXTERNAL_HOSTNAME", "")  # injected by Render
+ALLOWED_HOSTS = list(dict.fromkeys(_env_hosts + _default_hosts + ([_render_host] if _render_host else [])))
 
 # Configurable via env so this isn't pinned to one specific Render app name -
 # set CSRF_TRUSTED_ORIGINS="https://your-app.onrender.com,https://yourdomain.com"
 # (comma-separated, each including the scheme) once you know the real deployed URL(s).
 _csrf_trusted = env_str("CSRF_TRUSTED_ORIGINS", "https://ask-me-smart-document-assistant.onrender.com")
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_trusted.split(",") if origin.strip()]
+if _render_host and f"https://{_render_host}" not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_render_host}")
 
 # HTTPS/cookie hardening - only enforced in production (DEBUG=False).
 # Left off locally so `runserver` over plain http:// keeps working.
@@ -76,6 +79,7 @@ if not DEBUG:
     # SECURE_SSL_REDIRECT to work at all on Render.
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
+    SECURE_REDIRECT_EXEMPT = [r"^healthz/$"]  # platform health checks arrive over plain HTTP
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 3600

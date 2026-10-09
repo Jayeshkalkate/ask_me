@@ -1,10 +1,10 @@
 services:
   - type: web
     name: ask-me-chatbot
-    env: python
     plan: free
     region: oregon
-    runtime: python-3.13.2
+    runtime: python
+    healthCheckPath: /healthz/
 
     # Native Python build - no Dockerfile needed. Render installs
     # requirements.txt and collects static files at build time; migrations
@@ -15,6 +15,9 @@ services:
     startCommand: "python manage.py migrate --noinput && gunicorn ask_me.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120"
 
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.2
+
       - key: SECRET_KEY
         generateValue: true
 
@@ -38,3 +41,10 @@ services:
       #                             Environment variable; keeps uploaded
       #                             files alive across restarts, since
       #                             Render's free plan has no persistent disk)
+
+  # Free static site (never sleeps): shows "Application loading" and wakes the Django service.
+  - type: web
+    name: ask-me-loader
+    runtime: static
+    staticPublishPath: ./loader
+    pullRequestPreviewsEnabled: false

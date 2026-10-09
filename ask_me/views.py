@@ -3,9 +3,21 @@ from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib import messages
-from django.http import HttpResponse, HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
 import logging
 import os
+
+
+def healthz(request):
+    """DB-free health check for Render and the wake-up loader page.
+
+    The CORS header lets the static loader (another origin) read the answer; while the
+    service is asleep Render replies without it, so the loader simply keeps waiting.
+    """
+    response = JsonResponse({"status": "ok"})
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 def service_worker(request):

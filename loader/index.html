@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1A73E8">
+<title>ASK ME – Loading…</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{--bg:#f4f8ff;--ink:#0f1b33;--mut:#5b6b88;--pri:#1A73E8;--pri2:#6c4cf1}
+  @media (prefers-color-scheme: dark){:root{--bg:#0c1220;--ink:#e8eefc;--mut:#9aa9c7}}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center;padding:1.5rem}
+  .box{max-width:400px;width:100%}
+  .logo{width:84px;height:84px;border-radius:22px;margin:0 auto 1.25rem;display:block;box-shadow:0 10px 30px rgba(26,115,232,.35);animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{50%{transform:scale(1.06)}}
+  h1{font-size:1.4rem;margin:0 0 .4rem}
+  p{color:var(--mut);margin:.25rem 0;line-height:1.5}
+  .bar{height:7px;background:rgba(26,115,232,.18);border-radius:99px;overflow:hidden;margin:1.25rem 0 .5rem}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pri),var(--pri2));transition:width .6s}
+  button,a.btn{display:none;margin:1rem .25rem 0;padding:.65rem 1.4rem;border:0;border-radius:99px;background:linear-gradient(90deg,var(--pri),var(--pri2));color:#fff;font-weight:600;font-size:1rem;cursor:pointer;text-decoration:none}
+</style>
+</head>
+<body>
+<main class="box" role="status" aria-live="polite">
+  <img class="logo" src="icon-192.png" alt="ASK ME">
+  <h1>Application loading…</h1>
+  <p id="msg">Starting the server. The first visit can take up to a minute.</p>
+  <div class="bar"><i id="fill"></i></div>
+  <p id="timer"></p>
+  <button id="retry" type="button">Try again</button>
+  <a id="open" class="btn" href="#">Open ASK ME</a>
+</main>
+<noscript><p style="position:fixed;bottom:1rem;left:0;right:0;text-align:center">JavaScript is needed. <a href="https://ask-me-smart-document-assistant.onrender.com/">Open the website directly</a>.</p></noscript>
+<script>
+(function () {
+  // >>> Change this if your Render URL is different <<<
+  var SITE = "https://ask-me-smart-document-assistant.onrender.com";
+  var HEALTH = SITE + "/healthz/";
+  var MAX_WAIT_MS = 120000, started = Date.now(), done = false;
+
+  var msg = document.getElementById("msg"), fill = document.getElementById("fill"),
+      timer = document.getElementById("timer"), retry = document.getElementById("retry"),
+      open = document.getElementById("open");
+  open.href = SITE + "/";
+
+  // Keep the visitor's destination (loader URL + #/account/login/) after wake-up.
+  var path = location.hash ? location.hash.slice(1) : "";
+  if (path.charAt(0) !== "/" || path.indexOf("//") === 0) path = "/";
+  var target = SITE + path;
+
+  var steps = [
+    [0, "Starting the server…"],
+    [10000, "Waking up services…"],
+    [25000, "Almost there, getting your documents ready…"],
+    [60000, "Taking longer than usual. Please keep this page open."]
+  ];
+
+  function tick() {
+    if (done) return;
+    var el = Date.now() - started;
+    fill.style.width = Math.min(95, (el / 60000) * 100) + "%";
+    timer.textContent = Math.floor(el / 1000) + "s";
+    for (var i = steps.length - 1; i >= 0; i--) { if (el >= steps[i][0]) { msg.textContent = steps[i][1]; break; } }
+    if (el > MAX_WAIT_MS) {
+      done = true;
+      msg.textContent = "The server is not responding yet.";
+      retry.style.display = "inline-block"; open.style.display = "inline-block";
+    }
+  }
+
+  function check() {
+    if (done) return;
+    var ctrl = new AbortController(), t = setTimeout(function () { ctrl.abort(); }, 8000);
+    fetch(HEALTH + "?t=" + Date.now(), { cache: "no-store", signal: ctrl.signal })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (j) {
+        clearTimeout(t);
+        if (j && j.status === "ok") {
+          done = true; fill.style.width = "100%"; msg.textContent = "Ready! Opening ASK ME…";
+          location.replace(target);
+        } else { throw 0; }
+      })
+      .catch(function () { clearTimeout(t); setTimeout(check, 2500); });
+  }
+
+  retry.addEventListener("click", function () {
+    done = false; started = Date.now(); retry.style.display = "none"; open.style.display = "none"; check();
+  });
+  setInterval(tick, 500); tick(); check();
+})();
+</script>
+</body>
+</html>

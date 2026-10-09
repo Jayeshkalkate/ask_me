@@ -14,6 +14,7 @@ urlpatterns = [
         ),
     ),
     path("admin/", admin.site.urls),
+    path("healthz/", views.healthz, name="healthz"),
     path("sw.js", views.service_worker, name="service_worker"),
     path("offline.html", views.offline_page, name="offline_page"),
     path("", include(("core.urls", "core"), namespace="core")),
